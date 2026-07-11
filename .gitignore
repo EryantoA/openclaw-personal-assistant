@@ -1,0 +1,15 @@
+# Kredensial & config asli — jangan pernah commit (isi dengan API key/token nyata)
+openclaw.json
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Backup & export otomatis (data pribadi keluarga, dibuat ulang oleh backup.sh)
+data/backups/*
+
+# Local Claude Code settings (khusus environment lokal)
+.claude/settings.local.json

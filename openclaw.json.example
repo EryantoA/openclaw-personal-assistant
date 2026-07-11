@@ -1,0 +1,58 @@
+{
+  "env": {
+    "GROQ_API_KEY": "gsk_...",
+    "DEEPSEEK_API_KEY": "sk-...",
+    "ANTHROPIC_API_KEY": "ISI_DENGAN_ANTHROPIC_API_KEY_KAMU"
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "groq/llama-3.3-70b-versatile",
+        "fallbacks": [
+          "deepseek/deepseek-chat",
+          "anthropic/claude-sonnet-4-6"
+        ]
+      },
+      "systemPrompt": "Kamu adalah asisten pencatatan keuangan keluarga yang ramah dan teliti. Tugasmu adalah membantu mencatat pengeluaran belanja, menganalisis receipt/struk, dan membuat laporan keuangan. Selalu konfirmasi setiap pencatatan dengan ringkasan yang jelas. Gunakan Bahasa Indonesia.",
+      "skills": ["bill-tracker"],
+      "tools": ["image", "read", "write", "code_execution", "message"]
+    },
+    "crons": [
+      {
+        "id": "laporan_mingguan",
+        "schedule": "0 20 * * 0",
+        "message": "Waktunya laporan mingguan! Buat ringkasan pengeluaran keluarga minggu ini dari file data/bills.csv. Sertakan: total per kategori, persentase, transaksi terbesar, perbandingan minggu lalu. Cek juga tagihan yang jatuh tempo minggu depan dari kolom jatuh_tempo di CSV. Kirim laporan ke semua channel.",
+        "channels": ["telegram", "whatsapp"]
+      },
+      {
+        "id": "backup_harian",
+        "schedule": "0 2 * * *",
+        "message": "Jalankan backup harian: eksekusi perintah bash `bash scripts/backup.sh` menggunakan tool code_execution. Script ini membuat salinan CSV harian sekaligus file Excel per-bulan (bills_export_YYYYMMDD_HHMMSS.xlsx). Jika backup berhasil, catat hasilnya. Jangan kirim notifikasi ke channel kecuali ada error.",
+        "channels": []
+      },
+      {
+        "id": "reminder_jatuh_tempo",
+        "schedule": "0 9 * * *",
+        "message": "Cek tagihan jatuh tempo hari ini: jalankan `python3 scripts/check-bills.py --mode jatuh_tempo --days 7` menggunakan tool code_execution. Jika ada tagihan yang jatuh tempo dalam 7 hari ke depan, kirim reminder ke semua channel. Jika tidak ada, jangan kirim apapun.",
+        "channels": ["telegram", "whatsapp"]
+      },
+      {
+        "id": "cek_budget_malam",
+        "schedule": "0 20 * * 1-6",
+        "message": "Cek status budget malam ini: jalankan `python3 scripts/check-bills.py --mode budget` menggunakan tool code_execution. Jika pengeluaran sudah mencapai threshold alert, kirim peringatan ke semua channel. Jika belum mencapai threshold, jangan kirim apapun.",
+        "channels": ["telegram", "whatsapp"]
+      }
+    ]
+  },
+  "channels": {
+    "telegram": {
+      "token": "TOKEN_BOT_TELEGRAM_KAMU",
+      "allowFrom": []
+    },
+    "whatsapp": {
+      "allowFrom": [
+        "+628XXXXXXXXXX"
+      ]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "budget_bulanan": 0,
+  "alert_persen": 80,
+  "kategori_custom": [],
+  "duplicate_check": {
+    "aktif": true,
+    "match_fields": ["tanggal", "waktu", "jumlah"],
+    "aksi": "tolak"
+  },
+  "keterangan": {
+    "budget_bulanan": "Budget pengeluaran per bulan dalam Rupiah. 0 = belum diset.",
+    "alert_persen": "Kirim alert saat pengeluaran mencapai persentase ini (0-100).",
+    "kategori_custom": "Daftar kategori tambahan yang dibuat via chat. Contoh: [\"Investasi\", \"Donasi\"]",
+    "duplicate_check": "Aturan deteksi duplikat. 'aktif': true/false. 'match_fields': daftar kolom yang harus SAMA SEMUA baru dianggap duplikat (pilihan: tanggal, waktu, jumlah, item, kategori, catatan, pengirim; 'jumlah' = total harga). 'aksi': 'tolak' (tidak dicatat) atau 'warning' (beri peringatan, catat jika dikonfirmasi)."
+  }
+}
