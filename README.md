@@ -297,16 +297,22 @@ openclaw start --debug
 File `data/bills.csv` menyimpan semua transaksi (pemasukan & pengeluaran):
 
 ```csv
-tanggal,tipe,kategori,item,jumlah,catatan,channel,pengirim,jatuh_tempo,waktu,no_resi
-2026-05-20,pengeluaran,Makanan,Beras 5kg,75000,,telegram,Ayah,,14:05,TRX-20260520-4821
-2026-05-20,pengeluaran,Tagihan,Listrik PLN,150000,token listrik,whatsapp,Ibu,2026-06-01,09:30,STRUK-3f9ab12c
-2026-05-25,pemasukan,Gaji,Gaji bulanan,5000000,,whatsapp,Ayah,,08:00,TRX-20260525-0117
+tanggal,tipe,kategori,tempat,item,jumlah,catatan,channel,pencatat,waktu,no_resi
+2026-05-20,pengeluaran,groceries,Indomaret,Beras 5kg,75000,,telegram,Ayah,14:05,TRX-20260520-4821
+2026-05-20,pengeluaran,utilities,,Listrik PLN,150000,token listrik via GoPay,whatsapp,Ibu,09:30,STRUK-3f9ab12c
+2026-05-25,pemasukan,salary,,Gaji bulanan,5000000,,whatsapp,Ayah,08:00,TRX-20260525-0117
 ```
 
 - Kolom `tipe`: `pemasukan` atau `pengeluaran`. Budget hanya menghitung `pengeluaran`.
+- Kolom `kategori`: selalu slug Inggris huruf kecil. Daftar lengkapnya di `data/budget.json` → `kategori_custom`.
+- Kolom `tempat`: nama toko/kedai. Bank & e-wallet **bukan** tempat — itu cara bayar, tulis di `catatan`.
+- Kolom `pencatat`: siapa yang mencatat — belum tentu yang membelanjakan.
 - Kolom `waktu`: jam transaksi (`HH:MM`). Dari jam tercetak di struk bila ada, kalau tidak = jam input.
 - Kolom `no_resi`: identitas unik tiap transaksi. Struk pakai nomor tercetak (`STRUK-...`), chat auto-generate
-  (`TRX-YYYYMMDD-XXXX`). Dipakai untuk menandai transaksi sudah masuk & mencegah duplikat.
+  (`TRX-YYYYMMDD-XXXX`), baris impor riwayat (`IMP-<id sumber>`). Dipakai untuk mencegah duplikat.
+
+> 🔒 `data/bills.csv` sengaja **tidak dilacak git** (lihat `docs/adr/0004`). Yang ada di repo cuma
+> `data/bills.csv.example` berisi barisan header.
 - Bisa dibuka langsung di Excel / Google Sheets untuk analisis lebih lanjut.
 
 ### 🧾 No Resi & Deteksi Duplikat
@@ -325,7 +331,7 @@ Aturan duplikat bisa diatur di `data/budget.json` → blok `duplicate_check`:
 ```
 
 - `match_fields`: kolom yang harus **sama semua** baru dianggap duplikat. Pilihan:
-  `tanggal`, `waktu`, `jumlah` (= total harga), `item`, `kategori`, `catatan`, `pengirim`.
+  `tanggal`, `waktu`, `jumlah` (= total harga), `item`, `kategori`, `catatan`, `pencatat`, `tempat`.
 - `aksi`: `tolak` (tidak dicatat) atau `warning` (diberi peringatan, tetap dicatat bila dikonfirmasi).
 
 Cek manual apakah sebuah resi sudah tercatat:

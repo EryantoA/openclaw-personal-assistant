@@ -19,7 +19,7 @@ Mode:
       LAPIS 1: cek apakah no_resi persis sudah ada di bills.csv.
       Ada -> print "DUPLICATE ..." (exit 1). Tidak -> print "OK ..." (exit 0).
 
-  --check-dup --tanggal <tgl> --waktu <jam> --total <angka> [--item .. --kategori .. --catatan .. --pengirim ..]
+  --check-dup --tanggal <tgl> --waktu <jam> --total <angka> [--item .. --kategori .. --catatan .. --pencatat .. --tempat ..]
       LAPIS 2: cek duplikat berbasis aturan multi-field yang dikonfigurasi di
       data/budget.json -> duplicate_check.match_fields. Semua field yang
       dikonfigurasi harus cocok baru dianggap duplikat.
@@ -54,17 +54,17 @@ DATA_DIR = PROJECT_DIR / "data"
 BILLS_CSV = DATA_DIR / "bills.csv"
 BUDGET_JSON = DATA_DIR / "budget.json"
 
-# Header lengkap (kolom baru `waktu` & `no_resi` di akhir demi kompatibilitas data lama)
+# Header lengkap (kolom `waktu` & `no_resi` di akhir demi kompatibilitas data lama)
 COLUMNS = [
     "tanggal",
     "tipe",
     "kategori",
+    "tempat",
     "item",
     "jumlah",
     "catatan",
     "channel",
-    "pengirim",
-    "jatuh_tempo",
+    "pencatat",
     "waktu",
     "no_resi",
 ]
@@ -76,7 +76,7 @@ DEFAULT_DUPLICATE_CHECK = {
 }
 
 # Field yang valid untuk match_fields (harus nama kolom CSV yang bisa dibandingkan)
-VALID_MATCH_FIELDS = {"tanggal", "waktu", "jumlah", "item", "kategori", "catatan", "pengirim"}
+VALID_MATCH_FIELDS = {"tanggal", "waktu", "jumlah", "item", "kategori", "catatan", "pencatat", "tempat"}
 
 
 # ── Loaders ──────────────────────────────────────────────────
@@ -142,7 +142,7 @@ def norm_field(field: str, value) -> str:
     """Normalisasi nilai per nama field untuk perbandingan duplikat."""
     if field == "jumlah":
         return norm_total(value)
-    if field in ("item", "kategori", "catatan", "pengirim"):
+    if field in ("item", "kategori", "catatan", "pencatat", "tempat"):
         return norm_text(value)
     # tanggal, waktu: bandingkan apa adanya (trim)
     return str(value or "").strip()
@@ -227,7 +227,8 @@ def do_check_dup(args) -> int:
         "item": args.item,
         "kategori": args.kategori,
         "catatan": args.catatan,
-        "pengirim": args.pengirim,
+        "pencatat": args.pencatat,
+        "tempat": args.tempat,
     }
 
     missing = [f for f in fields if candidate.get(f) in (None, "")]
@@ -358,7 +359,8 @@ def main() -> int:
     parser.add_argument("--item")
     parser.add_argument("--kategori")
     parser.add_argument("--catatan")
-    parser.add_argument("--pengirim")
+    parser.add_argument("--pencatat")
+    parser.add_argument("--tempat")
 
     args = parser.parse_args()
 

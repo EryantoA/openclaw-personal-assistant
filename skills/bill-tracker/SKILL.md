@@ -66,21 +66,44 @@ Pesan konfirmasi pemasukan:
 
 Kategorikan setiap transaksi ke salah satu kategori berikut. Selalu baca `data/budget.json` untuk melihat apakah ada **kategori custom** yang ditambah pengguna.
 
-### Kategori Bawaan
+Kategori **selalu slug Inggris huruf kecil** (`snake_case`), bukan Bahasa Indonesia. Ini
+berlaku walaupun seluruh percakapan lain memakai Bahasa Indonesia — kategori adalah nilai
+data, bukan teks yang dibaca pengguna.
+
+### Kategori Berlaku
 | Kategori | Contoh |
 |----------|--------|
-| `Makanan` | beras, minyak, sayur, buah, daging, makan di luar |
-| `Minuman` | air minum, minuman kemasan, kopi |
-| `Kebersihan` | sabun, sampo, deterjen, pel lantai |
-| `Kesehatan` | obat, vitamin, dokter, apotek |
-| `Tagihan` | listrik, air, internet, gas, BPJS |
-| `Transportasi` | bensin, parkir, ojek, angkot |
-| `Pendidikan` | buku, alat tulis, SPP |
-| `Hiburan` | streaming, jajan anak, mainan |
-| `Lainnya` | semua yang tidak masuk kategori di atas |
+| `food` | makan di luar, kopi, jajan, gofood, kue |
+| `groceries` | belanja swalayan, beras, susu, sayur, tisu |
+| `transport` | bensin, parkir, ojek, go car, bajaj |
+| `health` | obat, vitamin, dokter, BPJS, gym, medical check up |
+| `utilities` | listrik, air, internet, pulsa, paket data, top-up e-wallet |
+| `salary` | gaji bulanan, THR |
+| `bonus` | bonus, insentif |
+| `consulting` | honor pengawas ujian, bimbingan, jasa profesional |
+| `clothing` | baju, celana, tas, sepatu |
+| `shopping` | belanja online, marketplace, barang non-pangan |
+| `subscription` | langganan software, streaming, kredit AI |
+| `communication` | pulsa telepon, kartu perdana |
+| `personal_care` | potong rambut, sabun, sampo, alat cukur |
+| `beauty` | skincare, kosmetik, perawatan wajah |
+| `insurance` | premi asuransi |
+| `education` | buku, alat tulis, SPP, kursus |
+| `entertainment` | bioskop, mainan, hiburan |
+| `event` | pendaftaran acara, undangan, kondangan |
+| `donation` | infaq, sedekah, zakat, amal |
+| `jewelry` | cincin, emas, perhiasan |
+| `pet` | makanan & keperluan hewan peliharaan |
+| `other` | semua yang tidak masuk kategori di atas |
 
-### Kategori Custom
-Baca `data/budget.json` → field `kategori_custom`. Tambahkan ke daftar kategori yang tersedia.
+### Acuan Kategori
+`data/budget.json` → field `kategori_custom` adalah **daftar lengkap dan satu-satunya acuan**.
+Tabel di atas hanyalah penjelasan artinya. Selalu baca `budget.json` di awal sesi; kalau ada
+slug di sana yang belum ada di tabel ini, slug itu tetap sah dipakai.
+
+> ⚠️ Jangan pernah menulis kategori Bahasa Indonesia seperti `Makanan` atau `Tagihan`.
+> Seluruh riwayat memakai slug Inggris — mencampur keduanya membuat laporan per kategori
+> terpecah jadi dua kelompok yang tidak pernah bertemu.
 
 ---
 
@@ -106,6 +129,10 @@ Setiap transaksi **harus** punya `waktu` dan `no_resi`. Tentukan keduanya **sebe
    python3 scripts/resi.py --gen
    ```
    Hasilnya berformat `TRX-YYYYMMDD-XXXX`.
+4. **Baris hasil impor riwayat** (dari aplikasi keuangan lain) → `IMP-<id sumber>`, mis.
+   `IMP-262`. Bukan struk dan bukan chat, jadi tidak memakai `STRUK-` maupun `TRX-`. Kamu
+   tidak pernah membuat ini saat mencatat dari pesan — awalan ini hanya muncul pada data
+   yang diimpor massal.
 
 > **Struk banyak item = SATU `no_resi` sama** untuk semua barisnya (bukan resi berbeda per item).
 
@@ -145,21 +172,29 @@ Jika keduanya `OK` → lanjut simpan.
 Simpan setiap transaksi ke file `data/bills.csv` dengan format (kolom `waktu` & `no_resi` di **akhir**):
 
 ```
-tanggal,tipe,kategori,item,jumlah,catatan,channel,pengirim,jatuh_tempo,waktu,no_resi
-2025-01-15,pengeluaran,Makanan,Beras 5kg,75000,,telegram,Ayah,,14:05,TRX-20250115-4821
-2025-01-15,pengeluaran,Tagihan,Listrik PLN,150000,token listrik,whatsapp,Ibu,2025-02-05,09:30,STRUK-000123
-2025-01-25,pemasukan,Gaji,Gaji bulanan,5000000,,whatsapp,Ayah,,08:00,TRX-20250125-0117
+tanggal,tipe,kategori,tempat,item,jumlah,catatan,channel,pencatat,waktu,no_resi
+2025-01-15,pengeluaran,groceries,Indomaret,Beras 5kg,75000,,telegram,Ayah,14:05,TRX-20250115-4821
+2025-01-15,pengeluaran,utilities,,Listrik PLN,150000,token listrik via GoPay,whatsapp,Ibu,09:30,STRUK-000123
+2025-01-25,pemasukan,salary,,Gaji bulanan,5000000,,whatsapp,Ayah,08:00,TRX-20250125-0117
 ```
 
 > **Catatan kolom `tipe`**: Isi `pemasukan` untuk uang masuk (gaji, bonus, dsb) dan `pengeluaran` untuk uang keluar (belanja, tagihan). Jika ragu, default `pengeluaran`. Baris lama tanpa kolom ini tetap dianggap `pengeluaran`.
 
-> **Catatan kolom `jatuh_tempo`**: Isi tanggal jatuh tempo (format YYYY-MM-DD) jika pengguna menyebutnya (contoh: "listrik jatuh tempo 5 Februari"). Kosongkan jika tidak disebutkan. Umumnya hanya relevan untuk `pengeluaran`.
+> **Catatan kolom `channel`**: Asal baris ini, bukan sekadar saluran pesan. Isi `whatsapp` atau
+> `telegram` untuk transaksi yang kamu catat dari pesan; baris hasil impor massal memakai nama
+> aplikasi sumbernya (mis. `keuangan-keluarga`). Ini yang membuat data impor gampang disaring
+> atau dicopot tanpa menyentuh catatan harian.
+
+> **Catatan kolom `tempat`**: Nama toko, kedai, atau penyedia jasa tempat transaksi terjadi —
+> `Budiman Swalayan`, `Rumah Tani Coffee`, `Indomaret`. Kosongkan kalau memang tidak ada
+> tempatnya (`infaq`, `bensin`, `gym`). **Bank dan e-wallet bukan tempat**: `Livin' by Mandiri`,
+> `GoPay`, `Shopee Pay` itu cara bayar — tulis di `catatan`, bukan di `tempat`.
 
 > **Catatan kolom `waktu` & `no_resi`**: Selalu diisi (lihat bagian di atas). Baris lama tanpa dua kolom ini tetap valid dan dibaca sebagai kosong; isi otomatis dengan `python3 scripts/resi.py --backfill`.
 
 ### Kode untuk Menyimpan (gunakan tool `write`):
 1. Baca file `data/bills.csv` terlebih dahulu (tool `read`)
-2. Jika file belum ada, buat header: `tanggal,tipe,kategori,item,jumlah,catatan,channel,pengirim,jatuh_tempo,waktu,no_resi`
+2. Jika file belum ada, buat header: `tanggal,tipe,kategori,tempat,item,jumlah,catatan,channel,pencatat,waktu,no_resi`
 3. Pastikan sudah menentukan `waktu` + `no_resi` dan **lolos cek duplikat** (lihat 2 bagian di atas)
 4. Tambahkan baris baru di akhir
 5. Simpan kembali
@@ -176,7 +211,7 @@ Setelah mencatat, selalu kirim konfirmasi yang jelas:
 ✅ Berhasil dicatat!
 
 📦 Item: Beras 5kg
-📂 Kategori: Makanan
+📂 Kategori: groceries
 💰 Jumlah: Rp 75.000
 📅 Tanggal: 15 Jan 2025  🕒 14:05
 🧾 No Resi: TRX-20250115-4821
@@ -192,16 +227,11 @@ Untuk foto struk dengan banyak item:
 📅 Tanggal: 15 Jan 2025  🕒 09:30
 🧾 No Resi: STRUK-000123
 📋 3 item dicatat:
-  • Beras 5kg — Rp 75.000 (Makanan)
-  • Sabun Mandi — Rp 8.500 (Kebersihan)
-  • Aqua 1500ml — Rp 5.000 (Minuman)
+  • Beras 5kg — Rp 75.000 (groceries)
+  • Sabun Mandi — Rp 8.500 (personal_care)
+  • Aqua 1500ml — Rp 5.000 (food)
 
 💳 Total: Rp 88.500
-```
-
-Jika tagihan memiliki jatuh tempo, tambahkan:
-```
-📅 Jatuh Tempo: 5 Feb 2025 (19 hari lagi)
 ```
 
 Setelah konfirmasi, cek budget otomatis (lihat bagian Cek Budget Otomatis).
@@ -217,11 +247,11 @@ Response format:
 ```
 📊 Pengeluaran Hari Ini — 15 Jan 2025
 
-Makanan:      Rp 125.000
-Tagihan:      Rp 150.000
-Kebersihan:   Rp  18.500
+food:          Rp 125.000
+utilities:     Rp 150.000
+personal_care: Rp  18.500
 ─────────────────────────
-Total:        Rp 293.500
+Total:         Rp 293.500
 
 📝 5 transaksi tercatat
 ```
@@ -238,8 +268,11 @@ Trigger: `laporan per bulan`, `rekap per bulan`, `breakdown bulanan`, `laporan s
 Langkah:
 1. Baca `data/bills.csv`
 2. Kelompokkan transaksi per bulan berdasarkan kolom `tanggal` → kunci `YYYY-MM`
-3. Untuk **tiap bulan** (urut kronologis), hitung total `pemasukan`, total `pengeluaran`, dan saldo
-4. Tampilkan **terpisah per bulan** — jangan digabung jadi satu total
+3. Untuk **tiap bulan** (urut kronologis), hitung total `pemasukan`, total `pengeluaran`, dan
+   **Arus Kas Bulan** (= pemasukan − pengeluaran bulan itu saja)
+4. Hitung **Saldo** secara **kumulatif**: saldo bulan lalu + arus kas bulan ini. Saldo dibawa
+   terus antar bulan — ia sisa kas, bukan selisih bulanan
+5. Tampilkan **terpisah per bulan** — jangan digabung jadi satu total
 
 Response format:
 ```
@@ -248,16 +281,22 @@ Response format:
 ▸ Januari 2025
   📥 Pemasukan:   Rp 5.000.000
   📤 Pengeluaran: Rp 2.850.000
-  💚 Saldo:       Rp 2.150.000  (12 transaksi)
+  💚 Arus Kas:    Rp 2.150.000  (12 transaksi)
+  🏦 Saldo:       Rp 2.150.000
 
 ▸ Februari 2025
   📥 Pemasukan:   Rp 5.000.000
   📤 Pengeluaran: Rp 6.200.000
-  🔴 Saldo:       -Rp 1.200.000  (18 transaksi)
+  🔴 Arus Kas:    -Rp 1.200.000  (18 transaksi)
+  🏦 Saldo:       Rp 950.000
 
 ─────────────────────────
-Total 2 bulan — Saldo keseluruhan: Rp 950.000
+Saldo terakhir (akhir Februari 2025): Rp 950.000
 ```
+
+> ⚠️ **Jangan tukar dua istilah ini.** `Arus Kas Bulan` berdiri sendiri per bulan; `Saldo`
+> selalu kumulatif dan dibawa antar bulan. Menjumlahkan kolom `Saldo` antar bulan tidak
+> bermakna — saldo keseluruhan = saldo bulan terakhir, bukan penjumlahan.
 
 > 💡 Untuk versi Excel per-bulan (satu sheet tiap bulan), lihat bagian **Fitur Backup** → `export excel`.
 
@@ -292,6 +331,11 @@ Hapus baris terakhir di CSV dan konfirmasi.
 ---
 
 ## 💰 Fitur Budget
+
+> **Budget aktif saat ini: Rp 7.000.000/bulan**, alert di 80% (Rp 5.600.000). Dikalibrasi dari
+> belanja rutin Apr–Jul 2026 (median Rp 6,9 juta di luar transaksi ≥ Rp 1 juta). Angka pasti
+> selalu dibaca dari `data/budget.json`, bukan dari catatan ini — contoh-contoh di bawah cuma
+> ilustrasi format.
 
 ### Set Budget Bulanan
 Trigger: `set budget [nominal]`, `atur budget [nominal]`
@@ -415,14 +459,13 @@ Trigger: `daftar kategori`, `kategori apa saja`, `list kategori`
 
 Response:
 ```
-📋 Daftar Kategori
+📋 Daftar Kategori (22)
 
-🔹 Bawaan (9):
-  Makanan · Minuman · Kebersihan · Kesehatan
-  Tagihan · Transportasi · Pendidikan · Hiburan · Lainnya
-
-🔸 Custom (2):
-  Investasi · Donasi
+  food · groceries · transport · health · utilities
+  salary · bonus · consulting · clothing · shopping
+  subscription · communication · personal_care · beauty
+  insurance · education · entertainment · event
+  donation · jewelry · pet · other
 
 💡 Tambah: tambah kategori [nama]
 💡 Hapus: hapus kategori [nama]
@@ -430,48 +473,16 @@ Response:
 
 ---
 
-## ⏰ Fitur Tagihan Jatuh Tempo
-
-### Catat dengan Jatuh Tempo
-Saat pengguna menyebutkan jatuh tempo, ekstrak tanggalnya:
-- "listrik jatuh tempo 5 Feb" → `jatuh_tempo: 2025-02-05`
-- "BPJS deadline 15 januari" → `jatuh_tempo: 2025-01-15`
-- "tagihan air tempo 20" → interpretasi: tanggal 20 bulan depan
-
-### Lihat Jatuh Tempo Mendatang
-Trigger: `jatuh tempo`, `tagihan jatuh tempo`, `bills upcoming`, `reminder tagihan`
-
-Langkah:
-1. Baca `data/bills.csv`
-2. Filter baris yang punya `jatuh_tempo` tidak kosong
-3. Urutkan dari yang terdekat
-4. Tampilkan yang jatuh tempo dalam 30 hari ke depan
-
-Response:
-```
-⏰ Tagihan Jatuh Tempo Mendatang
-
-🔴 3 hari lagi  — Listrik PLN   Rp 150.000  (5 Feb)
-🟡 10 hari lagi — BPJS          Rp  85.000  (12 Feb)
-🟢 25 hari lagi — Internet      Rp 250.000  (27 Feb)
-
-Total tagihan jatuh tempo: Rp 485.000
-```
-
-Status warna:
-- 🔴 ≤ 3 hari
-- 🟡 4-7 hari
-- 🟢 8-30 hari
-
----
 
 ## 💾 Fitur Backup
 
 Setiap backup menghasilkan file di `data/backups/`:
 - `bills_YYYYMMDD.csv` — salinan mentah seluruh transaksi (semua bulan), **termasuk kolom `no_resi` & `waktu`**.
 - `bills_export_YYYYMMDD_HHMMSS.xlsx` — **Excel dipisah per bulan**: satu sheet `Ringkasan` +
-  satu sheet per bulan (`2025-01`, `2025-02`, ...), lengkap dengan Total Pemasukan,
-  Total Pengeluaran, dan Saldo tiap bulan. Kolom **`no_resi`** ditampilkan paling kiri tiap sheet.
+  satu sheet per bulan (`2025-01`, `2025-02`, ...). Tiap sheet bulan memuat Total Pemasukan,
+  Total Pengeluaran, **Arus Kas Bulan**, serta **Saldo Awal Bulan** dan **Saldo Akhir Bulan**.
+  Sheet `Ringkasan` punya kolom `Arus Kas Bulan` (berdiri sendiri) dan `Saldo Akhir`
+  (kumulatif). Kolom **`no_resi`** ditampilkan paling kiri tiap sheet.
 
 > 🆕 **File Excel baru tiap export**: nama file memakai stempel waktu sampai detik
 > (`bills_export_YYYYMMDD_HHMMSS.xlsx`), jadi **tiap kali diminta export, file baru dibuat** — tidak
@@ -537,12 +548,12 @@ Format laporan mingguan yang dikirim otomatis setiap Minggu pukul 20:00:
 Periode: 10 - 16 Jan 2025
 
 💸 PENGELUARAN PER KATEGORI:
-🍚 Makanan & Minuman:  Rp 450.000  (38%)
-🧹 Kebersihan:         Rp  95.000   (8%)
-⚡ Tagihan:            Rp 320.000  (27%)
-🚗 Transportasi:       Rp  85.000   (7%)
-💊 Kesehatan:          Rp  45.000   (4%)
-📦 Lainnya:            Rp 185.000  (16%)
+🍚 food:           Rp 450.000  (38%)
+🧹 personal_care:  Rp  95.000   (8%)
+⚡ utilities:      Rp 320.000  (27%)
+🚗 transport:      Rp  85.000   (7%)
+💊 health:         Rp  45.000   (4%)
+📦 other:          Rp 185.000  (16%)
 
 💰 TOTAL MINGGU INI:   Rp 1.180.000
 📝 Total transaksi: 23
@@ -555,12 +566,6 @@ Periode: 10 - 16 Jan 2025
 Semangat menabung minggu depan! 🎯
 ```
 
-Jika ada tagihan jatuh tempo minggu depan, tambahkan:
-```
-⏰ REMINDER TAGIHAN MINGGU DEPAN:
-• Listrik PLN — Rp 150.000 (jatuh tempo 20 Jan)
-• BPJS — Rp 85.000 (jatuh tempo 22 Jan)
-```
 
 ---
 
@@ -571,7 +576,7 @@ Jika ada tagihan jatuh tempo minggu depan, tambahkan:
 3. **Gunakan bahasa Indonesia** yang ramah dan natural
 4. **Format angka** selalu dengan titik pemisah ribuan: `Rp 75.000`
 5. **Tanggal** selalu gunakan tanggal hari ini kecuali struk menunjukkan tanggal berbeda
-6. **Catat pengirim** — simpan info siapa yang mencatat (Ayah/Ibu/nama) berdasarkan nomor HP atau username Telegram
+6. **Catat pencatat** — simpan info siapa yang mencatat (Ayah/Ibu/nama) berdasarkan nomor HP atau username Telegram
 7. **Emoji** boleh digunakan untuk membuat pesan lebih menarik
 8. **Baca budget.json** di awal setiap sesi untuk memuat kategori custom dan budget aktif
 9. **Cek budget** otomatis setiap kali ada transaksi baru dicatat

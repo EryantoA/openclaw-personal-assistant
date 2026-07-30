@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-check-bills.py — Scanner tagihan jatuh tempo & budget alert
+check-bills.py — Budget alert
 Dijalankan via openclaw cron atau code_execution tool.
 
+Fitur jatuh tempo dibuang: 0 dari 272 baris pernah memakainya selama 4 bulan, dan seluruh
+tagihan keluarga ini prabayar. Lihat docs/adr/0003-buku-kas-bukan-perencana-tagihan.md.
+
 Usage:
-  python3 scripts/check-bills.py --mode jatuh_tempo
   python3 scripts/check-bills.py --mode budget
   python3 scripts/check-bills.py --mode all
 """
@@ -14,7 +16,7 @@ import json
 import os
 import sys
 import argparse
-from datetime import datetime, date, timedelta
+from datetime import date
 from pathlib import Path
 
 # ── Paths ────────────────────────────────────────────────────
@@ -57,104 +59,6 @@ def load_bills() -> list[dict]:
 def format_rupiah(amount: float) -> str:
     """Format angka ke format Rupiah."""
     return f"Rp {amount:,.0f}".replace(",", ".")
-
-
-def days_label(days: int) -> str:
-    """Buat label hari yang ramah."""
-    if days == 0:
-        return "Hari ini"
-    elif days == 1:
-        return "Besok"
-    elif days < 0:
-        return f"{abs(days)} hari lalu (TERLEWAT!)"
-    else:
-        return f"{days} hari lagi"
-
-
-def status_emoji(days: int) -> str:
-    """Emoji status berdasarkan jarak hari."""
-    if days < 0:
-        return "⛔"
-    elif days <= 3:
-        return "🔴"
-    elif days <= 7:
-        return "🟡"
-    else:
-        return "🟢"
-
-
-# ── Mode: Cek Jatuh Tempo ────────────────────────────────────
-def check_jatuh_tempo(days_ahead: int = 7) -> str:
-    """Scan tagihan yang jatuh tempo dalam N hari ke depan."""
-    bills = load_bills()
-    today = date.today()
-    cutoff = today + timedelta(days=days_ahead)
-
-    upcoming = []
-    overdue = []
-
-    for row in bills:
-        jatuh_tempo_str = row.get("jatuh_tempo", "").strip()
-        if not jatuh_tempo_str:
-            continue
-        try:
-            jt_date = datetime.strptime(jatuh_tempo_str, "%Y-%m-%d").date()
-        except ValueError:
-            continue
-
-        days_diff = (jt_date - today).days
-        item = row.get("item", "Tagihan")
-        try:
-            jumlah = float(row.get("jumlah", 0))
-        except (ValueError, TypeError):
-            jumlah = 0
-
-        entry = {
-            "item": item,
-            "jumlah": jumlah,
-            "jatuh_tempo": jt_date,
-            "days": days_diff,
-        }
-
-        if days_diff < 0:
-            overdue.append(entry)
-        elif days_diff <= days_ahead:
-            upcoming.append(entry)
-
-    # Sort berdasarkan hari
-    overdue.sort(key=lambda x: x["days"])
-    upcoming.sort(key=lambda x: x["days"])
-
-    all_items = overdue + upcoming
-
-    if not all_items:
-        return f"✅ Tidak ada tagihan jatuh tempo dalam {days_ahead} hari ke depan."
-
-    lines = ["⏰ REMINDER TAGIHAN JATUH TEMPO", ""]
-
-    if overdue:
-        lines.append("⛔ SUDAH TERLEWAT:")
-        for item in overdue:
-            label = days_label(item["days"])
-            lines.append(
-                f"  ⛔ {label:20s} — {item['item']:<20s}  {format_rupiah(item['jumlah'])}"
-            )
-        lines.append("")
-
-    if upcoming:
-        lines.append(f"📋 Jatuh tempo {days_ahead} hari ke depan:")
-        for item in upcoming:
-            emoji = status_emoji(item["days"])
-            label = days_label(item["days"])
-            lines.append(
-                f"  {emoji} {label:20s} — {item['item']:<20s}  {format_rupiah(item['jumlah'])}"
-            )
-        lines.append("")
-
-    total = sum(i["jumlah"] for i in all_items)
-    lines.append(f"💰 Total perlu dibayar: {format_rupiah(total)}")
-
-    return "\n".join(lines)
 
 
 # ── Mode: Cek Budget ─────────────────────────────────────────
@@ -221,48 +125,23 @@ def check_budget() -> str:
 
 # ── Mode: All (untuk cron harian) ────────────────────────────
 def check_all() -> str:
-    """Jalankan semua checks, gabungkan hasilnya."""
-    parts = []
-
-    # Jatuh tempo (7 hari ke depan untuk cron harian)
-    jt_result = check_jatuh_tempo(days_ahead=7)
-    if jt_result:
-        parts.append(jt_result)
-
-    # Budget
-    budget_result = check_budget()
-    if budget_result:
-        parts.append(budget_result)
-
-    if not parts:
-        return "✅ Semua lancar! Tidak ada tagihan jatuh tempo dan budget masih aman."
-
-    return "\n\n─────────────────────\n\n".join(parts)
+    """Jalankan semua checks. Saat ini hanya budget — lihat docs/adr/0003."""
+    result = check_budget()
+    return result if result else "✅ Semua lancar! Budget masih aman."
 
 
 # ── Main ─────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="Bill checker untuk Family Bill Tracker")
+    parser = argparse.ArgumentParser(description="Budget checker untuk Family Bill Tracker")
     parser.add_argument(
         "--mode",
-        choices=["jatuh_tempo", "budget", "all"],
+        choices=["budget", "all"],
         default="all",
         help="Mode pengecekan",
     )
-    parser.add_argument(
-        "--days",
-        type=int,
-        default=7,
-        help="Jumlah hari ke depan untuk cek jatuh tempo (default: 7)",
-    )
     args = parser.parse_args()
 
-    if args.mode == "jatuh_tempo":
-        result = check_jatuh_tempo(days_ahead=args.days)
-    elif args.mode == "budget":
-        result = check_budget()
-    else:
-        result = check_all()
+    result = check_budget() if args.mode == "budget" else check_all()
 
     if result:
         print(result)

@@ -13,3 +13,19 @@ data/backups/*
 
 # Local Claude Code settings (khusus environment lokal)
 .claude/settings.local.json
+
+# Catatan transaksi keluarga — data pribadi, jangan pernah commit.
+# Bentuk kolomnya ada di data/bills.csv.example (header saja), pola yang sama
+# dipakai openclaw.json / openclaw.json.example untuk kredensial.
+data/bills.csv
+data/*.bak
+
+# Artefak workspace OpenClaw — state lokal mesin & data pribadi yang menumpuk
+# (USER.md profil pengguna, TOOLS.md host SSH, media/ foto struk masuk)
+media/
+openclaw-workspace-state.json
+USER.md
+TOOLS.md
+SOUL.md
+IDENTITY.md
+HEARTBEAT.md
