@@ -26,6 +26,11 @@ sehingga angka itu berhenti mencerminkan uang masuk sungguhan. Siapa pun yang in
 riil harus mengecualikan baris berkategori saldo awal. Keputusan apakah `export-excel.py`
 melakukan pengecualian itu otomatis masih terbuka, menunggu nominal saldo awalnya diketahui.
 
+> **Ditutup oleh [0008](0008-saldo-awal-20-5-juta-dan-koreksi-rekonsiliasi.md)** (31 Jul 2026):
+> nominalnya diketahui (Rp 20.500.000, kategori `opening_balance`, `no_resi = SALDO-AWAL`), dan
+> jawabannya **ya** — `export-excel.py` mengecualikannya dari `Total Pemasukan` dan `Arus Kas
+> Bulan`, tapi tetap memasukkannya ke rantai `Saldo`.
+
 Pendekatan lain yang sempat dipakai dan **dibatalkan**: menyisipkan baris `adjustment` per
 bulan untuk menolkan saldo bulan-bulan yang minus. Cara itu mengarang Rp 21.054.246 pemasukan
 yang tidak pernah ada dan merusak justru angka yang paling dipedulikan. Jangan diulang.

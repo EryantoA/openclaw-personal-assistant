@@ -49,6 +49,16 @@ COLUMNS = [
 
 NO_DATE_SHEET = "Tanpa Tanggal"
 
+# Kategori penanda Saldo Awal — kas yang sudah dimiliki sebelum transaksi pertama tercatat.
+# Barisnya bertipe `pemasukan` (lihat docs/adr/0001) tapi BUKAN uang masuk: tidak ada yang
+# berpindah saat itu. Karena itu ia dikeluarkan dari Total Pemasukan dan Arus Kas Bulan,
+# dan hanya ikut menyeed rantai Saldo. Lihat docs/adr/0008.
+KATEGORI_SALDO_AWAL = "opening_balance"
+
+
+def is_saldo_awal(row: dict) -> bool:
+    return (row.get("kategori") or "").strip().lower() == KATEGORI_SALDO_AWAL
+
 # ── Styling ──────────────────────────────────────────────────
 HEADER_FONT = Font(bold=True, color="FFFFFF")
 HEADER_FILL = PatternFill("solid", fgColor="4472C4")
@@ -141,8 +151,8 @@ def autofit(ws) -> None:
 
 def write_month_sheet(
     wb: Workbook, sheet_name: str, rows: list[dict], saldo_masuk: float | None = None
-) -> tuple[float, float]:
-    """Tulis satu sheet bulan. Return (total_pemasukan, total_pengeluaran).
+) -> tuple[float, float, float]:
+    """Tulis satu sheet bulan. Return (total_pemasukan, total_pengeluaran, saldo_awal).
 
     `saldo_masuk` = saldo kas di akhir bulan sebelumnya. None untuk sheet yang tidak
     punya posisi kronologis, sehingga baris Saldo Awal/Akhir Bulan dilewati.
@@ -167,12 +177,15 @@ def write_month_sheet(
 
     total_in = 0.0
     total_out = 0.0
+    total_awal = 0.0
     for row in ordered:
         ws.append([row.get(col, "") for col in COLUMNS])
         cell = ws.cell(row=ws.max_row, column=jumlah_col)
         cell.value = row_jumlah(row)
         cell.number_format = RUPIAH_FMT
-        if row_tipe(row) == "pemasukan":
+        if is_saldo_awal(row):
+            total_awal += row_jumlah(row)
+        elif row_tipe(row) == "pemasukan":
             total_in += row_jumlah(row)
         else:
             total_out += row_jumlah(row)
@@ -197,19 +210,23 @@ def write_month_sheet(
     total_row("Total Pemasukan", total_in, TOTAL_FONT)
     total_row("Total Pengeluaran", total_out, TOTAL_FONT)
     total_row("Arus Kas Bulan", saldo, POS_FONT if saldo >= 0 else NEG_FONT)
+    if total_awal:
+        total_row("Saldo Awal Tercatat", total_awal, TOTAL_FONT)
 
     # Saldo = sisa kas kumulatif, dibawa dari bulan sebelumnya. Sheet tanpa posisi
     # kronologis (NO_DATE_SHEET) tidak ikut rantai ini, ditandai saldo_masuk=None.
     if saldo_masuk is not None:
-        saldo_keluar = saldo_masuk + saldo
+        saldo_keluar = saldo_masuk + saldo + total_awal
         total_row("Saldo Awal Bulan", saldo_masuk, POS_FONT if saldo_masuk >= 0 else NEG_FONT)
         total_row("Saldo Akhir Bulan", saldo_keluar, POS_FONT if saldo_keluar >= 0 else NEG_FONT)
 
     autofit(ws)
-    return total_in, total_out
+    return total_in, total_out, total_awal
 
 
-def write_summary_sheet(wb: Workbook, per_month: dict[str, tuple[float, float, int]]) -> None:
+def write_summary_sheet(
+    wb: Workbook, per_month: dict[str, tuple[float, float, float, int]]
+) -> None:
     """Sheet Ringkasan: arus kas per bulan + saldo kas kumulatif + Grand Total.
 
     `Arus Kas Bulan` berdiri sendiri per bulan; `Saldo Akhir` adalah sisa kas kumulatif
@@ -218,7 +235,7 @@ def write_summary_sheet(wb: Workbook, per_month: dict[str, tuple[float, float, i
     ws = wb.create_sheet(title="Ringkasan", index=0)
     headers = [
         "Bulan", "Jumlah Transaksi", "Total Pemasukan", "Total Pengeluaran",
-        "Arus Kas Bulan", "Saldo Akhir",
+        "Arus Kas Bulan", "Saldo Awal Tercatat", "Saldo Akhir",
     ]
     ws.append(headers)
     for cell in ws[1]:
@@ -227,45 +244,57 @@ def write_summary_sheet(wb: Workbook, per_month: dict[str, tuple[float, float, i
         cell.alignment = Alignment(horizontal="center")
     ws.freeze_panes = "A2"
 
-    grand_in = grand_out = grand_count = 0
+    grand_in = grand_out = grand_awal = grand_count = 0
     saldo = 0.0
     saldo_terakhir = 0.0
     for bulan in sorted(per_month, key=summary_sort_key):
-        total_in, total_out, count = per_month[bulan]
+        total_in, total_out, total_awal, count = per_month[bulan]
         arus = total_in - total_out
         # NO_DATE_SHEET tidak punya posisi kronologis → tidak ikut rantai saldo kumulatif
         kronologis = bulan != NO_DATE_SHEET
         if kronologis:
-            saldo += arus
+            # Saldo Awal ikut menyeed rantai saldo, tapi TIDAK ikut Arus Kas Bulan —
+            # ia bukan uang yang berpindah bulan itu.
+            saldo += arus + total_awal
             saldo_terakhir = saldo
-        ws.append([bulan, count, total_in, total_out, arus, saldo if kronologis else None])
+        ws.append(
+            [bulan, count, total_in, total_out, arus,
+             total_awal or None, saldo if kronologis else None]
+        )
         r = ws.max_row
         ws.cell(row=r, column=3).number_format = RUPIAH_FMT
         ws.cell(row=r, column=4).number_format = RUPIAH_FMT
         ac = ws.cell(row=r, column=5)
         ac.number_format = RUPIAH_FMT
         ac.font = POS_FONT if arus >= 0 else NEG_FONT
+        if total_awal:
+            ws.cell(row=r, column=6).number_format = RUPIAH_FMT
         if kronologis:
-            kc = ws.cell(row=r, column=6)
+            kc = ws.cell(row=r, column=7)
             kc.number_format = RUPIAH_FMT
             kc.font = POS_FONT if saldo >= 0 else NEG_FONT
         grand_in += total_in
         grand_out += total_out
+        grand_awal += total_awal
         grand_count += count
 
     # Grand Total. Kolom Saldo Akhir memakai saldo bulan terakhir — menjumlahkan kolom
     # kumulatif tidak bermakna.
     grand_arus = grand_in - grand_out
-    ws.append(["GRAND TOTAL", grand_count, grand_in, grand_out, grand_arus, saldo_terakhir])
+    ws.append(
+        ["GRAND TOTAL", grand_count, grand_in, grand_out, grand_arus,
+         grand_awal or None, saldo_terakhir]
+    )
     r = ws.max_row
-    for col in range(1, 7):
+    for col in range(1, 8):
         ws.cell(row=r, column=col).font = TOTAL_FONT
     ws.cell(row=r, column=3).number_format = RUPIAH_FMT
     ws.cell(row=r, column=4).number_format = RUPIAH_FMT
+    ws.cell(row=r, column=6).number_format = RUPIAH_FMT
     ga = ws.cell(row=r, column=5)
     ga.number_format = RUPIAH_FMT
     ga.font = POS_FONT if grand_arus >= 0 else NEG_FONT
-    gs = ws.cell(row=r, column=6)
+    gs = ws.cell(row=r, column=7)
     gs.number_format = RUPIAH_FMT
     gs.font = POS_FONT if saldo_terakhir >= 0 else NEG_FONT
 
@@ -336,22 +365,23 @@ def build_workbook(bills: list[dict]) -> tuple[Workbook, dict]:
     wb = Workbook()
     wb.remove(wb.active)  # buang sheet default kosong
 
-    summary: dict[str, tuple[float, float, int]] = {}
-    total_in = total_out = 0.0
+    summary: dict[str, tuple[float, float, float, int]] = {}
+    total_in = total_out = total_awal = 0.0
 
     # Saldo kas berjalan, dioper ke tiap sheet bulan sebagai Saldo Awal Bulan.
-    # Baris "saldo awal" (kalau nanti ditambahkan ke bills.csv) otomatis jadi titik
-    # mulai rantai ini — tidak perlu config terpisah.
+    # Baris berkategori `opening_balance` di bills.csv jadi titik mulai rantai ini —
+    # tidak perlu config terpisah.
     saldo = 0.0
     for bulan in sorted(by_month, key=summary_sort_key):
         rows = by_month[bulan]
         kronologis = bulan != NO_DATE_SHEET
-        tin, tout = write_month_sheet(wb, bulan, rows, saldo if kronologis else None)
+        tin, tout, tawal = write_month_sheet(wb, bulan, rows, saldo if kronologis else None)
         if kronologis:
-            saldo += tin - tout
-        summary[bulan] = (tin, tout, len(rows))
+            saldo += tin - tout + tawal
+        summary[bulan] = (tin, tout, tawal, len(rows))
         total_in += tin
         total_out += tout
+        total_awal += tawal
 
     write_summary_sheet(wb, summary)
 
@@ -366,7 +396,10 @@ def build_workbook(bills: list[dict]) -> tuple[Workbook, dict]:
         "transactions": len(bills),
         "total_in": total_in,
         "total_out": total_out,
-        "saldo": total_in - total_out,
+        "total_awal": total_awal,
+        # Saldo = kas yang tersisa, jadi Saldo Awal ikut. Total Pemasukan tidak —
+        # ia hanya uang yang benar-benar masuk. Lihat docs/adr/0008.
+        "saldo": total_in - total_out + total_awal,
         "dup_groups": len(dup_groups),
         "dup_rows": sum(len(g) for g in dup_groups),
     }

@@ -95,6 +95,17 @@ data, bukan teks yang dibaca pengguna.
 | `jewelry` | cincin, emas, perhiasan |
 | `pet` | makanan & keperluan hewan peliharaan |
 | `other` | semua yang tidak masuk kategori di atas |
+| `opening_balance` | **khusus** — kas yang sudah dimiliki sebelum pencatatan dimulai. Lihat di bawah. |
+
+> ⚠️ **`opening_balance` bukan kategori biasa.** Hanya ada **satu** baris berkategori ini di
+> seluruh `bills.csv` (`no_resi = SALDO-AWAL`, 26 Mar 2026, Rp 20.500.000). Ia bertipe
+> `pemasukan` demi kesederhanaan kode, tapi **bukan uang masuk** — tidak ada yang berpindah saat
+> itu. Jangan pernah membuat baris baru dengan kategori ini, dan jangan pernah mengubah yang ada
+> tanpa diminta eksplisit.
+>
+> Saat membuat laporan: baris ini **ikut** menghitung **Saldo** (ia titik mulainya), tapi
+> **dikecualikan** dari **Total Pemasukan** dan **Arus Kas Bulan**. `scripts/export-excel.py`
+> sudah melakukannya otomatis — kalau kamu menghitung manual, jangan lupa. Lihat `docs/adr/0008`.
 
 ### Acuan Kategori
 `data/budget.json` → field `kategori_custom` adalah **daftar lengkap dan satu-satunya acuan**.
@@ -129,7 +140,8 @@ Setiap transaksi **harus** punya `waktu` dan `no_resi`. Tentukan keduanya **sebe
    python3 scripts/resi.py --gen
    ```
    Hasilnya berformat `TRX-YYYYMMDD-XXXX`.
-4. **Baris hasil impor riwayat** (dari aplikasi keuangan lain) → `IMP-<id sumber>`, mis.
+4. **Baris Saldo Awal** → `SALDO-AWAL`. Hanya ada satu, sudah dibuat. Jangan pernah membuat lagi.
+5. **Baris hasil impor riwayat** (dari aplikasi keuangan lain) → `IMP-<id sumber>`, mis.
    `IMP-262`. Bukan struk dan bukan chat, jadi tidak memakai `STRUK-` maupun `TRX-`. Kamu
    tidak pernah membuat ini saat mencatat dari pesan — awalan ini hanya muncul pada data
    yang diimpor massal.
@@ -273,7 +285,9 @@ Langkah:
 3. Untuk **tiap bulan** (urut kronologis), hitung total `pemasukan`, total `pengeluaran`, dan
    **Arus Kas Bulan** (= pemasukan − pengeluaran bulan itu saja)
 4. Hitung **Saldo** secara **kumulatif**: saldo bulan lalu + arus kas bulan ini. Saldo dibawa
-   terus antar bulan — ia sisa kas, bukan selisih bulanan
+   terus antar bulan — ia sisa kas, bukan selisih bulanan. Baris berkategori `opening_balance`
+   (Rp 20.500.000, Mar 2026) **ikut** ke Saldo tapi **tidak** ke Total Pemasukan maupun Arus Kas
+   Bulan — kalau ikut, laporan akan mengklaim ada Rp 20,5 juta uang masuk yang tidak pernah ada
 5. Tampilkan **terpisah per bulan** — jangan digabung jadi satu total
 
 Response format:
@@ -535,13 +549,13 @@ Trigger: `daftar kategori`, `kategori apa saja`, `list kategori`
 
 Response:
 ```
-📋 Daftar Kategori (22)
+📋 Daftar Kategori (23)
 
   food · groceries · transport · health · utilities
   salary · bonus · consulting · clothing · shopping
   subscription · communication · personal_care · beauty
   insurance · education · entertainment · event
-  donation · jewelry · pet · other
+  donation · jewelry · pet · other · opening_balance
 
 💡 Tambah: tambah kategori [nama]
 💡 Hapus: hapus kategori [nama]

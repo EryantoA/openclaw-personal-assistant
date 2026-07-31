@@ -23,7 +23,8 @@
     "donation",
     "jewelry",
     "pet",
-    "other"
+    "other",
+    "opening_balance"
   ],
   "duplicate_check": {
     "aktif": true,

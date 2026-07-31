@@ -1,5 +1,12 @@
 # bill-tracker sebagai satu-satunya sistem pencatatan
 
+> **Dikoreksi oleh [0008](0008-saldo-awal-20-5-juta-dan-koreksi-rekonsiliasi.md)** (31 Jul 2026).
+> Dua angka di bawah **salah**: saldo bukan +Rp 17.307.887 melainkan **+Rp 18.893.732**, dan
+> saldo awalnya bukan nol melainkan **Rp 20.500.000**. Rekonsiliasi di bawah memakai saldo `Kas`
+> app lama yang memuat baris borongan id 254 (Rp 22.456.955) — baris yang rebuild-nya sendiri
+> buang. Keputusan pokok ADR ini (bill-tracker jadi satu-satunya sistem, `keuangan-keluarga`
+> dimatikan) tetap berlaku.
+
 Selama beberapa waktu ada **dua** bot keuangan aktif bersamaan lewat dua mekanisme berbeda:
 `agents.defaults.skills` memuat `bill-tracker` (membaca `data/bills.csv`), sementara
 `skills.entries."keuangan-keluarga".enabled` juga `true` (membaca

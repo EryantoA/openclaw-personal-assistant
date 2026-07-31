@@ -311,6 +311,9 @@ tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,waktu,no_resi
 
 - Kolom `tipe`: `pemasukan` atau `pengeluaran`. Budget hanya menghitung `pengeluaran`.
 - Kolom `kategori`: selalu slug Inggris huruf kecil. Daftar lengkapnya di `data/budget.json` → `kategori_custom`.
+  Satu di antaranya khusus: `opening_balance` menandai **Saldo Awal** — kas yang sudah dimiliki
+  sebelum pencatatan dimulai (Rp 20.500.000, 26 Mar 2026). Ia ikut menghitung **Saldo** tapi
+  **tidak** ikut Total Pemasukan maupun Arus Kas Bulan; bukan uang masuk. Lihat `docs/adr/0008`.
 - Kolom `item`: apa yang dibeli — **nama toko ikut di belakang** setelah tanda pisah (`Beras 5kg - Indomaret`).
   Tidak ada kolom `tempat` tersendiri (dibuang, lihat `docs/adr/0007`). Bank & e-wallet **bukan** toko —
   itu cara bayar, tulis di `catatan`.
