@@ -40,7 +40,6 @@ COLUMNS = [
     "waktu",
     "tipe",
     "kategori",
-    "tempat",
     "item",
     "jumlah",
     "catatan",

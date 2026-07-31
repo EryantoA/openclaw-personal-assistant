@@ -46,6 +46,6 @@
     "perkiraan_toleransi_hari": "Berapa hari setelah 'tanggal_biasanya' sebuah Perkiraan dianggap absen dan ditanyakan.",
     "perkiraan_toleransi_persen": "Selisih nominal yang masih dianggap cocok saat mencocokkan Perkiraan ke bills.csv (kurs, pembulatan).",
     "kategori_custom": "Daftar LENGKAP kategori yang berlaku — inilah satu-satunya acuan, bukan tabel di SKILL.md. Selalu slug Inggris huruf kecil (snake_case). Tambah lewat chat: 'tambah kategori <slug>'.",
-    "duplicate_check": "Aturan deteksi duplikat. 'aktif': true/false. 'match_fields': daftar kolom yang harus SAMA SEMUA baru dianggap duplikat (pilihan: tanggal, waktu, jumlah, item, kategori, catatan, pencatat, tempat; 'jumlah' = total harga). 'aksi': 'tolak' (tidak dicatat) atau 'warning' (beri peringatan, catat jika dikonfirmasi)."
+    "duplicate_check": "Aturan deteksi duplikat. 'aktif': true/false. 'match_fields': daftar kolom yang harus SAMA SEMUA baru dianggap duplikat (pilihan: tanggal, waktu, jumlah, item, kategori, catatan, pencatat; 'jumlah' = total harga). 'aksi': 'tolak' (tidak dicatat) atau 'warning' (beri peringatan, catat jika dikonfirmasi)."
   }
 }

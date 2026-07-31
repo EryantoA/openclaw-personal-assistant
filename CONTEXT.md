@@ -63,10 +63,11 @@ tidak dihitung terhadapnya.
 Pengelompokan transaksi. Selalu slug Inggris huruf kecil, tidak pernah Bahasa Indonesia.
 _Avoid_: jenis, tipe belanja
 
-**Tempat**:
-Toko, kedai, atau penyedia jasa tempat transaksi terjadi. Bank dan e-wallet bukan tempat —
-itu cara bayar.
-_Avoid_: merchant, toko, vendor
+**Item**:
+Apa yang dibeli, ditulis apa adanya. Kalau ada tokonya, namanya ikut di belakang setelah
+tanda pisah — `Susu UHT + Yakult - Budiman Swalayan`. Toko tidak punya kolom sendiri: ia
+bagian dari Item. Bank dan e-wallet bukan toko — itu cara bayar, tempatnya di Catatan.
+_Avoid_: tempat, merchant, vendor, deskripsi
 
 **No Resi**:
 Penanda unik satu transaksi, sekaligus dasar deteksi duplikat.

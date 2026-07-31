@@ -18,7 +18,7 @@ alfamart 87500 - sabun, pasta gigi, minyak goreng
 
 ### Foto / Gambar Struk
 Gunakan tool `image` untuk menganalisis struk. Ekstrak:
-- Nama toko / merchant
+- Nama toko / merchant → **ikutkan di belakang `item`** setelah tanda pisah (`… - Budiman Swalayan`), bukan kolom sendiri
 - Tanggal transaksi
 - **Jam transaksi** (jika tercetak) → untuk kolom `waktu`
 - **Nomor struk / No. Transaksi / No. Nota / Ref** (jika tercetak) → untuk `no_resi`
@@ -172,10 +172,10 @@ Jika keduanya `OK` → lanjut simpan.
 Simpan setiap transaksi ke file `data/bills.csv` dengan format (kolom `waktu` & `no_resi` di **akhir**):
 
 ```
-tanggal,tipe,kategori,tempat,item,jumlah,catatan,channel,pencatat,waktu,no_resi
-2025-01-15,pengeluaran,groceries,Indomaret,Beras 5kg,75000,,telegram,Ayah,14:05,TRX-20250115-4821
-2025-01-15,pengeluaran,utilities,,Listrik PLN,150000,token listrik via GoPay,whatsapp,Ibu,09:30,STRUK-000123
-2025-01-25,pemasukan,salary,,Gaji bulanan,5000000,,whatsapp,Ayah,08:00,TRX-20250125-0117
+tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,waktu,no_resi
+2025-01-15,pengeluaran,groceries,Beras 5kg - Indomaret,75000,,telegram,Ayah,14:05,TRX-20250115-4821
+2025-01-15,pengeluaran,utilities,Listrik PLN,150000,token listrik via GoPay,whatsapp,Ibu,09:30,STRUK-000123
+2025-01-25,pemasukan,salary,Gaji bulanan,5000000,,whatsapp,Ayah,08:00,TRX-20250125-0117
 ```
 
 > **Catatan kolom `tipe`**: Isi `pemasukan` untuk uang masuk (gaji, bonus, dsb) dan `pengeluaran` untuk uang keluar (belanja, tagihan). Jika ragu, default `pengeluaran`. Baris lama tanpa kolom ini tetap dianggap `pengeluaran`.
@@ -185,16 +185,18 @@ tanggal,tipe,kategori,tempat,item,jumlah,catatan,channel,pencatat,waktu,no_resi
 > aplikasi sumbernya (mis. `keuangan-keluarga`). Ini yang membuat data impor gampang disaring
 > atau dicopot tanpa menyentuh catatan harian.
 
-> **Catatan kolom `tempat`**: Nama toko, kedai, atau penyedia jasa tempat transaksi terjadi —
-> `Budiman Swalayan`, `Rumah Tani Coffee`, `Indomaret`. Kosongkan kalau memang tidak ada
-> tempatnya (`infaq`, `bensin`, `gym`). **Bank dan e-wallet bukan tempat**: `Livin' by Mandiri`,
-> `GoPay`, `Shopee Pay` itu cara bayar — tulis di `catatan`, bukan di `tempat`.
+> **Catatan kolom `item`**: Apa yang dibeli, apa adanya. **Nama tokonya ikut di sini**, di
+> belakang setelah tanda pisah — `Susu UHT + Yakult - Budiman Swalayan`, `Matcha Cream - Sanama
+> Plus`. Tidak ada kolom `tempat`; kolom itu dibuang setelah 288 baris tak pernah mengisinya
+> sementara nama toko selalu ditulis di `item` (lihat `docs/adr/0007`). Kalau memang tak ada
+> tokonya (`infaq`, `bensin`, `gym`), tulis itemnya saja. **Bank dan e-wallet bukan toko**:
+> `Livin' by Mandiri`, `GoPay`, `Shopee Pay` itu cara bayar — tulis di `catatan`.
 
 > **Catatan kolom `waktu` & `no_resi`**: Selalu diisi (lihat bagian di atas). Baris lama tanpa dua kolom ini tetap valid dan dibaca sebagai kosong; isi otomatis dengan `python3 scripts/resi.py --backfill`.
 
 ### Kode untuk Menyimpan (gunakan tool `write`):
 1. Baca file `data/bills.csv` terlebih dahulu (tool `read`)
-2. Jika file belum ada, buat header: `tanggal,tipe,kategori,tempat,item,jumlah,catatan,channel,pencatat,waktu,no_resi`
+2. Jika file belum ada, buat header: `tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,waktu,no_resi`
 3. Pastikan sudah menentukan `waktu` + `no_resi` dan **lolos cek duplikat** (lihat 2 bagian di atas)
 4. Tambahkan baris baru di akhir
 5. Simpan kembali
