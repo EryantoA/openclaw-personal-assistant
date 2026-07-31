@@ -29,7 +29,7 @@
       {
         "id": "laporan_mingguan",
         "schedule": "0 20 * * 0",
-        "message": "Waktunya laporan mingguan! Buat ringkasan pengeluaran keluarga minggu ini dari file data/bills.csv. Sertakan: total per kategori, persentase, transaksi terbesar, perbandingan minggu lalu. Sertakan juga Saldo terkini (kumulatif, seluruh uang di semua tempat) dan status budget bulan ini. Kirim laporan ke semua channel.",
+        "message": "Waktunya laporan mingguan! Buat ringkasan pengeluaran keluarga minggu ini dari file data/bills.csv. Sertakan: total per kategori, persentase, transaksi terbesar, perbandingan minggu lalu. Sertakan juga Saldo terkini (kumulatif, seluruh uang di semua tempat) dan status budget bulan ini. Terakhir, baca `data/kewajiban.json` dan `data/perkiraan.json`: sebutkan tagihan yang belum lunas beserta jatuh temponya, dan perkiraan bulan ini yang sudah/belum muncul. Kirim laporan ke semua channel.",
         "channels": [
           "telegram",
           "whatsapp"
@@ -44,7 +44,7 @@
       {
         "id": "cek_budget_malam",
         "schedule": "0 20 * * 1-6",
-        "message": "Cek status budget malam ini: jalankan `python3 scripts/check-bills.py --mode budget` menggunakan tool code_execution. Jika pengeluaran sudah mencapai threshold alert, kirim peringatan ke semua channel. Jika belum mencapai threshold, jangan kirim apapun.",
+        "message": "Cek malam ini: jalankan `python3 scripts/check-bills.py --mode all` menggunakan tool code_execution. Outputnya bisa memuat tiga hal: peringatan budget, tagihan yang jatuh tempo (Kewajiban), dan transaksi berulang yang belum muncul (Perkiraan). Kirim output apa adanya ke semua channel HANYA kalau ada isinya. Kalau outputnya diawali '✅ Semua lancar', jangan kirim apapun.",
         "channels": [
           "telegram",
           "whatsapp"

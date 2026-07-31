@@ -20,6 +20,12 @@ data/backups/*
 data/bills.csv
 data/*.bak
 
+# Kewajiban (tagihan belum dibayar) & Perkiraan (transaksi berulang) — sama-sama
+# memuat nominal (gaji, premi, langganan), jadi diperlakukan seperti bills.csv.
+# Bentuknya ada di pasangan *.example yang dilacak. Lihat docs/adr/0004 & 0006.
+data/kewajiban.json
+data/perkiraan.json
+
 # Artefak workspace OpenClaw — state lokal mesin & data pribadi yang menumpuk
 # (USER.md profil pengguna, TOOLS.md host SSH, media/ foto struk masuk)
 media/

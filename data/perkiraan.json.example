@@ -1,0 +1,26 @@
+{
+  "perkiraan": [
+    {
+      "id": "PRK-001",
+      "nama": "Gaji",
+      "arah": "masuk",
+      "kategori": "salary",
+      "nominal": 0,
+      "tanggal_biasanya": 27,
+      "aktif": true,
+      "dasar": "kapan saja pola ini terlihat di data/bills.csv"
+    }
+  ],
+  "keterangan": {
+    "_": "Transaksi berulang yang DIHARAPKAN terjadi tiap bulan. Dirawat manusia, jarang berubah — bot tidak menyuntingnya kecuali diminta. Bukan Transaksi: belum ada uang berpindah, tidak pernah masuk perhitungan Saldo. Nominal di file contoh ini sengaja 0 — file aslinya (data/perkiraan.json) tidak masuk git, lihat docs/adr/0004.",
+    "id": "PRK-<urut>. Unik.",
+    "nama": "Sebutan manusiawi, muncul apa adanya di notifikasi.",
+    "arah": "'masuk' (pemasukan diharapkan) atau 'keluar' (pengeluaran diharapkan).",
+    "kategori": "Slug kategori dari data/budget.json → kategori_custom. Dipakai untuk mencocokkan ke bills.csv.",
+    "nominal": "Perkiraan jumlah, dalam Rupiah. Dicocokkan dengan toleransi ±10% karena kurs dan pembulatan.",
+    "tanggal_biasanya": "Tanggal dalam bulan (1-31) saat transaksi ini biasanya muncul.",
+    "aktif": "false untuk menonaktifkan tanpa menghapus riwayat alasannya.",
+    "toleransi_persen": "Opsional. Menimpa perkiraan_toleransi_persen di budget.json untuk entri ini saja. Perketat kalau dua perkiraan berbagi kategori dengan nominal berdekatan — kalau tidak, yang satu akan menutupi absennya yang lain.",
+    "dasar": "Bukti di data yang mendasari perkiraan ini. Bebas teks — supaya angka ini tidak jadi tebakan tak berperawat."
+  }
+}

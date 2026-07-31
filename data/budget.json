@@ -34,9 +34,17 @@
     ],
     "aksi": "tolak"
   },
+  "kewajiban_ingat_h_minus": 2,
+  "kewajiban_kedaluwarsa_hari": 5,
+  "perkiraan_toleransi_hari": 3,
+  "perkiraan_toleransi_persen": 10,
   "keterangan": {
     "budget_bulanan": "Budget pengeluaran per bulan dalam Rupiah. 0 = belum diset.",
     "alert_persen": "Kirim alert saat pengeluaran mencapai persentase ini (0-100).",
+    "kewajiban_ingat_h_minus": "Berapa hari sebelum jatuh tempo Kewajiban diingatkan. Bunyi HANYA di H-n dan hari-H, tidak tiap hari.",
+    "kewajiban_kedaluwarsa_hari": "Berapa hari setelah jatuh tempo sebuah Kewajiban yang belum tertaut berhenti dilaporkan. Bukan berarti lunas — berarti tidak diketahui, dan tidak dibiarkan menumpuk jadi notifikasi yang diabaikan.",
+    "perkiraan_toleransi_hari": "Berapa hari setelah 'tanggal_biasanya' sebuah Perkiraan dianggap absen dan ditanyakan.",
+    "perkiraan_toleransi_persen": "Selisih nominal yang masih dianggap cocok saat mencocokkan Perkiraan ke bills.csv (kurs, pembulatan).",
     "kategori_custom": "Daftar LENGKAP kategori yang berlaku — inilah satu-satunya acuan, bukan tabel di SKILL.md. Selalu slug Inggris huruf kecil (snake_case). Tambah lewat chat: 'tambah kategori <slug>'.",
     "duplicate_check": "Aturan deteksi duplikat. 'aktif': true/false. 'match_fields': daftar kolom yang harus SAMA SEMUA baru dianggap duplikat (pilihan: tanggal, waktu, jumlah, item, kategori, catatan, pencatat, tempat; 'jumlah' = total harga). 'aksi': 'tolak' (tidak dicatat) atau 'warning' (beri peringatan, catat jika dikonfirmasi)."
   }

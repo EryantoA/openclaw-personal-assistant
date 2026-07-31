@@ -1,5 +1,11 @@
 # Ini buku kas, bukan perencana tagihan
 
+> **Dibatalkan sebagian oleh [0006](0006-kewajiban-dan-perkiraan.md)** (31 Jul 2026). Syarat
+> pembatalan yang ditulis di bawah — munculnya tagihan pascabayar — sudah terpenuhi, dan
+> konsepnya dibangun ulang di luar `bills.csv` sebagai Kewajiban & Perkiraan. Yang tetap
+> berlaku dari ADR ini: kolom `jatuh_tempo` di `bills.csv` tidak dihidupkan, dan tidak ada
+> cron harian khusus tagihan.
+
 Kolom `jatuh_tempo`, mode `--mode jatuh_tempo` di `scripts/check-bills.py`, cron harian
 `reminder_jatuh_tempo`, dan istilah "Jatuh Tempo" di `CONTEXT.md` semuanya dibuang. Alasannya
 empiris: setelah empat bulan pemakaian nyata, `jatuh_tempo` terisi di **0 dari 226 baris**.

@@ -245,9 +245,15 @@ openclaw-personal-assistant/
 │       └── SKILL.md           ← Instruksi perilaku AI agent
 └── data/
     ├── bills.csv              ← Database pengeluaran
-    ├── budget.json            ← Konfigurasi budget
+    ├── budget.json            ← Konfigurasi budget & ambang pengingat
+    ├── kewajiban.json         ← Tagihan pascabayar yang belum dibayar
+    ├── perkiraan.json         ← Transaksi berulang yang diharapkan
     └── backups/               ← Backup otomatis
 ```
+
+> 🔒 `kewajiban.json` dan `perkiraan.json` memuat nominal (gaji, premi, langganan), jadi sama-sama
+> **tidak dilacak git** seperti `bills.csv` — yang ada di repo cuma pasangan `.example`-nya.
+> Lihat `docs/adr/0004` dan `docs/adr/0006`.
 
 ---
 

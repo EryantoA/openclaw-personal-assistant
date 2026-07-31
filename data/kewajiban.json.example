@@ -1,0 +1,23 @@
+{
+  "kewajiban": [
+    {
+      "id": "KWJ-001",
+      "nama": "WiFi",
+      "kategori": "utilities",
+      "nominal": 0,
+      "jatuh_tempo": "2026-08-20",
+      "dibuat": "2026-08-05",
+      "lunas_resi": null
+    }
+  ],
+  "keterangan": {
+    "_": "Tagihan pascabayar yang SUDAH datang dan belum dibayar. Ditulis oleh bot, bukan disunting tangan. Nominal di file contoh ini sengaja 0 — file aslinya (data/kewajiban.json) tidak masuk git, lihat docs/adr/0004.",
+    "id": "KWJ-<urut>. Unik, tidak pernah dipakai ulang.",
+    "nama": "Nama tagihannya seperti disebut pengguna: 'WiFi', 'PLN', 'cicilan motor'.",
+    "kategori": "Slug kategori dari data/budget.json → kategori_custom.",
+    "nominal": "Jumlah yang harus dibayar, dalam Rupiah.",
+    "jatuh_tempo": "YYYY-MM-DD. Batas akhir pembayaran.",
+    "dibuat": "YYYY-MM-DD. Kapan tagihannya datang / dicatat.",
+    "lunas_resi": "null selama belum dibayar. Diisi no_resi baris data/bills.csv saat pembayarannya dicatat — tautan ke fakta, bukan penanda status. Status (aktif/lunas/kedaluwarsa) tidak pernah disimpan, selalu dihitung ulang dari lunas_resi + tanggal hari ini. Lihat docs/adr/0006."
+  }
+}

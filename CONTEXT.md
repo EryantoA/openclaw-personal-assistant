@@ -19,6 +19,22 @@ _Avoid_: income, pendapatan
 Uang yang keluar dari kas keluarga.
 _Avoid_: expense, outcome, belanja
 
+### Yang Belum Jadi Transaksi
+
+**Kewajiban**:
+Tagihan yang sudah datang tapi belum dibayar. Hanya ada untuk yang pascabayar — datang dulu,
+dibayar belakangan. Pembelian prabayar (pulsa, paket data, gas, top-up e-wallet) tidak pernah
+jadi Kewajiban: uangnya keluar di detik yang sama. Sebuah Kewajiban berakhir ketika ada
+Transaksi yang membayarnya, bukan ketika seseorang menandainya selesai.
+_Avoid_: utang, tanggungan, bill, tagihan terencana
+
+**Perkiraan**:
+Transaksi yang diharapkan berulang tiap bulan — gaji yang biasanya masuk akhir bulan,
+langganan yang biasanya ditarik tanggal 26. Bukan Transaksi: belum ada uang yang berpindah,
+jadi tidak pernah ikut menghitung Saldo maupun Arus Kas Bulan. Gunanya dua: menyiapkan diri
+untuk uang yang akan keluar, dan menyadari kalau yang seharusnya masuk ternyata tidak masuk.
+_Avoid_: rencana, budget, langganan, recurring
+
 ### Uang
 
 **Saldo**:
