@@ -27,6 +27,7 @@ import argparse
 import calendar
 from datetime import date
 from pathlib import Path
+from typing import Optional, List, Dict
 
 # ── Paths ────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
@@ -38,7 +39,7 @@ KEWAJIBAN_JSON = DATA_DIR / "kewajiban.json"
 PERKIRAAN_JSON = DATA_DIR / "perkiraan.json"
 
 
-def load_budget() -> dict:
+def load_budget() -> Dict:
     """Load budget.json, return default jika belum ada."""
     default = {"budget_bulanan": 0, "alert_persen": 80, "kategori_custom": []}
     if not BUDGET_JSON.exists():
@@ -52,7 +53,7 @@ def load_budget() -> dict:
         return default
 
 
-def load_bills() -> list[dict]:
+def load_bills() -> List[Dict]:
     """Load data dari bills.csv."""
     if not BILLS_CSV.exists():
         return []
@@ -67,7 +68,7 @@ def load_bills() -> list[dict]:
     return rows
 
 
-def load_list(path: Path, key: str) -> list[dict]:
+def load_list(path: Path, key: str) -> List[Dict]:
     """Load daftar dari file JSON berbentuk {"<key>": [...]}. Kosong kalau belum ada/rusak."""
     if not path.exists():
         return []
@@ -85,7 +86,7 @@ def format_rupiah(amount: float) -> str:
     return f"Rp {amount:,.0f}".replace(",", ".")
 
 
-def parse_tanggal(value: str) -> date | None:
+def parse_tanggal(value: str) -> Optional[date]:
     """Parse YYYY-MM-DD. None kalau kosong atau tidak valid."""
     try:
         return date.fromisoformat((value or "").strip())
@@ -94,7 +95,7 @@ def parse_tanggal(value: str) -> date | None:
 
 
 # ── Mode: Cek Budget ─────────────────────────────────────────
-def check_budget(today: date | None = None) -> str:
+def check_budget(today: Optional[date] = None) -> str:
     """Cek total pengeluaran bulan ini vs budget."""
     budget_data = load_budget()
     budget_bulanan = budget_data.get("budget_bulanan", 0)
@@ -156,7 +157,7 @@ def check_budget(today: date | None = None) -> str:
 
 
 # ── Mode: Cek Kewajiban ──────────────────────────────────────
-def check_kewajiban(today: date | None = None) -> str:
+def check_kewajiban(today: Optional[date] = None) -> str:
     """Ingatkan Kewajiban yang belum lunas, hanya di H-n dan hari-H.
 
     Sebuah Kewajiban dianggap lunas kalau `lunas_resi`-nya menunjuk baris yang benar-benar ada
@@ -219,7 +220,7 @@ def check_kewajiban(today: date | None = None) -> str:
 
 
 # ── Mode: Cek Perkiraan ──────────────────────────────────────
-def check_perkiraan(today: date | None = None) -> str:
+def check_perkiraan(today: Optional[date] = None) -> str:
     """Laporkan Perkiraan yang belum muncul di bills.csv padahal tanggalnya sudah lewat.
 
     Pencocokan sengaja longgar (kategori + arah + nominal dalam toleransi): nominal ikut kurs
@@ -303,7 +304,7 @@ def check_perkiraan(today: date | None = None) -> str:
 
 
 # ── Mode: All (untuk cron harian) ────────────────────────────
-def check_all(today: date | None = None) -> str:
+def check_all(today: Optional[date] = None) -> str:
     """Budget + Kewajiban + Perkiraan. Lihat docs/adr/0006."""
     bagian = [check_budget(today), check_kewajiban(today), check_perkiraan(today)]
     terisi = [b for b in bagian if b]

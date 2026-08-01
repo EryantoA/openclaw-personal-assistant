@@ -54,6 +54,17 @@ Rp 6.866.686 dalam angka borongan itu yang tidak pernah bisa dijelaskan. Menamba
 akan menghitung uang yang sama dua kali — kesalahan yang lebih mahal daripada membiarkan satu
 angka lama tak terjelaskan.
 
+Rp 6.866.686 itu diperiksa lewat mutasi bank sebelum ditutup, bukan langsung diasumsikan
+borongan. Tiga rekening diperiksa tuntas untuk Juli 2026 — Mandiri (…4637, Eryanto), BCA
+(…5154, Eryanto), dan BSI (…3291, Elsi) — dan **tidak satu pun punya transaksi di tanggal
+20 maupun 21 Juli sama sekali**, apalagi kredit yang mendekati Rp 22.456.955, 9.037.000, atau
+6.273.269. Pemeriksaan ini sekaligus mengonfirmasi sumber `PRK-001` (Gaji Elsi): kredit 28 Jul
+Rp 3.402.360,64 dari "BSI KCP Pekanbaru UIR — By Dosen UIR Juli 26" di rekening Elsi, cocok
+dalam toleransi 1% dengan nominal yang di-seed. Karena tiga rekening yang tersedia sudah habis
+dan semuanya nihil, Rp 6.866.686 ditutup sebagai **tak terjelaskan secara permanen** —
+kemungkinan besar tunai, rekening lain yang tidak tersedia untuk diperiksa, atau angka yang
+dicatat manual tanpa transaksi bank yang menyertainya.
+
 **Menyimpan saldo awal sebagai konfigurasi di `budget.json` ditolak lagi**, dengan alasan yang
 sama seperti ADR 0001: baris biasa membuat rantai kumulatif jalan sendiri tanpa kode tambahan.
 Ada alasan baru yang menguatkan: `budget.json` dilacak git, dan Rp 20,5 juta adalah nominal —
