@@ -35,3 +35,13 @@ TOOLS.md
 SOUL.md
 IDENTITY.md
 HEARTBEAT.md
+# Catatan harian agent — memuat saldo sungguhan & nama anggota keluarga
+memory/
+
+# Jejak peredam peringatan penjaga kesehatan (keadaan operasional, ADR-0011)
+data/kesehatan-terakhir.json
+
+# Saldo awal tiap akun — nominal sungguhan, diperlakukan seperti bills.csv.
+# Bentuknya ada di data/akun.json.example, yang angkanya sengaja dikarang.
+# Lihat docs/adr/0010.
+data/akun.json

@@ -184,13 +184,15 @@ Jika keduanya `OK` → lanjut simpan.
 Simpan setiap transaksi ke file `data/bills.csv` dengan format (kolom `waktu` & `no_resi` di **akhir**):
 
 ```
-tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,waktu,no_resi
-2025-01-15,pengeluaran,groceries,Beras 5kg - Indomaret,75000,,telegram,Ayah,14:05,TRX-20250115-4821
-2025-01-15,pengeluaran,utilities,Listrik PLN,150000,token listrik via GoPay,whatsapp,Ibu,09:30,STRUK-000123
-2025-01-25,pemasukan,salary,Gaji bulanan,5000000,,whatsapp,Ayah,08:00,TRX-20250125-0117
+tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,waktu,no_resi
+2025-01-15,pengeluaran,groceries,Beras 5kg - Indomaret,75000,,telegram,Ayah,,,14:05,TRX-20250115-4821
+2025-01-15,pengeluaran,utilities,Listrik PLN,150000,token listrik via GoPay,whatsapp,Ibu,,,09:30,STRUK-000123
+2025-01-25,pemasukan,salary,Gaji bulanan,5000000,,whatsapp,Ayah,,,08:00,TRX-20250125-0117
 ```
 
 > **Catatan kolom `tipe`**: Isi `pemasukan` untuk uang masuk (gaji, bonus, dsb) dan `pengeluaran` untuk uang keluar (belanja, tagihan). Jika ragu, default `pengeluaran`. Baris lama tanpa kolom ini tetap dianggap `pengeluaran`.
+>
+> Ada nilai ketiga: **`transfer`** — memindahkan uang antar akun sendiri. Uangnya tidak masuk dan tidak keluar dari kas keluarga, jadi transfer **tidak pernah** ikut Total Pemasukan, Total Pengeluaran, Arus Kas Bulan, Saldo, maupun budget. Lihat bagian Akun di bawah.
 
 > **Catatan kolom `channel`**: Asal baris ini, bukan sekadar saluran pesan. Isi `whatsapp` atau
 > `telegram` untuk transaksi yang kamu catat dari pesan; baris hasil impor massal memakai nama
@@ -204,11 +206,18 @@ tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,waktu,no_resi
 > tokonya (`infaq`, `bensin`, `gym`), tulis itemnya saja. **Bank dan e-wallet bukan toko**:
 > `Livin' by Mandiri`, `GoPay`, `Shopee Pay` itu cara bayar — tulis di `catatan`.
 
+> **Catatan kolom `akun` & `akun_tujuan`**: Akun sumber dana (`Kas`, `Bank Utama`,
+> `Tabungan` — daftar resminya di `data/akun.json`). `akun_tujuan` **hanya** diisi saat
+> `tipe=transfer`. **Jangan tertukar dengan cara bayar**: `Livin' by Mandiri`, `GoPay`,
+> `Shopee Pay` adalah cara bayar dan tetap ditulis di `catatan` — bisa saja bayar pakai
+> GoPay yang saldonya ditarik dari Bank Utama. Baris sebelum tanggal cutover berkolom
+> `akun` kosong dan itu benar, jangan diisi mundur (ADR-0010).
+
 > **Catatan kolom `waktu` & `no_resi`**: Selalu diisi (lihat bagian di atas). Baris lama tanpa dua kolom ini tetap valid dan dibaca sebagai kosong; isi otomatis dengan `python3 scripts/resi.py --backfill`.
 
 ### Kode untuk Menyimpan (gunakan tool `write`):
 1. Baca file `data/bills.csv` terlebih dahulu (tool `read`)
-2. Jika file belum ada, buat header: `tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,waktu,no_resi`
+2. Jika file belum ada, buat header: `tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,waktu,no_resi`
 3. Pastikan sudah menentukan `waktu` + `no_resi` dan **lolos cek duplikat** (lihat 2 bagian di atas)
 4. Tambahkan baris baru di akhir
 5. Simpan kembali
@@ -283,12 +292,15 @@ Langkah:
 1. Baca `data/bills.csv`
 2. Kelompokkan transaksi per bulan berdasarkan kolom `tanggal` → kunci `YYYY-MM`
 3. Untuk **tiap bulan** (urut kronologis), hitung total `pemasukan`, total `pengeluaran`, dan
-   **Arus Kas Bulan** (= pemasukan − pengeluaran bulan itu saja)
+   **Arus Kas Bulan** (= pemasukan − pengeluaran bulan itu saja). **Baris `tipe=transfer`
+   dilewati seluruhnya** — uangnya hanya berpindah antar akun sendiri, tidak masuk dan tidak
+   keluar dari kas keluarga
 4. Hitung **Saldo** secara **kumulatif**: saldo bulan lalu + arus kas bulan ini. Saldo dibawa
    terus antar bulan — ia sisa kas, bukan selisih bulanan. Baris berkategori `opening_balance`
    (Rp 20.500.000, Mar 2026) **ikut** ke Saldo tapi **tidak** ke Total Pemasukan maupun Arus Kas
    Bulan — kalau ikut, laporan akan mengklaim ada Rp 20,5 juta uang masuk yang tidak pernah ada
 5. Tampilkan **terpisah per bulan** — jangan digabung jadi satu total
+6. Kalau fitur akun sudah aktif (`data/akun.json` terisi) dan pengguna memintanya, tambahkan saldo per akun dari `python3 scripts/akun.py` — **selalu disertai keterangan bahwa angka itu berlaku sejak tanggal cutover**, bukan untuk seluruh riwayat
 
 Response format:
 ```
@@ -473,6 +485,77 @@ Trigger: `cek tagihan`, `tagihan apa saja`, `ada tagihan?`
 
 ```bash
 python3 scripts/check-bills.py --mode all
+```
+
+---
+
+## 🏦 Akun & Transfer
+
+**Akun** = tempat uangnya berada: `Kas`, `Bank Utama`, `Tabungan`. Daftar resminya di
+`data/akun.json`. Ini **berbeda dari cara bayar** — `Livin' by Mandiri`, `GoPay`, `Shopee
+Pay` adalah cara bayar dan tetap ditulis di `catatan`. Orang bisa bayar pakai GoPay yang
+saldonya ditarik dari Bank Utama: akunnya `Bank Utama`, cara bayarnya GoPay.
+
+### ⚠️ Batas cutover — sebut ini setiap kali melaporkan saldo per akun
+
+Saldo per akun **hanya berlaku sejak tanggal `cutover`** di `data/akun.json`. Transaksi
+sebelum tanggal itu tidak menyebut akun sama sekali dan **tidak boleh ditebak** — sebelum
+cutover, hanya **Saldo global** yang bermakna (ADR-0010).
+
+Jangan pernah menyajikan saldo per akun seolah berlaku untuk seluruh riwayat.
+
+### Status sekarang
+
+Jalankan `python3 scripts/akun.py` untuk melihat saldo per akun. Kalau `saldo_awal` di
+`data/akun.json` masih `null`, **fiturnya belum aktif** dan skripnya akan bilang begitu.
+Jangan mengarang angkanya — hanya pemilik data yang tahu berapa isi tiap akun.
+
+### Mengaktifkan (sekali saja, saat cutover)
+
+Kalau pengguna minta mengaktifkan akun, tuntun begini:
+
+1. Tanyakan saldo tiap akun **pada tanggal cutover**.
+2. Isi `saldo_awal` tiap akun dan `saldo_global_saat_cutover` di `data/akun.json`.
+3. Jalankan `python3 scripts/akun.py --cek`. **Jumlah semua `saldo_awal` harus sama
+   dengan Saldo global pada tanggal cutover.** Kalau tidak sama, laporkan selisihnya
+   apa adanya dan tanyakan mana yang keliru — **jangan pernah menyerap selisih itu**
+   ke salah satu akun supaya angkanya "pas".
+4. Tambahkan `"akun"` ke `duplicate_check.match_fields` di `data/budget.json`
+   (keterangannya sudah ada di file itu). **Baru pada langkah ini**, tidak sebelumnya.
+5. Sejak saat itu, setiap transaksi baru **wajib** menyebut akun. Kalau pengguna tidak
+   menyebutkannya, tanyakan — jangan menebak.
+
+### Mencatat transfer
+
+Memindahkan uang antar akun sendiri bukan pemasukan dan bukan pengeluaran.
+
+```
+tarik tunai 500rb dari bank
+pindah 2 juta ke tabungan
+```
+
+Simpan dengan `tipe=transfer`, `kategori=transfer`, `akun` = asal, `akun_tujuan` = tujuan.
+
+```
+2026-09-02,transfer,transfer,Tarik tunai untuk belanja,500000,,whatsapp,Ayah,Bank Utama,Kas,09:00,TRX-20260902-0001
+```
+
+Transfer **tidak pernah** menyentuh Total Pemasukan, Total Pengeluaran, Arus Kas Bulan,
+Saldo global, maupun budget. Ia hanya menggeser saldo antar akun. Kalau setelah mencatat
+transfer angka Saldo global ikut berubah, itu **bug** — hentikan dan laporkan.
+
+Konfirmasinya menyebut kedua sisi:
+
+```
+✅ Transfer dicatat!
+
+🏦 Bank Utama → Kas
+💰 Jumlah: Rp 500.000
+📅 2 Sep 2026  🕒 09:00
+
+Saldo Bank Utama: Rp 4.500.000
+Saldo Kas: Rp 1.500.000
+(Saldo global tidak berubah)
 ```
 
 ---
@@ -671,3 +754,5 @@ Semangat menabung minggu depan! 🎯
 8. **Baca budget.json** di awal setiap sesi untuk memuat kategori custom dan budget aktif
 9. **Cek budget** otomatis setiap kali ada transaksi baru dicatat
 10. **Jangan pernah hapus data** — hapus terakhir hanya hapus 1 baris terakhir, bukan reset semua
+11. **Transfer bukan belanja** — `tipe=transfer` tidak pernah masuk Total Pemasukan, Total Pengeluaran, Arus Kas Bulan, Saldo global, maupun budget. Kalau Saldo global berubah setelah mencatat transfer, itu bug — hentikan dan laporkan
+12. **Jangan tebak akun** — baris sebelum tanggal cutover memang berkolom `akun` kosong dan itu benar. Sesudah cutover, kalau pengguna tidak menyebut akunnya, **tanyakan**. Saldo per akun selalu disajikan dengan menyebut batas cutover-nya (ADR-0010)

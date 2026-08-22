@@ -1,0 +1,25 @@
+{
+  "cutover": "2026-09-01",
+  "saldo_global_saat_cutover": 8000000,
+  "akun": [
+    {
+      "id": "kas",
+      "nama": "Kas",
+      "aktif": true,
+      "saldo_awal": 1000000
+    },
+    {
+      "id": "bank",
+      "nama": "Bank Utama",
+      "aktif": true,
+      "saldo_awal": 5000000
+    },
+    {
+      "id": "tabungan",
+      "nama": "Tabungan",
+      "aktif": true,
+      "saldo_awal": 2000000
+    }
+  ],
+  "keterangan": "CONTOH dengan angka karangan — bulat semua supaya jelas bukan saldo sungguhan. Aturan yang mengikat: jumlah semua saldo_awal HARUS sama dengan saldo_global_saat_cutover. 1.000.000 + 5.000.000 + 2.000.000 = 8.000.000. Saldo asli tinggal di data/akun.json, yang tidak dilacak Git."
+}

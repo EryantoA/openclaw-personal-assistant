@@ -233,6 +233,39 @@ Periode: 13 - 19 Mei 2026
 
 ---
 
+## 🩺 Penjaga Kesehatan
+
+Berjalan **08:00, 14:00, dan 21:00 WIB**, dan mengabari lewat WhatsApp hanya kalau ada
+yang salah:
+
+- cron gagal atau mandek (lewat jadwal > 3 jam)
+- OAuth sudah lewat masa berlaku — tandanya penyegaran otomatis berhenti jalan. Tidak ada
+  peringatan dini di sini: token akses cuma hidup hitungan jam lalu disegarkan sendiri,
+  jadi ambang "hampir habis" dalam satuan hari akan menyala pada setiap pemeriksaan sehat
+- `bills.csv` tidak bertambah ≥ 3 hari — gejala jalur WhatsApp mati, bukan sekadar sepi
+
+Peringatan yang isinya sama tidak diulang sebelum 12 jam, supaya tidak jadi gangguan yang
+lama-lama diabaikan.
+
+```bash
+python3 scripts/periksa-kesehatan.py             # periksa & cetak saja (aman)
+python3 scripts/periksa-kesehatan.py --kirim     # kirim kalau ada masalah
+python3 scripts/periksa-kesehatan.py --uji-kirim # buktikan jalur kirim hidup (dry-run)
+```
+
+**Kenapa ia tidak memakai model.** Pada 21 Agustus 2026 OAuth `claude-cli` berhenti bisa
+disegarkan; seluruh giliran agent gagal — termasuk pencatatan lewat WhatsApp — dan
+`cek_budget_malam` berstatus `error` **dua hari tanpa mengabari siapa pun**. Penjaga yang
+butuh model akan ikut mati persis saat paling dibutuhkan, jadi ia hanya membaca status dan
+mengirim lewat channel plugin Gateway. Rinciannya di
+[ADR-0011](docs/adr/0011-penjaga-kesehatan-tidak-boleh-butuh-model.md).
+
+**Batasnya:** penjaga ini hidup di dalam Gateway. Kalau Gateway mati total, ia ikut mati.
+Sinyal cadangan untuk kasus itu adalah `backup_harian` — kalau berkas backup berhenti
+bertambah, Gateway-nya yang bermasalah.
+
+---
+
 ## 📁 Struktur Project
 
 ```
@@ -280,6 +313,19 @@ Edit `openclaw.json` → `agents.defaults.model.primary` atau `.fallbacks`.
 ```bash
 bash setup.sh
 ```
+
+### Bot tidak membalas sama sekali
+
+Paling sering: sesi login Claude CLI habis. Cek dulu:
+
+```bash
+python3 scripts/periksa-kesehatan.py
+```
+
+Kalau muncul `OAuth ... KEDALUWARSA` atau `All models failed ... Not logged in`, jalankan
+`claude` di Terminal lalu login ulang, kemudian `openclaw gateway restart`. Cron berbasis
+skrip (`backup_harian`, `penjaga_kesehatan`) tetap hijau selama ini terjadi — jadi
+"backup jalan" **bukan** bukti bot masih bisa membalas.
 
 ### Cek log
 ```bash

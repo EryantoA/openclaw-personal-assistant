@@ -33,7 +33,8 @@
       "waktu",
       "jumlah"
     ],
-    "aksi": "tolak"
+    "aksi": "tolak",
+    "keterangan_akun": "SAAT CUTOVER (lihat data/akun.json), tambahkan \"akun\" ke match_fields. Sebelum itu jangan — kolom `akun` masih kosong di semua baris, dan resi.py --check-dup akan menolak setiap pencatatan karena field wajibnya belum terisi. Sesudah cutover `akun` selalu diisi, dan ia perlu jadi pembeda: dua transfer dengan tanggal, waktu, dan jumlah sama tapi akun asal berbeda adalah dua transaksi berbeda."
   },
   "kewajiban_ingat_h_minus": 2,
   "kewajiban_kedaluwarsa_hari": 5,

@@ -45,6 +45,8 @@ COLUMNS = [
     "catatan",
     "channel",
     "pencatat",
+    "akun",
+    "akun_tujuan",
 ]
 
 NO_DATE_SHEET = "Tanpa Tanggal"
@@ -185,6 +187,11 @@ def write_month_sheet(
         cell.number_format = RUPIAH_FMT
         if is_saldo_awal(row):
             total_awal += row_jumlah(row)
+        elif row_tipe(row) == "transfer":
+            # Transfer antar akun sendiri: uang tidak masuk dan tidak keluar dari
+            # kas keluarga, hanya berpindah tempat. Tidak boleh menyentuh
+            # Total Pemasukan, Total Pengeluaran, Arus Kas, maupun Saldo.
+            pass
         elif row_tipe(row) == "pemasukan":
             total_in += row_jumlah(row)
         else:

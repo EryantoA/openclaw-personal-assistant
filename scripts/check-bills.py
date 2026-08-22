@@ -113,7 +113,9 @@ def check_budget(today: Optional[date] = None) -> str:
         tanggal_str = row.get("tanggal", "")
         if not tanggal_str.startswith(bulan_ini):
             continue
-        # Budget hanya menghitung pengeluaran; pemasukan (income) diabaikan.
+        # Budget hanya menghitung pengeluaran; pemasukan (income) dan transfer
+        # antar akun sendiri diabaikan. Transfer bukan belanja — memindahkan uang
+        # dari Bank ke Kas tidak boleh memakan jatah budget bulan itu.
         # Data lama tanpa kolom `tipe` dianggap pengeluaran.
         if (row.get("tipe") or "pengeluaran").strip().lower() != "pengeluaran":
             continue

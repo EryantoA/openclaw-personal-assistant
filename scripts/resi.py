@@ -64,6 +64,8 @@ COLUMNS = [
     "catatan",
     "channel",
     "pencatat",
+    "akun",
+    "akun_tujuan",
     "waktu",
     "no_resi",
 ]
@@ -75,7 +77,8 @@ DEFAULT_DUPLICATE_CHECK = {
 }
 
 # Field yang valid untuk match_fields (harus nama kolom CSV yang bisa dibandingkan)
-VALID_MATCH_FIELDS = {"tanggal", "waktu", "jumlah", "item", "kategori", "catatan", "pencatat"}
+VALID_MATCH_FIELDS = {"tanggal", "waktu", "jumlah", "item", "kategori", "catatan", "pencatat",
+                      "akun", "akun_tujuan"}
 
 
 # ── Loaders ──────────────────────────────────────────────────
@@ -141,7 +144,7 @@ def norm_field(field: str, value) -> str:
     """Normalisasi nilai per nama field untuk perbandingan duplikat."""
     if field == "jumlah":
         return norm_total(value)
-    if field in ("item", "kategori", "catatan", "pencatat"):
+    if field in ("item", "kategori", "catatan", "pencatat", "akun", "akun_tujuan"):
         return norm_text(value)
     # tanggal, waktu: bandingkan apa adanya (trim)
     return str(value or "").strip()
@@ -227,6 +230,8 @@ def do_check_dup(args) -> int:
         "kategori": args.kategori,
         "catatan": args.catatan,
         "pencatat": args.pencatat,
+        "akun": args.akun,
+        "akun_tujuan": args.akun_tujuan,
     }
 
     missing = [f for f in fields if candidate.get(f) in (None, "")]
@@ -358,6 +363,8 @@ def main() -> int:
     parser.add_argument("--kategori")
     parser.add_argument("--catatan")
     parser.add_argument("--pencatat")
+    parser.add_argument("--akun")
+    parser.add_argument("--akun-tujuan", dest="akun_tujuan")
 
     args = parser.parse_args()
 
