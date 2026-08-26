@@ -274,19 +274,21 @@ def main():
 
     if not a.kirim:
         print("\n(tidak dikirim — tambahkan --kirim)")
-        return 1
+        return 0
 
     s = sidik(masalah)
     if not boleh_kirim(s, a.paksa):
         print(f"\n(sudah dikabari <{REDAM_JAM} jam lalu dengan isi sama — tidak diulang)")
-        return 1
+        return 0
     if not tujuan:
         print("\n❌ Tidak ada tujuan pengiriman."); return 2
 
+    semua_ok = True
     for kanal, ke, ok, ket in kirim(laporan, tujuan):
         print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
+        semua_ok = semua_ok and ok
     catat(s)
-    return 1
+    return 0 if semua_ok else 1
 
 
 if __name__ == "__main__":
