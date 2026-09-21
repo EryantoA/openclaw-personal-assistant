@@ -59,7 +59,12 @@ keluarga menghitung pekan.
 - **Permintaan lewat chat** ("laporan minggu ini") menjalankan skrip yang sama. Untuk Pekan
   yang belum tutup, judulnya diberi tanda "Pekan berjalan". Model meneruskan output apa adanya
   dan tidak memformat ulang, supaya tidak ada dua versi angka untuk satu Pekan.
-- **Skrip keluar dengan status gagal kalau pengiriman gagal**, supaya cron tercatat `error`
+- **Pengiriman dicoba sampai 3 kali dengan jeda 60 detik**, memakai `kirim()` yang sama dengan
+  Laporan Bulanan. Dari 39 run penjaga kesehatan (6–21 Sep 2026) yang mencoba mengirim, 9 gagal
+  secara acak (`No active WhatsApp Web listener`, `Connection Closed`), padahal
+  `channels status` menyebut WhatsApp tersambung. Risikonya pesan ganda, dan itu lebih murah
+  daripada laporan yang tidak sampai. Timeout cron harus ≥420 detik.
+- **Skrip keluar dengan status gagal kalau ketiga percobaan gagal**, supaya cron tercatat `error`
   dan penjaga kesehatan menangkapnya pukul 08:00 di pagi yang sama.
 - **Cron `laporan_mingguan` diubah di tempat** (`cron edit`, ID tetap), bukan dihapus lalu
   dibuat ulang, supaya riwayat run dan pemantauan penjaga kesehatan tidak terputus.
