@@ -26,6 +26,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+import time
 from datetime import date, datetime
 from pathlib import Path
 
@@ -43,7 +44,8 @@ NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
 
 
 # ── Membaca ───────────────────────────────────────────────────────────────
-def muat_baris(path=BILLS):
+def muat_baris(path=None):
+    path = path or BILLS
     if not path.exists():
         return []
     with open(path, encoding="utf-8", newline="") as f:
@@ -239,13 +241,33 @@ def tujuan_baku():
         return []
 
 
-def kirim(pesan, kanal, ke):
+def kirim_sekali(pesan, kanal, ke):
     argv = ["openclaw", "message", "send", "--channel", kanal, "--target", ke, "-m", pesan]
     try:
         p = subprocess.run(argv, capture_output=True, text=True, timeout=60)
         return p.returncode == 0, (p.stderr or p.stdout).strip()[:200]
     except Exception as e:  # noqa: BLE001
         return False, str(e)
+
+
+def kirim(pesan, kanal, ke, coba=3, jeda=60):
+    """Coba ulang: koneksi WhatsApp sesekali putus sesaat.
+
+    Riwayat penjaga kesehatan 5–21 Sep 2026 mencatat 9 kegagalan kirim acak ("Connection
+    Closed", "No active WhatsApp Web listener") di antara ~60 run, sementara run sebelum dan
+    sesudahnya terkirim. Pesan yang terbit sebulan sekali tidak boleh bergantung pada menit
+    yang kebetulan buruk. Risikonya pesan ganda kalau "gagal" ternyata sampai — lebih murah
+    daripada laporan yang tidak sampai.
+    """
+    ket = ""
+    for i in range(coba):
+        if i:
+            time.sleep(jeda)
+        ok, ket = kirim_sekali(pesan, kanal, ke)
+        if ok:
+            return True, ket
+        print(f"(percobaan {i + 1}/{coba} gagal: {ket[:120]})", file=sys.stderr)
+    return False, ket
 
 
 def main(argv=None):

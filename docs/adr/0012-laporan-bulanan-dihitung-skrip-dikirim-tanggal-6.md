@@ -55,6 +55,12 @@ setiap kali bulan lama berubah** ditolak karena terlalu berisik untuk koreksi ke
   Skrip juga **harus keluar dengan status gagal** kalau pengiriman gagal, supaya cron tercatat
   `error` dan penjaga kesehatan menangkapnya pukul 14:00 di hari yang sama. Jam 09:00 dipilih
   untuk itu, dan supaya tidak bertabrakan dengan cron pukul 20:00.
+- **Pengiriman dicoba sampai 3 kali, berjeda 60 detik** (batas waktu cron 420 detik). Uji
+  kirim pertama 21 Sep 2026 gagal dua kali berturut-turut — `Connection Closed`, lalu
+  `No active WhatsApp Web listener` — padahal `channels status` menyebut WhatsApp tersambung.
+  Riwayat penjaga kesehatan 5–21 Sep menunjukkan pola yang sama: sekitar 9 dari 60 run gagal
+  kirim secara acak. Pesan yang terbit sebulan sekali tidak boleh bergantung pada menit yang
+  kebetulan buruk; pesan ganda sesekali lebih murah daripada laporan yang tidak sampai.
 - **Koreksi melekat pada bulan asal perubahan**, bukan pada setiap bulan sesudahnya yang Saldo
   akhirnya ikut bergeser. Setelah disebutkan sekali, angka simpanan bulan itu diperbarui.
 - **Permintaan lewat chat** (`laporan bulan lalu`) menjalankan skrip yang sama dalam mode
