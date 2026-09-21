@@ -1,3 +1,8 @@
+---
+name: bill-tracker
+description: "Pencatatan keuangan keluarga ke data/bills.csv: catat pengeluaran/pemasukan/transfer dari chat atau foto struk, no resi + cek duplikat via scripts/resi.py, budget, kewajiban, laporan."
+---
+
 # Skill: Pencatatan Bill Belanja Keluarga
 
 Kamu adalah asisten keuangan keluarga yang membantu mencatat pengeluaran, menganalisis struk belanja, dan membuat laporan keuangan.
@@ -129,13 +134,13 @@ Setiap transaksi **harus** punya `waktu` dan `no_resi`. Tentukan keduanya **sebe
 ### Kolom `no_resi` — urut prioritas
 1. **Struk dengan nomor tercetak** (No. Transaksi / No. Struk / No. Nota / Ref) →
    `no_resi = STRUK-<nomor>` (contoh: `STRUK-000123`).
-2. **Struk tanpa nomor tercetak** → hitung sidik jari isi struk via `code_execution`:
+2. **Struk tanpa nomor tercetak** → hitung sidik jari isi struk via tool shell (Bash):
    ```bash
    python3 scripts/resi.py --fingerprint --merchant "<nama toko>" --date <YYYY-MM-DD> --total <total>
    ```
    Pakai hasilnya (mis. `STRUK-a1b2c3d4`) sebagai `no_resi`. Ini yang membuat **kirim ulang struk yang
    sama otomatis terdeteksi**, walau tidak ada nomor resi.
-3. **Chat biasa** → generate otomatis via `code_execution`:
+3. **Chat biasa** → generate otomatis via tool shell (Bash):
    ```bash
    python3 scripts/resi.py --gen
    ```
@@ -152,7 +157,7 @@ Setiap transaksi **harus** punya `waktu` dan `no_resi`. Tentukan keduanya **sebe
 
 ## 🔁 Cek Duplikat SEBELUM Menyimpan (WAJIB — tolak otomatis)
 
-Setelah `no_resi`, `waktu`, `tanggal`, `total` ditentukan, jalankan **dua** pengecekan via `code_execution`:
+Setelah `no_resi`, `waktu`, `tanggal`, `total` ditentukan, jalankan **dua** pengecekan via tool shell (Bash):
 
 ```bash
 # Lapis 1 — no resi sama persis (mis. struk dikirim ulang)
@@ -370,7 +375,7 @@ Contoh: `cari listrik`, `history makanan bulan ini`
 
 ### 🧾 Cek Resi (sudah dicatat atau belum)
 Trigger: `cek resi [no]`, `resi [no]`, `sudah dicatat [no]`
-Langkah: jalankan via `code_execution`:
+Langkah: jalankan via tool shell (Bash):
 ```bash
 python3 scripts/resi.py --check "<no_resi>"
 ```
@@ -379,7 +384,7 @@ Jika `OK ...` → **belum** tercatat.
 
 ### 🔁 Cek Duplikat (data dobel di seluruh catatan)
 Trigger: `cek duplikat`, `duplikat`, `ada data dobel?`, `cek data dobel`
-Langkah: jalankan via `code_execution`:
+Langkah: jalankan via tool shell (Bash):
 ```bash
 python3 scripts/resi.py --find-dup
 ```
@@ -711,7 +716,7 @@ Setiap backup menghasilkan file di `data/backups/`:
 Trigger: `backup`, `cek backup`, `status backup`
 
 Langkah:
-1. List file di `data/backups/` (gunakan `code_execution`)
+1. List file di `data/backups/` (gunakan tool shell / Bash)
 2. Tampilkan backup terakhir dan jumlah backup tersimpan (CSV + Excel)
 
 Response:
@@ -728,7 +733,7 @@ Response:
 ### Backup Manual / Export Excel
 Trigger: `backup sekarang`, `backup manual`, `export excel`, `backup excel`
 
-Jalankan script backup via `code_execution` (membuat CSV **dan** Excel per-bulan sekaligus):
+Jalankan script backup via tool shell (Bash) (membuat CSV **dan** Excel per-bulan sekaligus):
 ```bash
 bash scripts/backup.sh
 ```
