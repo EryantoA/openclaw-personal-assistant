@@ -204,7 +204,8 @@ Jika keluarannya `DUPLICATE` (exit code 1), tidak ada yang ditulis. Balas:
 
 Kalau pengguna lalu menegaskan itu transaksi baru yang berbeda dan yang cocok adalah **Lapis 2**,
 jalankan ulang perintah yang sama dengan `python3 scripts/catat.py --paksa`. Lapis 1 (resi sama)
-tidak pernah dipaksa — minta pengguna memeriksa struknya.
+tidak pernah dipaksa — minta pengguna memeriksa struknya. Jangan menyebut `--paksa` atau nama
+skrip kepada pengguna; itu urusanmu, bukan mereka.
 
 `python3 scripts/resi.py --check "<no_resi>"` tetap bisa dipakai untuk menjawab "resi ini sudah
 dicatat belum?" tanpa mencatat apa pun.

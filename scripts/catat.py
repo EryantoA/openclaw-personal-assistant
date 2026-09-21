@@ -126,7 +126,8 @@ def cek_duplikat(baris: list[dict], ada: list[dict], paksa: bool) -> str | None:
     resi_baru = baris[0]["no_resi"]
     for row in ada:
         if (row.get("no_resi") or "").strip() == resi_baru:
-            return f"DUPLICATE no_resi {resi_baru} sudah ada: {resi.row_summary(row)}"
+            return (f"DUPLICATE no_resi {resi_baru} sudah ada: {resi.row_summary(row)} "
+                    f"(Lapis 1 — tidak bisa dipaksa; struk yang sama sudah tercatat)")
 
     cfg = resi.load_duplicate_config()
     if paksa or not cfg.get("aktif", True):
