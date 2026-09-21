@@ -48,6 +48,19 @@ sys.path.insert(0, str(Path(__file__).parent))
 import resi  # noqa: E402
 
 TIPE = {"pengeluaran", "pemasukan", "transfer"}
+KUNCI_TX = {"tanggal", "tipe", "channel", "pencatat", "items", "waktu", "no_resi", "catatan",
+            "akun", "akun_tujuan"}
+KUNCI_ITEM = {"kategori", "item", "jumlah", "catatan"}
+
+CONTOH = (
+    'Contoh masukan yang benar:\n'
+    '{"tanggal": "2026-09-21", "tipe": "pengeluaran", "channel": "whatsapp", "pencatat": "Eryanto",\n'
+    ' "items": [{"kategori": "food", "item": "Nasi goreng - Warung Ani", "jumlah": 25000}]}'
+)
+# Model yang menerima ERROR lalu tetap membalas "sudah dicatat" pernah terjadi (21 Sep 2026,
+# resi karangan TESTBOT-21SEP). Kalimat ini ikut dicetak supaya tidak bisa terlewat.
+TIDAK_TERSIMPAN = ("TIDAK ADA YANG DISIMPAN. Jangan membalas bahwa transaksi sudah dicatat; "
+                   "perbaiki lalu jalankan lagi, atau sampaikan ke pengguna apa adanya.")
 
 
 class Tolak(Exception):
@@ -63,6 +76,9 @@ def kategori_sah() -> set[str]:
 
 def susun_baris(tx: dict, sekarang: datetime) -> list[dict]:
     """Validasi transaksi dan kembalikan baris-baris 12 kolom (no_resi belum diisi bila kosong)."""
+    asing = sorted(set(tx) - KUNCI_TX)
+    if asing:
+        raise Tolak(f"kunci tidak dikenal {asing}; kunci yang sah: {sorted(KUNCI_TX)}")
     for f in ("tanggal", "tipe", "channel", "pencatat"):
         if not str(tx.get(f) or "").strip():
             raise Tolak(f"field `{f}` wajib diisi")
@@ -89,6 +105,11 @@ def susun_baris(tx: dict, sekarang: datetime) -> list[dict]:
     sah = kategori_sah()
     baris = []
     for i, it in enumerate(items, 1):
+        if not isinstance(it, dict):
+            raise Tolak(f"item {i} harus objek {{kategori, item, jumlah}}")
+        asing = sorted(set(it) - KUNCI_ITEM)
+        if asing:
+            raise Tolak(f"item {i}: kunci tidak dikenal {asing}; kunci yang sah: {sorted(KUNCI_ITEM)}")
         kategori = str(it.get("kategori") or "").strip()
         if kategori == "opening_balance":
             raise Tolak("kategori opening_balance tidak boleh dibuat (ADR-0008)")
@@ -194,13 +215,17 @@ def main() -> int:
     try:
         tx = json.loads(sys.stdin.read())
     except json.JSONDecodeError as e:
-        print(f"ERROR JSON tidak valid: {e}")
-        return 2
-    if not isinstance(tx, dict):
-        print("ERROR masukan harus satu objek JSON (satu transaksi)")
-        return 2
-    kode, pesan = catat(tx, paksa=args.paksa, uji=args.uji)
+        kode, pesan = 2, f"ERROR JSON tidak valid: {e}"
+    else:
+        if isinstance(tx, dict):
+            kode, pesan = catat(tx, paksa=args.paksa, uji=args.uji)
+        else:
+            kode, pesan = 2, "ERROR masukan harus satu objek JSON (satu transaksi)"
     print(pesan)
+    if kode == 2:
+        print(CONTOH)
+    if kode != 0:
+        print(TIDAK_TERSIMPAN)
     return kode
 
 

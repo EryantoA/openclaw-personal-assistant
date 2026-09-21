@@ -117,6 +117,13 @@ class Catat(unittest.TestCase):
         self.assertEqual(b.count(b"\r\n"), b.count(b"\n"))
         self.assertEqual(b.count(b"\r\n"), 3)
 
+    def test_kunci_inggris_ditolak_dengan_petunjuk(self):
+        kode, pesan = ct.catat({"amount": 10000, "category": "Food", "date": "2026-09-21"}, sekarang=JAM)
+        self.assertEqual(kode, 2)
+        self.assertIn("kunci tidak dikenal", pesan)
+        self.assertIn("tanggal", pesan)
+        self.assertEqual(len(self.baris()), 2)
+
     def test_uji_tidak_menulis(self):
         kode, pesan = ct.catat(tx(), uji=True, sekarang=JAM)
         self.assertEqual(kode, 0)
