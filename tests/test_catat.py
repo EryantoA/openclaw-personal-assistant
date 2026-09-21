@@ -110,6 +110,13 @@ class Catat(unittest.TestCase):
         for t in (tanpa_tujuan, salah_kategori, transfer_bukan_transfer):
             self.assertEqual(ct.catat(t, sekarang=JAM)[0], 2, t)
 
+    def test_mengikuti_akhir_baris_crlf_file(self):
+        self.csv.write_bytes(f"{HEADER}\r\n{LAMA}\r\n".encode())
+        self.assertEqual(ct.catat(tx(), sekarang=JAM)[0], 0)
+        b = self.csv.read_bytes()
+        self.assertEqual(b.count(b"\r\n"), b.count(b"\n"))
+        self.assertEqual(b.count(b"\r\n"), 3)
+
     def test_uji_tidak_menulis(self):
         kode, pesan = ct.catat(tx(), uji=True, sekarang=JAM)
         self.assertEqual(kode, 0)

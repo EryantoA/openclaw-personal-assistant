@@ -168,12 +168,14 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
         if uji:
             return 0, f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} waktu {baris[0]['waktu']}"
 
+        # Ikuti akhir baris yang sudah dipakai file (bills.csv saat ini CRLF) supaya tidak campur
+        eol = "\r\n" if "\r\n" in isi else "\n"
         out = io.StringIO()
-        w = csv.DictWriter(out, fieldnames=resi.COLUMNS, lineterminator="\n")
+        w = csv.DictWriter(out, fieldnames=resi.COLUMNS, lineterminator=eol)
         if not isi.strip():
             w.writeheader()
         elif not isi.endswith("\n"):
-            out.write("\n")
+            out.write(eol)
         for b in baris:
             w.writerow(b)
         f.write(out.getvalue())
