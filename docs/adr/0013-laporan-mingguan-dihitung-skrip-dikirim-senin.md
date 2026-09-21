@@ -72,3 +72,17 @@ keluarga menghitung pekan.
   dengan Laporan Bulanan. Laporan Mingguan tidak punya aturan pencocokan sendiri.
 - **Blind spot yang diakui:** skrip tidak bisa membedakan hari tanpa belanja dari hari yang
   tidak tercatat. Satu Hari Kosong yang sebenarnya karena lupa mencatat tidak memicu apa-apa.
+
+## Diperluas ke `cek_budget_malam` (21 Sep 2026)
+
+Cron peringatan malam (Senin–Sabtu 20:00) diubah dengan cara yang sama: command payload
+`check-bills.py --mode all --kirim`, tanpa model, dan hanya mengirim kalau ada temuan. Selama
+masih berupa giliran agent, 12 dari 53 run (sekitar 23%) gagal sebelum sempat mengecek (OAuth
+mati, kuota habis, timeout). Menjalankan ulang skrip untuk malam-malam itu menunjukkan bahwa
+peringatan "BUDGET HABIS" 26 Agu 2026 tidak pernah terkirim. Pada malam yang berjalan normal,
+agent memang meneruskan peringatan dengan benar, jadi yang dibuang hanya ketergantungan pada
+model, bukan logika pengecekannya.
+
+Keputusan "ada isi atau tidak" diambil dari hasil tiap bagian (`temuan_all()` kosong atau
+tidak), bukan dari teks "✅ Semua lancar". Dengan begitu, mengubah kalimat ramah itu tidak
+bisa membuat cron diam-diam mengirim setiap malam.

@@ -17,6 +17,7 @@ diam total di hari-hari biasa.
 Usage:
   python3 scripts/check-bills.py --mode budget
   python3 scripts/check-bills.py --mode all
+  python3 scripts/check-bills.py --mode all --kirim   # cron cek_budget_malam: kirim HANYA kalau ada isi
 """
 
 import csv
@@ -24,6 +25,7 @@ import json
 import os
 import sys
 import argparse
+import importlib.util
 import calendar
 from datetime import date
 from pathlib import Path
@@ -319,16 +321,45 @@ def check_perkiraan(today: Optional[date] = None) -> str:
 
 
 # ── Mode: All (untuk cron harian) ────────────────────────────
-def check_all(today: Optional[date] = None) -> str:
-    """Budget + Kewajiban + Perkiraan. Lihat docs/adr/0006."""
+def temuan_all(today: Optional[date] = None) -> str:
+    """Budget + Kewajiban + Perkiraan yang perlu ditindak; "" kalau tidak ada. Lihat docs/adr/0006."""
     bagian = [check_budget(today), check_kewajiban(today), check_perkiraan(today)]
-    terisi = [b for b in bagian if b]
-    if not terisi:
-        return "✅ Semua lancar! Budget aman, tidak ada tagihan jatuh tempo."
-    return "\n\n─────────────────────────\n\n".join(terisi)
+    return "\n\n─────────────────────────\n\n".join(b for b in bagian if b)
+
+
+def check_all(today: Optional[date] = None) -> str:
+    return temuan_all(today) or "✅ Semua lancar! Budget aman, tidak ada tagihan jatuh tempo."
 
 
 # ── Main ─────────────────────────────────────────────────────
+# ── Pengiriman (cron, tanpa model) ──────────────────────────
+def kirim_kalau_ada(isi: str) -> int:
+    """Kirim ke nomor pemilik hanya kalau ada yang perlu ditindak. 0 = beres, 1 = gagal kirim.
+
+    Cron cek_budget_malam dulu giliran agent; 12 dari 53 malam gagal sebelum sempat mengecek
+    (OAuth mati, kuota, timeout) dan peringatan 26 Agu 2026 tidak pernah terkirim. Sekarang
+    command payload, sama dengan Laporan Mingguan/Bulanan (docs/adr/0013). kirim() dipinjam
+    dari laporan-bulanan.py — di-import di sini, bukan di atas, karena laporan-bulanan.py
+    sendiri memuat file ini.
+    """
+    if not isi:
+        print("\n(tidak ada yang perlu dikirim)")
+        return 0
+    spec = importlib.util.spec_from_file_location("laporan_bulanan", SCRIPT_DIR / "laporan-bulanan.py")
+    bulanan = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bulanan)
+    tujuan = bulanan.tujuan_baku()
+    if not tujuan:
+        print("\n❌ Tidak ada tujuan pengiriman (channels.whatsapp.allowFrom kosong).")
+        return 1
+    semua_ok = True
+    for kanal, ke in tujuan:
+        ok, ket = bulanan.kirim(isi, kanal, ke)
+        print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
+        semua_ok = semua_ok and ok
+    return 0 if semua_ok else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description="Budget checker untuk Family Bill Tracker")
     parser.add_argument(
@@ -343,6 +374,11 @@ def main():
         help="Anggap hari ini tanggal segini. Untuk menguji pengingat tanpa menunggu; "
         "tidak dipakai cron.",
     )
+    parser.add_argument(
+        "--kirim",
+        action="store_true",
+        help="kirim ke nomor pemilik kalau ada isi; gagal kirim = exit 1 (dipakai cron)",
+    )
     args = parser.parse_args()
 
     today = parse_tanggal(args.tanggal) if args.tanggal else None
@@ -351,11 +387,19 @@ def main():
 
     result = check_budget(today) if args.mode == "budget" else check_all(today)
 
+    if args.kirim:
+        # "Ada isi" diputuskan dari bagian-bagiannya, bukan dari teks "✅ Semua lancar" —
+        # teks ramah itu boleh berubah tanpa membuat cron diam-diam mengirim tiap malam.
+        isi = check_budget(today) if args.mode == "budget" else temuan_all(today)
+        print(isi or "✅ Semua lancar!")
+        return kirim_kalau_ada(isi)
+
     if result:
         print(result)
     else:
         print("✅ Semua lancar!")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

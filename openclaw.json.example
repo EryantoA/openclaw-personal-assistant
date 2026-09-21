@@ -46,11 +46,13 @@
       {
         "id": "cek_budget_malam",
         "schedule": "0 20 * * 1-6",
-        "message": "Cek malam ini: jalankan `python3 scripts/check-bills.py --mode all` menggunakan tool code_execution. Outputnya bisa memuat tiga hal: peringatan budget, tagihan yang jatuh tempo (Kewajiban), dan transaksi berulang yang belum muncul (Perkiraan). Kirim output apa adanya ke semua channel HANYA kalau ada isinya. Kalau outputnya diawali '✅ Semua lancar', jangan kirim apapun.",
-        "channels": [
-          "telegram",
-          "whatsapp"
-        ]
+        "tz": "Asia/Jakarta",
+        "_keterangan": "Command payload, tanpa model (ADR-0013, bagian cek_budget_malam). Di gateway ini job 41756337, diubah di tempat. check-bills.py --kirim hanya mengirim kalau ada temuan (budget/Kewajiban/Perkiraan), lewat kirim() Laporan Bulanan (3x retry); delivery cron-nya 'none'.",
+        "payload": {
+          "kind": "command",
+          "argv": ["sh", "-lc", "python3 /Users/apple/Developments/openclaw-personal-assistant/scripts/check-bills.py --mode all --kirim"]
+        },
+        "delivery": "none"
       },
       {
         "id": "laporan_bulanan",
