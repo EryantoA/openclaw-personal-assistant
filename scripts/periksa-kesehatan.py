@@ -43,6 +43,9 @@ AUTH_DB = Path.home() / ".openclaw" / "agents" / "main" / "agent" / "openclaw-ag
 CRON_MANDEK_JAM = 3        # cron dianggap mandek kalau lewat jadwal sekian jam
 BILLS_DIAM_HARI = 3        # buku kas tidak bertambah sekian hari = mencurigakan
 REDAM_JAM = 12             # jangan ulangi peringatan yang sama sebelum sekian jam
+KIRIM_COBA = 3             # kirim WA gagal acak ±23% (6–21 Sep 2026) walau channel "connected"
+KIRIM_JEDA = 60            # detik antar percobaan
+NAMA_SENDIRI = "penjaga_kesehatan"  # nama job cron penjaga ini sendiri
 
 
 def jalankan(argv, timeout=25):
@@ -71,6 +74,13 @@ def periksa_cron():
     sekarang = datetime.now()
     for j in jobs:
         nama = j.get("name", "?")
+        if nama == NAMA_SENDIRI:
+            # Run yang sedang berjalan ini sudah bukti penjaga hidup; kegagalan run
+            # sebelumnya bukan sesuatu yang bisa ditindak pemilik. Dulu ini muncul sebagai
+            # "penjaga_kesehatan GAGAL — tanpa keterangan" padahal semuanya sudah sehat
+            # (21 Sep 2026 21:00). Pesan yang gagal terkirim tidak hilang: catat() hanya
+            # jalan setelah terkirim, jadi run ini mengirimnya ulang.
+            continue
         if not j.get("enabled", True):
             masalah.append(("PERINGATAN", f"Cron '{nama}' nonaktif", "Sengaja dimatikan?"))
             continue
@@ -220,12 +230,25 @@ def tujuan_baku():
 
 
 def kirim(pesan, tujuan, kering=False):
+    """Kirim ke tiap tujuan, dengan percobaan ulang.
+
+    Sengaja tidak meminjam kirim() milik laporan-bulanan.py walau isinya mirip: penjaga harus
+    bergantung pada sesedikit mungkin kode lain (ADR-0011), supaya skrip lain yang rusak tidak
+    ikut membungkamnya.
+    """
     hasil = []
     for kanal, ke in tujuan:
         argv = ["openclaw", "message", "send", "--channel", kanal, "--target", ke, "-m", pesan]
         if kering:
             argv.append("--dry-run")
-        kode, keluaran, galat = jalankan(argv, timeout=40)
+        for i in range(1 if kering else KIRIM_COBA):
+            if i:
+                time.sleep(KIRIM_JEDA)
+            kode, keluaran, galat = jalankan(argv, timeout=40)
+            if kode == 0:
+                break
+            print(f"(percobaan {i + 1} ke {kanal} gagal: {(galat or keluaran).strip()[:120]})",
+                  file=sys.stderr)
         hasil.append((kanal, ke, kode == 0, (galat or keluaran).strip()[:160]))
     return hasil
 
@@ -287,7 +310,10 @@ def main():
     for kanal, ke, ok, ket in kirim(laporan, tujuan):
         print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
         semua_ok = semua_ok and ok
-    catat(s)
+    # Catat HANYA kalau sampai. Dulu dicatat juga saat gagal, sehingga peredam menahan
+    # peringatan yang tidak pernah diterima siapa pun selama 12 jam.
+    if semua_ok:
+        catat(s)
     return 0 if semua_ok else 1
 
 

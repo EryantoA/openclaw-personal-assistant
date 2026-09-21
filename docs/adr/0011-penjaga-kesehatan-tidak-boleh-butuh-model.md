@@ -67,3 +67,22 @@ kedaluwarsa 01 Agustus padahal token di keychain sudah disegarkan, dan baru ikut
 setelah ada yang membaca lewat CLI. Penjaga sekarang memanggil `openclaw models auth list`,
 yang memaksa pembacaan ulang dari keychain; sqlite tinggal cadangan kalau perintah itu
 gagal. Perintah ini tidak menyentuh model, jadi syarat utama ADR ini tetap terjaga.
+
+**Koreksi 21 September 2026: kiriman yang gagal dianggap terkirim, dan penjaga mengadukan
+dirinya sendiri.** Dua cacat ini saling menutupi:
+
+- `catat()` dijalankan walaupun pengiriman gagal. Akibatnya peredam menahan peringatan yang
+  tidak pernah diterima siapa pun selama 12 jam. Dari 39 run (6–21 Sep) yang mencoba mengirim,
+  9 gagal secara acak (`No active WhatsApp Web listener`), padahal channel berstatus
+  "connected". Sekarang peringatan hanya dicatat setelah terkirim, dan pengiriman dicoba
+  sampai 3 kali dengan jeda 60 detik. Retry-nya ditulis ulang di skrip ini, tidak dipinjam dari
+  `laporan-bulanan.py`, supaya penjaga tetap bergantung pada sesedikit mungkin kode lain.
+- Penjaga melaporkan run-nya sendiri yang gagal. Laporan itu tidak bisa ditindak ("tanpa
+  keterangan"), dan satu-satunya efeknya adalah mengubah sidik sehingga cacat pertama tidak
+  terlihat. Pesan 21 Sep 21:00 isinya hanya itu, padahal semuanya sudah sehat. Sekarang job
+  `penjaga_kesehatan` dilewati, karena run yang sedang berjalan sudah bukti bahwa ia hidup.
+
+Timeout yang terjadi tiga kali (18, 20, 21 Sep, 10–17 menit) **bukan** cacat skrip. Menurut
+`pmset -g log`, Mac yang berjalan dengan baterai terbangun sebentar (DarkWake, sekitar 14
+detik), cron jalan, lalu Mac tidur lagi di tengah run. Selama Mac tidur, semua cron dan
+balasan bot berhenti. Ini soal pengaturan daya, bukan soal kode.
