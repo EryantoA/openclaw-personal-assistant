@@ -64,6 +64,12 @@ setiap kali bulan lama berubah** ditolak karena terlalu berisik untuk koreksi ke
   Percobaan ketiga hari itu terkirim lewat cron gateway, dan pengguna mengonfirmasi laporan
   Agustus benar-benar masuk di WhatsApp — bukti sampai yang diminta
   [0009](0009-cron-hidup-di-gateway-bukan-di-openclaw-json.md), bukan sekadar status `ok`.
+- **Mac yang tidur bisa membekukan run di tengah jalan.** Dengan baterai dan tutup tertutup,
+  cron baru jalan saat DarkWake yang hanya beberapa detik; gateway lalu menyatakan timeout
+  dan mengulang ([0011](0011-penjaga-kesehatan-tidak-boleh-butuh-model.md), koreksi 21 Sep).
+  Kalau pembekuan terjadi sesudah pesan terkirim tapi sebelum angka disimpan, laporan
+  terkirim dua kali — angka simpanannya tetap benar. Perintah cron dibungkus
+  `caffeinate -i` untuk mencegahnya; efektivitasnya di keadaan tutup tertutup belum terbukti.
 - **Koreksi melekat pada bulan asal perubahan**, bukan pada setiap bulan sesudahnya yang Saldo
   akhirnya ikut bergeser. Setelah disebutkan sekali, angka simpanan bulan itu diperbarui.
 - **Permintaan lewat chat** (`laporan bulan lalu`) menjalankan skrip yang sama dalam mode

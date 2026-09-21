@@ -87,6 +87,16 @@ Timeout yang terjadi tiga kali (18, 20, 21 Sep, 10–17 menit) **bukan** cacat s
 detik), cron jalan, lalu Mac tidur lagi di tengah run. Selama Mac tidur, semua cron dan
 balasan bot berhenti. Ini soal pengaturan daya, bukan soal kode.
 
+Tindak lanjutnya (21 Sep, malam): perintah empat cron yang mengirim pesan — penjaga ini,
+`cek_budget_malam`, `laporan_mingguan`, `laporan_bulanan` — kini dibungkus
+`caffeinate -i python3 …`, supaya Mac menahan tidur selama skripnya berjalan. Terbukti di
+Mac yang terjaga: assertion `PreventUserIdleSystemSleep` muncul atas nama `python3`, lepas
+setelah selesai, dan kode keluar skrip tetap sampai ke gateway. **Belum terbukti** di keadaan
+yang jadi masalah — tutup Mac tertutup, pakai baterai, DarkWake ber-`cap time=180 secs`,
+di mana assertion idle tidak selalu dihormati. Buktinya harus datang dari `pmset -g log` run
+berikutnya dalam keadaan itu: assertion caffeinate tercatat dan tidur tertunda sampai run
+selesai. Kalau tidak, jalan keluarnya pengaturan daya Mac, dan itu keputusan pemiliknya.
+
 **Koreksi 21 September 2026 (malam): "kedaluwarsa" bukan berarti mati.** Token akses baru
 disegarkan saat dipakai, jadi bot yang menganggur beberapa jam selalu tampak kedaluwarsa.
 Pukul 22:33 penjaga melaporkan "OAuth KEDALUWARSA 21:06", padahal `claude auth status`
