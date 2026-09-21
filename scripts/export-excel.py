@@ -12,6 +12,10 @@ Usage:
   python3 scripts/export-excel.py --out FILE.xlsx # simpan ke path lain
 """
 
+# Cron memakai /usr/bin/python3 (3.9 bawaan macOS), bukan Homebrew. Tanpa baris ini anotasi
+# `X | None` / `list[dict]` gagal saat modul dimuat — export Excel mati diam-diam 29 Jul–21 Sep 2026.
+from __future__ import annotations
+
 import argparse
 import csv
 from collections import defaultdict

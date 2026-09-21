@@ -78,3 +78,11 @@ fi
 TOTAL_BACKUPS=$(find "$BACKUP_DIR" -name "bills_*.csv" 2>/dev/null | wc -l | tr -d ' ')
 TOTAL_XLSX=$(find "$BACKUP_DIR" -name "bills_export_*.xlsx" 2>/dev/null | wc -l | tr -d ' ')
 echo "💾 Total backup tersimpan: $TOTAL_BACKUPS CSV + $TOTAL_XLSX Excel"
+
+# Export yang gagal harus membuat cron berstatus error, supaya penjaga kesehatan
+# mengabarinya. Dulu skrip ini tetap exit 0, sehingga export Excel gagal 46 malam
+# berturut-turut (29 Jul–21 Sep 2026) tanpa ada yang tahu. CSV dan cleanup di atas
+# tetap dijalankan dulu; baru di akhir kegagalannya dilaporkan.
+if [ "$EXPORT_STATUS" -ne 0 ]; then
+  exit 1
+fi
