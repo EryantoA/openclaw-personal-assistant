@@ -40,8 +40,14 @@
       {
         "id": "backup_harian",
         "schedule": "0 2 * * *",
-        "message": "Jalankan backup harian: eksekusi perintah bash `bash scripts/backup.sh` menggunakan tool code_execution. Script ini membuat salinan CSV harian sekaligus file Excel per-bulan (bills_export_YYYYMMDD_HHMMSS.xlsx). Jika backup berhasil, catat hasilnya. Jangan kirim notifikasi ke channel kecuali ada error.",
-        "channels": []
+        "tz": "Asia/Jakarta",
+        "_keterangan": "Command payload, tanpa model: salinan CSV harian + Excel per bulan (scripts/backup.sh). cwd = akar repo. Dibungkus caffeinate supaya Mac tidak tidur di tengah backup (ADR-0011). Tidak mengirim pesan; kegagalannya ditangkap penjaga kesehatan.",
+        "payload": {
+          "kind": "command",
+          "argv": ["sh", "-lc", "caffeinate -i bash scripts/backup.sh"],
+          "cwd": "/Users/apple/Developments/openclaw-personal-assistant"
+        },
+        "delivery": "none"
       },
       {
         "id": "cek_budget_malam",
