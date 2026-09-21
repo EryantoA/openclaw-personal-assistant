@@ -6,6 +6,13 @@
   },
   "agents": {
     "defaults": {
+      "cliBackends": {
+        "claude-cli": {
+          "_keterangan": "Bot dijalankan sebagai `claude -p` di folder repo ini dengan HOME yang sama dengan sesi pengembangan, jadi tanpa env ini ia ikut memuat auto-memory developer (~/.claude/projects/<repo>/memory) — termasuk instruksi 'commit & push' dan nomor telepon — sambil berjalan dengan bypassPermissions (21 Sep 2026: bot mencoba `git commit`). Env ini hanya berlaku untuk proses claude milik gateway; OpenClaw menggabungkannya dengan args bawaan (mergeBackendConfig), jadi --strict-mcp-config dll tetap ada. AGENTS.md/SOUL.md tidak terpengaruh (masuk lewat --append-system-prompt-file). Pasang dengan `openclaw config patch`.",
+          "command": "claude",
+          "env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1", "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1" }
+        }
+      },
       "model": {
         "primary": "groq/llama-3.3-70b-versatile",
         "fallbacks": [
