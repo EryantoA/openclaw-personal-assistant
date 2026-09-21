@@ -279,8 +279,23 @@ Total:         Rp 293.500
 📝 5 transaksi tercatat
 ```
 
-### 📊 Lihat Laporan Mingguan
-Trigger: `laporan minggu ini`, `pengeluaran minggu ini`, `weekly report`
+### 📊 Laporan Mingguan
+Trigger: `laporan minggu ini`, `pengeluaran minggu ini`, `laporan pekan ini`, `weekly report`,
+`laporan minggu lalu`, `laporan pekan lalu`
+
+**Jangan hitung sendiri** — jalankan skrip yang sama dengan cron Senin 07:00 (docs/adr/0013),
+supaya tidak pernah ada dua angka untuk satu Pekan:
+
+```bash
+python3 scripts/laporan-mingguan.py --berjalan            # "minggu ini" = Pekan berjalan s.d. hari ini
+python3 scripts/laporan-mingguan.py                       # "minggu lalu" = Pekan terakhir yang sudah tutup
+python3 scripts/laporan-mingguan.py --pekan 2026-09-14    # Pekan yang memuat tanggal itu
+```
+
+Kirim keluarannya **apa adanya** — jangan diringkas, dihitung ulang, atau ditambah tips.
+**JANGAN tambah `--kirim`** saat menjawab chat: itu jalur cron, dan balasan chat sudah sampai.
+Pekan = Senin–Minggu (`CONTEXT.md`); jangan pakai "7 hari terakhir".
+Pertanyaan bebas ("food minggu ini berapa?") tetap boleh dijawab biasa, tapi pakai batas Pekan yang sama.
 
 ### 📊 Lihat Bulan Berjalan
 Trigger: `laporan bulan ini`, `pengeluaran bulan ini`
@@ -733,33 +748,42 @@ Konfirmasi:
 
 ---
 
-## Laporan Mingguan Otomatis (Setiap Minggu)
+## Laporan Mingguan Otomatis (Setiap Senin 07:00)
 
-Format laporan mingguan yang dikirim otomatis setiap Minggu pukul 20:00:
+Dikirim oleh cron `laporan_mingguan` sebagai **command payload tanpa model**
+(`scripts/laporan-mingguan.py --kirim`, docs/adr/0013) untuk Pekan yang baru tutup
+(Senin–Minggu). Bot **tidak** menyusun laporan ini — formatnya ditentukan skrip:
 
 ```
-📊 LAPORAN KEUANGAN MINGGUAN
-Periode: 10 - 16 Jan 2025
+📊 LAPORAN MINGGUAN
+Pekan: Senin 14 Sep – Minggu 20 Sep 2026
 
-💸 PENGELUARAN PER KATEGORI:
-🍚 food:           Rp 450.000  (38%)
-🧹 personal_care:  Rp  95.000   (8%)
-⚡ utilities:      Rp 320.000  (27%)
-🚗 transport:      Rp  85.000   (7%)
-💊 health:         Rp  45.000   (4%)
-📦 other:          Rp 185.000  (16%)
+⚠️ Tidak ada catatan pada Sel 15, Rab 16, Kam 17, Jum 18 Sep — angka pekan ini mungkin kurang
 
-💰 TOTAL MINGGU INI:   Rp 1.180.000
-📝 Total transaksi: 23
+💸 PENGELUARAN PER KATEGORI
+⚡ utilities      Rp 235.000  (29%)
+🛒 groceries      Rp 182.997  (22%)
+...
+Total: Rp 815.997 · 8 transaksi
+vs pekan lalu: -Rp 548.459 (-40%)
+  (pekan lalu dihitung dari catatan hari ini)
 
-📈 vs Minggu lalu: +Rp 85.000 (7.8%)
+🏆 3 TERBESAR
+1. Pembayaran WiFi — Rp 235.000 (14 Sep)
+...
 
-🏆 Pengeluaran terbesar: Listrik PLN (Rp 320.000)
-💡 Tips: Pengeluaran makanan masih dalam batas wajar!
+💰 Pemasukan pekan ini: Rp 0
+🏦 Saldo akhir Pekan: Rp 10.107.898
+📅 Budget Sep: Rp 4.766.560 dari Rp 7.000.000 (68%)
 
-Semangat menabung minggu depan! 🎯
+🧾 Kewajiban belum lunas: tidak ada
+🔮 Perkiraan Sep:
+  • Gaji Elsi ✓
+  • Langganan Anthropic (≈26) belum waktunya
 ```
 
+Peringatan ⚠️ hanya muncul untuk ≥2 Hari Kosong berturut-turut. Pekan yang melewati
+pergantian bulan menampilkan Budget dan Perkiraan kedua bulan (bulan lama bertanda "(tutup)").
 
 ---
 
