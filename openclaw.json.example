@@ -49,6 +49,17 @@
           "telegram",
           "whatsapp"
         ]
+      },
+      {
+        "id": "laporan_bulanan",
+        "schedule": "0 9 6 * *",
+        "tz": "Asia/Jakarta",
+        "_keterangan": "Command payload, tanpa model (ADR-0012). Didaftarkan ke gateway dengan `openclaw cron add --command`, bukan lewat file ini (ADR-0009). Skrip mengirim sendiri lewat `openclaw message send` ke channels.whatsapp.allowFrom[0], jadi delivery cron-nya 'none'.",
+        "payload": {
+          "kind": "command",
+          "argv": ["sh", "-lc", "python3 /Users/apple/Developments/openclaw-personal-assistant/scripts/laporan-bulanan.py --kirim"]
+        },
+        "delivery": "none"
       }
     ]
   },

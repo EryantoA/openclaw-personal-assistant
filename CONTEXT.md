@@ -85,3 +85,43 @@ _Avoid_: channel, sumber
 **Pencatat**:
 Anggota keluarga yang mencatat transaksi. Belum tentu orang yang membelanjakan uangnya.
 _Avoid_: pengirim, user
+
+### Laporan
+
+**Laporan Bulanan**:
+Laporan untuk satu bulan yang sudah tutup, dikirim beberapa hari setelah bulan berganti supaya
+transaksi yang telat dicatat ikut terhitung. Bukan laporan bulan berjalan — memantau bulan yang
+sedang berjalan adalah tugas pengecekan budget dan laporan mingguan. Angka yang dilaporkan
+disimpan, supaya perubahan sesudahnya bisa dikenali.
+_Avoid_: rekap bulanan, laporan bulan ini, tutup buku
+
+**Laporan Mingguan**:
+Laporan untuk satu Pekan yang sudah tutup, dikirim Senin pagi. Angkanya dihitung dari catatan
+saat laporan dibuat — termasuk angka "pekan lalu" sebagai pembanding, yang karenanya bisa
+berbeda dari laporan yang dulu terkirim. Laporan Mingguan tidak punya Koreksi; itu tugas
+Laporan Bulanan. Kalau Pekan-nya melewati pergantian bulan, Budget dan Perkiraan kedua bulan
+disebutkan. Saldo di dalamnya adalah Saldo per akhir Pekan, bukan per saat dikirim.
+_Avoid_: laporan minggu ini, weekly report, rekap mingguan
+
+**Hari Kosong**:
+Hari dalam sebuah Pekan tanpa satu pun Pengeluaran tercatat. Satu Hari Kosong biasa saja;
+dua atau lebih berturut-turut dalam satu Pekan dianggap tanda ada yang tidak tercatat, dan
+Laporan Mingguan memperingatkannya dengan menyebut hari-harinya.
+_Avoid_: hari bolong, data hilang
+
+**Koreksi**:
+Selisih antara angka sebuah bulan yang sudah dilaporkan dan angka bulan itu bila dihitung ulang
+sekarang — biasanya karena transaksi yang baru tercatat saat pencocokan mutasi bank. Koreksi
+tidak mengubah laporan yang sudah terkirim; ia disebutkan di Laporan Bulanan berikutnya, untuk
+bulan mana pun yang pernah dilaporkan, dan hanya sekali. Koreksi melekat pada bulan asal
+perubahan — bulan yang Pemasukan atau Pengeluarannya berubah — bukan pada bulan-bulan
+sesudahnya yang Saldo akhirnya ikut bergeser karena Saldo kumulatif.
+_Avoid_: revisi, ralat, penyesuaian
+
+### Waktu
+
+**Pekan**:
+Senin 00:00 sampai Minggu 23:59 WIB. Satuan waktu Laporan Mingguan dan pembandingnya
+("pekan lalu"). Sebuah Pekan baru dilaporkan setelah ia tutup — jadi Transaksi yang dicatat
+Minggu larut malam tetap masuk Pekan-nya. Kata "minggu" hanya dipakai untuk nama hari.
+_Avoid_: minggu (untuk arti 7 hari), 7 hari terakhir, seminggu

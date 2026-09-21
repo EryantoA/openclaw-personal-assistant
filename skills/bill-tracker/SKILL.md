@@ -282,8 +282,29 @@ Total:         Rp 293.500
 ### 📊 Lihat Laporan Mingguan
 Trigger: `laporan minggu ini`, `pengeluaran minggu ini`, `weekly report`
 
-### 📊 Lihat Laporan Bulanan
-Trigger: `laporan bulan ini`, `pengeluaran bulan ini`, `monthly report`
+### 📊 Lihat Bulan Berjalan
+Trigger: `laporan bulan ini`, `pengeluaran bulan ini`
+
+Bulan yang **sedang berjalan**, angkanya setengah jalan. Jangan sebut ini "Laporan Bulanan" —
+nama itu hanya untuk bulan yang sudah tutup (lihat bawah dan `CONTEXT.md`).
+
+### 📊 Laporan Bulanan (bulan yang sudah tutup)
+Trigger: `laporan bulan lalu`, `laporan bulanan`, `monthly report`, `laporan bulan <nama bulan>`
+
+Laporan Bulanan resmi dikirim otomatis tiap **tanggal 6 pukul 09:00 WIB** oleh cron
+`laporan_bulanan` (docs/adr/0012). Kalau diminta lewat chat, **jangan hitung sendiri** —
+jalankan skrip yang sama supaya angkanya identik dengan versi yang terkirim:
+
+```bash
+python3 scripts/laporan-bulanan.py                   # bulan lalu
+python3 scripts/laporan-bulanan.py --bulan 2026-08   # bulan tertentu
+```
+
+Kirim keluarannya apa adanya. **JANGAN PERNAH menambah `--kirim`** saat menjawab chat:
+`--kirim` menyimpan angka yang dilaporkan dan menghabiskan Koreksi yang belum sempat
+disebut laporan resmi tanggal 6. Tanpa `--kirim`, skrip ini tidak menulis apa pun.
+
+Kalau yang diminta bulan yang **belum tutup**, pakai "Lihat Bulan Berjalan" di atas.
 
 ### 📅 Laporan Per Bulan (dipisah, bukan digabung)
 Trigger: `laporan per bulan`, `rekap per bulan`, `breakdown bulanan`, `laporan semua bulan`

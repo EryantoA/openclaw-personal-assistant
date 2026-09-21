@@ -45,3 +45,7 @@ data/kesehatan-terakhir.json
 # Bentuknya ada di data/akun.json.example, yang angkanya sengaja dikarang.
 # Lihat docs/adr/0010.
 data/akun.json
+
+# Angka yang pernah dilaporkan Laporan Bulanan — nominal sungguhan, dasar Koreksi.
+# Keadaan operasional, dibuat scripts/laporan-bulanan.py --kirim. Lihat docs/adr/0012.
+data/laporan-bulanan.json

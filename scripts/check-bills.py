@@ -222,26 +222,29 @@ def check_kewajiban(today: Optional[date] = None) -> str:
 
 
 # ── Mode: Cek Perkiraan ──────────────────────────────────────
-def check_perkiraan(today: Optional[date] = None) -> str:
-    """Laporkan Perkiraan yang belum muncul di bills.csv padahal tanggalnya sudah lewat.
+def perkiraan_absen(tahun: int, bulan: int, today: Optional[date] = None) -> List[Dict]:
+    """Perkiraan aktif yang tidak muncul di bills.csv pada bulan `tahun`-`bulan`.
+
+    `today` None berarti bulannya sudah tutup: semua Perkiraan diperiksa. Kalau diisi, yang
+    tanggalnya belum lewat toleransi dilewati — belum waktunya dipertanyakan. Dipakai juga oleh
+    scripts/laporan-bulanan.py, supaya dua pesan tidak memakai dua aturan pencocokan berbeda.
 
     Pencocokan sengaja longgar (kategori + arah + nominal dalam toleransi): nominal ikut kurs
     (Anthropic 366.588 vs 366.751) dan pemasukan kadang tercatat sebagai satu baris gabungan.
     Salah tebak di sini cuma berujung pertanyaan, bukan klaim utang.
     """
-    today = today or date.today()
     entries = [e for e in load_list(PERKIRAAN_JSON, "perkiraan") if e.get("aktif", True)]
     if not entries:
-        return ""
+        return []
 
     budget_data = load_budget()
     toleransi_hari = int(budget_data.get("perkiraan_toleransi_hari", 3))
     toleransi_persen = float(budget_data.get("perkiraan_toleransi_persen", 10))
 
-    bulan_ini = today.strftime("%Y-%m")
-    rows = [r for r in load_bills() if (r.get("tanggal") or "").startswith(bulan_ini)]
+    kunci = f"{tahun:04d}-{bulan:02d}"
+    rows = [r for r in load_bills() if (r.get("tanggal") or "").startswith(kunci)]
 
-    baris = []
+    absen = []
     for e in entries:
         try:
             hari = int(e.get("tanggal_biasanya", 0))
@@ -252,9 +255,9 @@ def check_perkiraan(today: Optional[date] = None) -> str:
             continue
 
         # Bulan pendek: tanggal 31 jatuh di hari terakhir bulan itu.
-        akhir_bulan = calendar.monthrange(today.year, today.month)[1]
-        tanggal_harap = date(today.year, today.month, min(hari, akhir_bulan))
-        if (today - tanggal_harap).days <= toleransi_hari:
+        akhir_bulan = calendar.monthrange(tahun, bulan)[1]
+        tanggal_harap = date(tahun, bulan, min(hari, akhir_bulan))
+        if today is not None and (today - tanggal_harap).days <= toleransi_hari:
             continue  # belum waktunya dipertanyakan
 
         arah = (e.get("arah") or "keluar").strip().lower()
@@ -282,13 +285,23 @@ def check_perkiraan(today: Optional[date] = None) -> str:
             except (ValueError, TypeError):
                 continue
 
-        if ketemu:
-            continue
+        if not ketemu:
+            absen.append(e)
 
+    return absen
+
+
+def check_perkiraan(today: Optional[date] = None) -> str:
+    """Laporkan Perkiraan bulan ini yang belum muncul padahal tanggalnya sudah lewat."""
+    today = today or date.today()
+    baris = []
+    for e in perkiraan_absen(today.year, today.month, today):
+        arah = (e.get("arah") or "keluar").strip().lower()
         panah = "📥 belum masuk" if arah == "masuk" else "📤 belum keluar"
         nama = e.get("nama") or e.get("id") or "(tanpa nama)"
         baris.append(
-            f"• {nama} — {format_rupiah(nominal)}, biasanya tgl {hari} — {panah}"
+            f"• {nama} — {format_rupiah(float(e['nominal']))}, "
+            f"biasanya tgl {int(e['tanggal_biasanya'])} — {panah}"
         )
 
     if not baris:
