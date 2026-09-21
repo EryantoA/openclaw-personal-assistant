@@ -1,6 +1,6 @@
 ---
 name: bill-tracker
-description: "Pencatatan keuangan keluarga ke data/bills.csv: catat pengeluaran/pemasukan/transfer dari chat atau foto struk, no resi + cek duplikat via scripts/resi.py, budget, kewajiban, laporan."
+description: "Pencatatan keuangan keluarga ke data/bills.csv: catat pengeluaran/pemasukan/transfer dari chat atau foto struk, menulis lewat scripts/catat.py (no resi + cek duplikat otomatis), budget, kewajiban, laporan."
 ---
 
 # Skill: Pencatatan Bill Belanja Keluarga
@@ -123,51 +123,77 @@ slug di sana yang belum ada di tabel ini, slug itu tetap sah dipakai.
 
 ---
 
+## ✍️ Mencatat = `scripts/catat.py` (WAJIB, satu-satunya jalan tulis)
+
+**Jangan pernah menulis baris ke `data/bills.csv` dengan tool Edit/Write/echo.** Setiap
+transaksi baru dicatat lewat tool shell (Bash) dengan satu panggilan:
+
+```bash
+python3 scripts/catat.py <<'EOF'
+{"tanggal": "2026-09-21", "tipe": "pengeluaran", "channel": "whatsapp", "pencatat": "Eryanto",
+ "items": [{"kategori": "food", "item": "Nasi goreng - Warung Ani", "jumlah": 25000}]}
+EOF
+```
+
+Skrip itu yang mengisi `waktu` (jam sekarang bila kamu tidak memberi), membuat `no_resi`
+(`TRX-YYYYMMDD-XXXX` bila kamu tidak memberi), menjalankan **cek duplikat dua lapis**, memvalidasi
+kategori/tipe/jumlah, lalu menulis tepat 12 kolom. Tugasmu hanya mengisi JSON-nya dengan benar
+lalu membalas berdasarkan keluarannya. **Pengguna di WhatsApp tidak melihat keluaran tool, hanya
+balasanmu** — jadi selalu tulis konfirmasi atau pesan duplikatnya sendiri:
+
+| Keluaran (exit code) | Artinya | Balasanmu |
+|---|---|---|
+| `OK tersimpan ...` (0) | Sudah tercatat. Baris yang ditulis ikut dicetak | Konfirmasi (lihat Pesan Konfirmasi) memakai `no_resi` & `waktu` dari keluaran |
+| `DUPLICATE ...` (1) | **Tidak** dicatat | Pesan duplikat (lihat di bawah) |
+| `ERROR ...` (2) | Masukan salah, **tidak** dicatat | Perbaiki JSON-nya lalu jalankan lagi; kalau datanya memang kurang, tanya pengguna |
+
+Field JSON: `tanggal` (YYYY-MM-DD), `tipe`, `channel`, `pencatat`, `items` (daftar
+`{kategori, item, jumlah}`, `catatan` per item opsional) wajib; `waktu`, `no_resi`, `catatan`,
+`akun`, `akun_tujuan` opsional. `jumlah` boleh angka atau teks rupiah (`"Rp 12.000"`).
+
+> Skrip ini hanya untuk **menambah** transaksi. Mengubah atau menghapus baris yang sudah ada
+> (koreksi, "hapus terakhir") tetap dikerjakan dengan membaca lalu menulis ulang file.
+
 ## 🧾 Waktu & No Resi (WAJIB tiap transaksi)
 
-Setiap transaksi **harus** punya `waktu` dan `no_resi`. Tentukan keduanya **sebelum** menyimpan.
+Setiap transaksi **harus** punya `waktu` dan `no_resi`. `catat.py` mengisinya otomatis bila
+kosong; kamu hanya perlu memberikannya bila ada di struk.
 
 ### Kolom `waktu` (jam `HH:MM`)
 - Struk: pakai **jam yang tercetak** di struk bila ada.
-- Kalau tidak ada (chat biasa / struk tanpa jam): pakai **jam saat ini** waktu mencatat.
+- Kalau tidak ada (chat biasa / struk tanpa jam): kosongkan — `catat.py` memakai **jam saat ini**.
 
 ### Kolom `no_resi` — urut prioritas
 1. **Struk dengan nomor tercetak** (No. Transaksi / No. Struk / No. Nota / Ref) →
-   `no_resi = STRUK-<nomor>` (contoh: `STRUK-000123`).
+   `"no_resi": "STRUK-<nomor>"` (contoh: `STRUK-000123`).
 2. **Struk tanpa nomor tercetak** → hitung sidik jari isi struk via tool shell (Bash):
    ```bash
    python3 scripts/resi.py --fingerprint --merchant "<nama toko>" --date <YYYY-MM-DD> --total <total>
    ```
-   Pakai hasilnya (mis. `STRUK-a1b2c3d4`) sebagai `no_resi`. Ini yang membuat **kirim ulang struk yang
+   Pakai hasilnya (mis. `STRUK-a1b2c3d4`) sebagai `"no_resi"` di JSON `catat.py`. Ini yang membuat **kirim ulang struk yang
    sama otomatis terdeteksi**, walau tidak ada nomor resi.
-3. **Chat biasa** → generate otomatis via tool shell (Bash):
-   ```bash
-   python3 scripts/resi.py --gen
-   ```
-   Hasilnya berformat `TRX-YYYYMMDD-XXXX`.
+3. **Chat biasa** → **jangan isi** `no_resi`; `catat.py` membuat `TRX-YYYYMMDD-XXXX` sendiri.
+   **Jangan pernah mengarang resi** sendiri (`SS-20SEP-SOCK`, `MOMOYO-14SEP`, dst.) — resi
+   karangan tidak bisa dideteksi saat dikirim ulang.
 4. **Baris Saldo Awal** → `SALDO-AWAL`. Hanya ada satu, sudah dibuat. Jangan pernah membuat lagi.
 5. **Baris hasil impor riwayat** (dari aplikasi keuangan lain) → `IMP-<id sumber>`, mis.
    `IMP-262`. Bukan struk dan bukan chat, jadi tidak memakai `STRUK-` maupun `TRX-`. Kamu
    tidak pernah membuat ini saat mencatat dari pesan — awalan ini hanya muncul pada data
    yang diimpor massal.
 
-> **Struk banyak item = SATU `no_resi` sama** untuk semua barisnya (bukan resi berbeda per item).
+> **Struk banyak item = SATU panggilan `catat.py`** dengan semua item di `items`, sehingga
+> semuanya berbagi satu `no_resi`. Jangan memanggilnya sekali per item — panggilan kedua akan
+> ditolak sebagai duplikat resi.
 
 ---
 
-## 🔁 Cek Duplikat SEBELUM Menyimpan (WAJIB — tolak otomatis)
+## 🔁 Cek Duplikat (otomatis di `catat.py` — tolak otomatis)
 
-Setelah `no_resi`, `waktu`, `tanggal`, `total` ditentukan, jalankan **dua** pengecekan via tool shell (Bash):
+`catat.py` menjalankan dua lapis sebelum menulis:
+- **Lapis 1** — `no_resi` sama persis sudah ada (mis. struk dikirim ulang). Tidak bisa dilewati.
+- **Lapis 2** — aturan multi-field dari `budget.json` (saat ini tanggal + waktu + jumlah).
 
-```bash
-# Lapis 1 — no resi sama persis (mis. struk dikirim ulang)
-python3 scripts/resi.py --check "<no_resi>"
-
-# Lapis 2 — aturan multi-field (dikonfigurasi di budget.json)
-python3 scripts/resi.py --check-dup --tanggal <YYYY-MM-DD> --waktu <HH:MM> --total <jumlah>
-```
-
-Jika **salah satu** mencetak `DUPLICATE` (exit code 1) → **JANGAN simpan**, balas:
+Jika keluarannya `DUPLICATE` (exit code 1), tidak ada yang ditulis. Balas:
 
 ```
 ⚠️ Transaksi ini terdeteksi duplikat — tidak dicatat ulang.
@@ -176,17 +202,24 @@ Jika **salah satu** mencetak `DUPLICATE` (exit code 1) → **JANGAN simpan**, ba
 (cocok dengan transaksi yang sudah ada. Kalau ini transaksi baru yang berbeda, kasih tahu saya.)
 ```
 
-Jika keduanya `OK` → lanjut simpan.
+Kalau pengguna lalu menegaskan itu transaksi baru yang berbeda dan yang cocok adalah **Lapis 2**,
+jalankan ulang perintah yang sama dengan `python3 scripts/catat.py --paksa`. Lapis 1 (resi sama)
+tidak pernah dipaksa — minta pengguna memeriksa struknya.
+
+`python3 scripts/resi.py --check "<no_resi>"` tetap bisa dipakai untuk menjawab "resi ini sudah
+dicatat belum?" tanpa mencatat apa pun.
 
 > Aturan Lapis 2 dibaca dari `data/budget.json` → `duplicate_check.match_fields`. Kalau pengguna ingin
 > mengubah kriteria (mis. tambah `item`), arahkan mengedit blok itu. Jika `aksi` di config = `warning`
-> (bukan `tolak`), beri peringatan tapi tetap catat kalau pengguna balas konfirmasi (mis. "ya, catat").
+> (bukan `tolak`), beri peringatan tapi tetap catat dengan `--paksa` kalau pengguna balas konfirmasi (mis. "ya, catat").
 
 ---
 
 ## Cara Menyimpan Data
 
-Simpan setiap transaksi ke file `data/bills.csv` dengan format (kolom `waktu` & `no_resi` di **akhir**):
+Transaksi disimpan oleh `scripts/catat.py` (lihat di atas) ke `data/bills.csv` dengan format berikut.
+Bagian ini menjelaskan arti tiap kolom supaya kamu mengisi JSON-nya dengan benar dan bisa membaca
+file saat membuat laporan — **bukan** untuk menulis barisnya sendiri.
 
 ```
 tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,waktu,no_resi
@@ -220,14 +253,10 @@ tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,wakt
 
 > **Catatan kolom `waktu` & `no_resi`**: Selalu diisi (lihat bagian di atas). Baris lama tanpa dua kolom ini tetap valid dan dibaca sebagai kosong; isi otomatis dengan `python3 scripts/resi.py --backfill`.
 
-### Kode untuk Menyimpan (gunakan tool `write`):
-1. Baca file `data/bills.csv` terlebih dahulu (tool `read`)
-2. Jika file belum ada, buat header: `tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,waktu,no_resi`
-3. Pastikan sudah menentukan `waktu` + `no_resi` dan **lolos cek duplikat** (lihat 2 bagian di atas)
-4. Tambahkan baris baru di akhir
-5. Simpan kembali
-
-> ⚠️ **Multi-user safety**: Selalu baca dulu, lalu tulis ulang seluruh file. Jangan pernah append tanpa membaca terlebih dahulu.
+> ⚠️ **Jangan menambah baris dengan Edit/Write.** Model yang menulis CSV dengan tangan sudah
+> terbukti menghasilkan baris 13 kolom (menyalin pola `,,,,` dari baris lama sambil mengisi
+> `waktu`), yang menggeser `waktu` ke kolom `no_resi`. `catat.py` mengunci file selama menulis,
+> jadi dua pesan bersamaan juga aman.
 
 ---
 
@@ -511,7 +540,7 @@ Langkah:
 Kalau pengguna mencatat pembayaran atas tagihan yang ada di `kewajiban.json`
 (mis. `bayar wifi 233rb`):
 
-1. Catat baris `bills.csv` **seperti biasa** (lengkap dengan `waktu`, `no_resi`, cek duplikat)
+1. Catat baris `bills.csv` **seperti biasa** lewat `scripts/catat.py`
 2. **Lalu** buka `data/kewajiban.json`, isi `lunas_resi` entri itu dengan `no_resi` baris tadi
 
 > ⚠️ **Tautkan, jangan menandai.** Tidak ada field status di file itu — jangan pernah menambah
@@ -575,7 +604,8 @@ tarik tunai 500rb dari bank
 pindah 2 juta ke tabungan
 ```
 
-Simpan dengan `tipe=transfer`, `kategori=transfer`, `akun` = asal, `akun_tujuan` = tujuan.
+Catat lewat `catat.py` dengan `"tipe": "transfer"`, `"akun"` = asal, `"akun_tujuan"` = tujuan, dan
+item berkategori `transfer` (di luar `kategori_custom`; `catat.py` menolak transfer tanpa dua akun).
 
 ```
 2026-09-02,transfer,transfer,Tarik tunai untuk belanja,500000,,whatsapp,Ayah,Bank Utama,Kas,09:00,TRX-20260902-0001

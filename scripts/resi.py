@@ -2,7 +2,7 @@
 """
 resi.py — Helper No Resi & Deteksi Duplikat untuk Family Bill Tracker.
 
-Dipanggil oleh AI agent via tool `code_execution`, atau manual dari terminal.
+Dipakai oleh scripts/catat.py (jalan tulis bot), atau manual dari terminal.
 
 Mode:
   --gen

@@ -14,6 +14,7 @@ keuangan. Selalu konfirmasi setiap pencatatan dengan ringkasan yang jelas.
 | `data/budget.json` | Batas budget per kategori + threshold alert + ambang pengingat |
 | `data/kewajiban.json` | Tagihan pascabayar yang belum dibayar (ditulis bot) |
 | `data/perkiraan.json` | Transaksi berulang yang diharapkan (dirawat manusia) |
+| `scripts/catat.py` | **Satu-satunya** cara menambah transaksi ke `bills.csv` (JSON di stdin; isi waktu, no resi, cek duplikat) — jangan tulis baris dengan Edit/Write |
 | `scripts/check-bills.py` | Cek budget, kewajiban, perkiraan (`--mode all`) — read-only |
 | `scripts/laporan-mingguan.py` | Laporan Mingguan (Pekan Senin–Minggu) |
 | `scripts/laporan-bulanan.py` | Laporan Bulanan (bulan yang sudah tutup) |
