@@ -70,3 +70,21 @@ Pelajaran yang lebih umum, senada dengan [0008](0008-saldo-awal-20-5-juta-dan-ko
 **status "berhasil" dari sistem bukan bukti — cuma klaim.** Baik saldo yang tak pernah minus
 maupun pesan yang tercatat terkirim, keduanya perlu dicocokkan ke kenyataan (mutasi bank, HP
 yang benar-benar berbunyi) sebelum dipercaya.
+
+## Insiden ketiga (21 Sep 2026): laporan dibuat, tapi tidak pernah dikirim
+
+`laporan_mingguan` Minggu 20 Sep gagal karena OAuth Claude CLI mati (`Not logged in`; sudah
+kambuh-kambuhan sejak 15 Sep, `cek_budget_malam` juga gagal 15–17 Sep). Setelah login pulih,
+run manual berstatus `ok` tapi `deliveryStatus: not-delivered` — agent menulis laporan sebagai
+teks balasan dan tidak pernah memanggil tool `message`. Riwayat 12 run menunjukkan laporan
+**hanya** sampai kalau agent sendiri memanggil `message`; fallback `announce` (teks akhir →
+chat) tidak pernah sekali pun terbukti mengantar. Kalimat lama "Kirim laporan ke semua
+channel" menyerahkan langkah itu ke kebijakan model.
+
+Pesan cron diubah (`cron edit --message`) agar menyebut tool `message`, action `send`, dan
+target nomornya secara eksplisit sebagai langkah terakhir wajib. Run ulang langsung
+`delivered` dengan `messageToolSentTo` terisi.
+
+Dua pelajaran: cron yang gagal karena auth **tidak diulang otomatis** — sesudah re-login,
+jalankan `openclaw cron run <id>` untuk yang terlewat; dan `status: ok` di riwayat cron cuma
+berarti agent selesai, bukan pesan terkirim — cek `deliveryStatus` dan `messageToolSentTo`.

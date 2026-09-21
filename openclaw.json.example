@@ -29,7 +29,7 @@
       {
         "id": "laporan_mingguan",
         "schedule": "0 20 * * 0",
-        "message": "Waktunya laporan mingguan! Buat ringkasan pengeluaran keluarga minggu ini dari file data/bills.csv. Sertakan: total per kategori, persentase, transaksi terbesar, perbandingan minggu lalu. Sertakan juga Saldo terkini (kumulatif, seluruh uang di semua tempat) dan status budget bulan ini. Terakhir, baca `data/kewajiban.json` dan `data/perkiraan.json`: sebutkan tagihan yang belum lunas beserta jatuh temponya, dan perkiraan bulan ini yang sudah/belum muncul. Kirim laporan ke semua channel.",
+        "message": "Waktunya laporan mingguan! Buat ringkasan pengeluaran keluarga minggu ini dari file data/bills.csv. Sertakan: total per kategori, persentase, transaksi terbesar, perbandingan minggu lalu. Sertakan juga Saldo terkini (kumulatif, seluruh uang di semua tempat) dan status budget bulan ini. Terakhir, baca `data/kewajiban.json` dan `data/perkiraan.json`: sebutkan tagihan yang belum lunas beserta jatuh temponya, dan perkiraan bulan ini yang sudah/belum muncul. Langkah terakhir WAJIB: kirim laporan lengkap memakai tool `message` (action \"send\", target \"+6282287780309\"). Jangan cuma menulis laporan sebagai balasan teks — balasan teks tidak sampai ke WhatsApp. Laporan belum terkirim sebelum tool `message` dipanggil.",
         "channels": [
           "telegram",
           "whatsapp"
