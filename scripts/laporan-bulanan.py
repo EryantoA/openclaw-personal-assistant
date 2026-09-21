@@ -259,8 +259,10 @@ def kirim(pesan, kanal, ke, coba=3, jeda=60):
     yang kebetulan buruk. Risikonya pesan ganda kalau "gagal" ternyata sampai — lebih murah
     daripada laporan yang tidak sampai.
 
-    Dipakai juga oleh scripts/laporan-mingguan.py lewat importlib. Kalau signature-nya berubah,
-    cek `python3 scripts/laporan-mingguan.py --hari-ini 2026-09-21`.
+    `kirim()` dan `tujuan_baku()` punya tiga pemakai: skrip ini, scripts/laporan-mingguan.py,
+    dan `check-bills.py --kirim` (cron cek_budget_malam) — keduanya lewat importlib. Kalau
+    signature-nya berubah, cek juga `python3 scripts/laporan-mingguan.py --hari-ini 2026-09-21`
+    dan `python3 scripts/check-bills.py --mode all --tanggal 2026-08-31`.
     """
     ket = ""
     for i in range(coba):
