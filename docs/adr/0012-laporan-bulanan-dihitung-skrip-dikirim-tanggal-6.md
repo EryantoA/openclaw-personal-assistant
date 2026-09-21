@@ -61,6 +61,9 @@ setiap kali bulan lama berubah** ditolak karena terlalu berisik untuk koreksi ke
   Riwayat penjaga kesehatan 5–21 Sep menunjukkan pola yang sama: sekitar 9 dari 60 run gagal
   kirim secara acak. Pesan yang terbit sebulan sekali tidak boleh bergantung pada menit yang
   kebetulan buruk; pesan ganda sesekali lebih murah daripada laporan yang tidak sampai.
+  Percobaan ketiga hari itu terkirim lewat cron gateway, dan pengguna mengonfirmasi laporan
+  Agustus benar-benar masuk di WhatsApp — bukti sampai yang diminta
+  [0009](0009-cron-hidup-di-gateway-bukan-di-openclaw-json.md), bukan sekadar status `ok`.
 - **Koreksi melekat pada bulan asal perubahan**, bukan pada setiap bulan sesudahnya yang Saldo
   akhirnya ikut bergeser. Setelah disebutkan sekali, angka simpanan bulan itu diperbarui.
 - **Permintaan lewat chat** (`laporan bulan lalu`) menjalankan skrip yang sama dalam mode
