@@ -141,13 +141,18 @@ def cari_koreksi(arus, simpanan, bulan_laporan):
     return koreksi
 
 
-def perkiraan_absen(bulan):
-    """Pakai aturan pencocokan yang sama dengan cek malam, bukan salinannya."""
+def perkiraan_absen(bulan, today=None):
+    """Pakai aturan pencocokan yang sama dengan cek malam, bukan salinannya.
+
+    `today` None = bulannya sudah tutup, semua Perkiraan diperiksa. Untuk bulan berjalan,
+    Perkiraan yang tanggalnya belum lewat toleransi tidak ikut disebut — gaji tanggal 26 belum
+    bisa dibilang "tidak masuk" pada tanggal 21.
+    """
     spec = importlib.util.spec_from_file_location("check_bills", AKAR / "scripts" / "check-bills.py")
     cb = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cb)
     t, b = map(int, bulan.split("-"))
-    return cb.perkiraan_absen(t, b, None)
+    return cb.perkiraan_absen(t, b, today)
 
 
 # ── Menyusun ──────────────────────────────────────────────────────────────
@@ -160,14 +165,18 @@ def nama_bulan(bulan):
     return f"{NAMA_BULAN[b - 1]} {t}"
 
 
-def susun(bulan, baris, budget, simpanan, absen):
+def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
     arus = arus_per_bulan(baris)
     h = arus.get(bulan, {"pemasukan": 0.0, "pengeluaran": 0.0, "saldo_awal": 0.0})
     arus_kas = h["pemasukan"] - h["pengeluaran"]
     lalu = bulan_sebelum(bulan)
     nb, nl = nama_bulan(bulan), NAMA_BULAN[int(lalu[5:]) - 1]
 
-    out = [f"📊 *LAPORAN BULANAN — {nb}*", "",
+    judul = f"📊 *LAPORAN BULANAN — {nb}*"
+    if berjalan_per:
+        # Bukan Laporan Bulanan dalam arti CONTEXT.md — bulannya belum tutup. Tandai terang-terangan.
+        judul += f" _(berjalan, per {berjalan_per.day} {NAMA_BULAN[berjalan_per.month - 1][:3]})_"
+    out = [judul, "",
            f"📥 Pemasukan:   {rp(h['pemasukan'])}",
            f"📤 Pengeluaran: {rp(h['pengeluaran'])}  ({jumlah_transaksi(baris, bulan)} transaksi)",
            f"{'💚' if arus_kas >= 0 else '🔴'} Arus Kas Bulan: {rp(arus_kas)}",
@@ -244,21 +253,37 @@ def main(argv=None):
     ap.add_argument("--kirim", action="store_true", help="kirim, lalu simpan angka yang dilaporkan")
     ap.add_argument("--ke", action="append", metavar="KANAL:TUJUAN",
                     help="tujuan, bisa diulang (bawaan: nomor pemilik dari config)")
+    ap.add_argument("--hari-ini", metavar="YYYY-MM-DD", help="anggap hari ini tanggal segini (uji)")
     a = ap.parse_args(argv)
 
-    bulan = a.bulan or bulan_sebelum(date.today().strftime("%Y-%m"))
+    try:
+        hari_ini = date.fromisoformat(a.hari_ini) if a.hari_ini else date.today()
+    except ValueError:
+        ap.error(f"--hari-ini tidak valid: {a.hari_ini}")
+    bulan = a.bulan or bulan_sebelum(hari_ini.strftime("%Y-%m"))
     try:
         datetime.strptime(bulan, "%Y-%m")
     except ValueError:
         ap.error(f"--bulan tidak valid: {bulan}")
+    if bulan > hari_ini.strftime("%Y-%m"):
+        ap.error(f"{bulan} belum dimulai")
+    berjalan = bulan == hari_ini.strftime("%Y-%m")
 
     baris = muat_baris()
     simpanan = muat_json(SIMPANAN, {"bulan": {}})
-    pesan = susun(bulan, baris, muat_json(BUDGET, {}), simpanan, perkiraan_absen(bulan))
+    pesan = susun(bulan, baris, muat_json(BUDGET, {}), simpanan,
+                  perkiraan_absen(bulan, hari_ini if berjalan else None),
+                  hari_ini if berjalan else None)
     print(pesan)
 
     if not a.kirim:
         return 0
+    if berjalan:
+        # Menyimpan angka setengah bulan akan membuat setiap transaksi sesudahnya tampil
+        # sebagai Koreksi palsu di laporan berikutnya.
+        print("\n❌ Bulan berjalan tidak dikirim sebagai Laporan Bulanan — angkanya belum final.",
+              file=sys.stderr)
+        return 2
 
     tujuan = [tuple(x.split(":", 1)) for x in a.ke] if a.ke else tujuan_baku()
     if not tujuan:

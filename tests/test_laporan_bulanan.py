@@ -85,6 +85,12 @@ class AturanKoreksi(unittest.TestCase):
         pesan = lb.susun("2026-08", kini, {}, simpanan, [])
         self.assertIn("Koreksi Juli 2026: pengeluaran naik Rp 350.000", pesan)
 
+    def test_judul_bulan_berjalan(self):
+        from datetime import date
+        pesan = lb.susun("2026-08", DASAR, {}, {"bulan": {}}, [], date(2026, 8, 21))
+        self.assertIn("(berjalan, per 21 Agu)", pesan.splitlines()[0])
+        self.assertNotIn("berjalan", lb.susun("2026-08", DASAR, {}, {"bulan": {}}, []).splitlines()[0])
+
 
 class AturanSimpan(unittest.TestCase):
     """Angka disimpan HANYA kalau terkirim; mode tampil tidak pernah menulis."""
@@ -96,7 +102,7 @@ class AturanSimpan(unittest.TestCase):
         lb.BILLS, lb.BUDGET = self.tmp / "bills.csv", self.tmp / "budget.json"
         lb.SIMPANAN = self.tmp / "laporan.json"
         lb.tujuan_baku = lambda: [("whatsapp", "+0")]
-        lb.perkiraan_absen = lambda bulan: []
+        lb.perkiraan_absen = lambda bulan, today=None: []
         with open(lb.BILLS, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=KOLOM)
             w.writeheader()
@@ -121,6 +127,18 @@ class AturanSimpan(unittest.TestCase):
         disimpan = json.loads(lb.SIMPANAN.read_text())["bulan"]["2026-08"]
         self.assertEqual(disimpan["pengeluaran"], 500_000)
         self.assertEqual(disimpan["saldo_akhir"], 29_900_000)
+
+    def test_bulan_berjalan_ditandai_dan_tidak_bisa_dikirim(self):
+        lb.kirim = lambda pesan, kanal, ke: (True, "")
+        self.assertEqual(lb.main(["--bulan", "2026-08", "--hari-ini", "2026-08-21", "--kirim"]), 2)
+        self.assertFalse(lb.SIMPANAN.exists())
+
+    def test_bulan_berjalan_meneruskan_hari_ini_ke_perkiraan(self):
+        dipanggil = []
+        lb.perkiraan_absen = lambda bulan, today=None: dipanggil.append(today) or []
+        lb.main(["--bulan", "2026-08", "--hari-ini", "2026-08-21"])
+        lb.main(["--bulan", "2026-08", "--hari-ini", "2026-09-06"])
+        self.assertEqual([str(d) for d in dipanggil], ["2026-08-21", "None"])
 
     def test_tanpa_tujuan_keluar_2(self):
         lb.tujuan_baku = lambda: []

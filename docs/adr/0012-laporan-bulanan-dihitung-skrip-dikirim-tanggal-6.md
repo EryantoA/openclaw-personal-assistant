@@ -76,6 +76,11 @@ setiap kali bulan lama berubah** ditolak karena terlalu berisik untuk koreksi ke
   tampilkan-saja: angkanya identik dengan versi tanggal 6, dan tidak menyimpan apa pun.
   Kalau menyimpan, ia akan menghabiskan Koreksi sebelum laporan tanggal 6 sempat
   menyebutnya.
+- **Skripnya tetap bisa diminta untuk bulan berjalan**, karena orang memang bertanya lewat
+  chat. Hasilnya diberi judul "(berjalan, per <tanggal>)", Perkiraan yang tanggalnya belum
+  lewat tidak disebut (gaji tanggal 26 belum bisa dibilang "tidak masuk" pada tanggal 21), dan
+  `--kirim` ditolak: angka setengah bulan yang tersimpan akan membuat setiap transaksi
+  sesudahnya tampil sebagai Koreksi palsu.
 - **Nama "Laporan Bulanan" hanya untuk bulan yang sudah tutup.** Fitur on-demand untuk bulan
   berjalan di `SKILL.md` berganti nama supaya satu nama tidak menunjuk dua hal.
 - **Blind spot yang diakui:** transaksi yang ditemukan lebih dari lima hari setelah bulan tutup
