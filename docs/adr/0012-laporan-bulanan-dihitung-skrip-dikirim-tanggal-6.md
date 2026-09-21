@@ -74,7 +74,9 @@ setiap kali bulan lama berubah** ditolak karena terlalu berisik untuk koreksi ke
   berjalan di `SKILL.md` berganti nama supaya satu nama tidak menunjuk dua hal.
 - **Blind spot yang diakui:** transaksi yang ditemukan lebih dari lima hari setelah bulan tutup
   tidak pernah muncul di laporan aslinya; ia hanya muncul sebagai Koreksi sebulan kemudian.
-  Laporan pertama (6 Okt 2026, untuk September) belum punya simpanan, jadi tanpa Koreksi, dan
-  bulan-bulan sebelumnya tidak diisi mundur.
+  Simpanan dimulai dari **Agustus 2026**: laporan Agustus terkirim lewat cron pada 21 Sep 2026
+  (uji kirim, lalu satu run manual), dan pengguna memutuskan angkanya dibiarkan tersimpan —
+  laporan itu memang sudah diterima, jadi perubahan Agustus sesudahnya layak disebut sebagai
+  Koreksi di laporan 6 Okt. Bulan-bulan sebelum Agustus tidak diisi mundur.
 - Laporan hanya dikirim ke nomor pemilik (`channels.whatsapp.allowFrom[0]`). Menambah
   penerima adalah keputusan keluarga soal siapa melihat angka apa, bukan soal teknis.
