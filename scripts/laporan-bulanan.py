@@ -258,6 +258,9 @@ def kirim(pesan, kanal, ke, coba=3, jeda=60):
     sesudahnya terkirim. Pesan yang terbit sebulan sekali tidak boleh bergantung pada menit
     yang kebetulan buruk. Risikonya pesan ganda kalau "gagal" ternyata sampai — lebih murah
     daripada laporan yang tidak sampai.
+
+    Dipakai juga oleh scripts/laporan-mingguan.py lewat importlib. Kalau signature-nya berubah,
+    cek `python3 scripts/laporan-mingguan.py --hari-ini 2026-09-21`.
     """
     ket = ""
     for i in range(coba):
