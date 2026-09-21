@@ -147,29 +147,58 @@ def profil_oauth():
     return hasil
 
 
+def login_claude():
+    """True/False dari `claude auth status`; None kalau tidak bisa dipastikan.
+
+    Hanya membaca kredensial lokal (±0,3 detik, tanpa jaringan), jadi tidak menyentuh model.
+    """
+    kode, keluaran, _ = jalankan(["claude", "auth", "status", "--json"])
+    if kode != 0 and not keluaran.strip():
+        return None
+    try:
+        nilai = json.loads(keluaran).get("loggedIn")
+    except Exception:  # noqa: BLE001
+        return None
+    return nilai if isinstance(nilai, bool) else None
+
+
 def periksa_oauth():
-    """Token yang sudah lewat masa berlaku = penyegaran otomatis berhenti jalan.
+    """Login Claude yang benar-benar mati — bukan token akses yang sekadar habis.
 
     TIDAK ADA peringatan dini di sini, dan itu disengaja. Token akses OAuth cuma
     hidup hitungan jam lalu disegarkan sendiri, jadi ambang "hampir habis" dalam
     satuan hari akan menyala pada SETIAP pemeriksaan yang sehat — persis
-    peringatan palsu yang ADR-0011 bilang mematikan kepercayaan. Yang benar-benar
-    berarti hanya satu: masa berlakunya sudah lewat dan tidak ada yang
-    memperbaruinya, seperti pada kejadian 21 Agustus 2026.
+    peringatan palsu yang ADR-0011 bilang mematikan kepercayaan.
+
+    "Sudah lewat masa berlaku" saja juga belum cukup: token baru disegarkan saat
+    dipakai, jadi bot yang menganggur beberapa jam selalu tampak kedaluwarsa
+    (21 Sep 2026: tercatat habis 21:06, padahal satu giliran agent langsung
+    menyegarkannya). Karena itu token yang lewat baru dilaporkan kalau
+    `claude auth status` juga bilang loggedIn:false — keadaan 21 Sep siang, saat
+    login memang mati. Kalau status login tidak bisa dibaca, laporkan saja:
+    lebih baik satu peringatan salah daripada login mati yang tak terkabar.
     """
-    masalah = []
     sekarang = time.time() * 1000
-    for nama, exp in profil_oauth():
-        if exp >= sekarang:
-            continue
+    lewat_semua = [(nama, exp) for nama, exp in profil_oauth() if exp < sekarang]
+    if not lewat_semua:
+        return []
+    login = login_claude()
+    if login is True:
+        return []  # cuma menganggur; token disegarkan saat bot dipakai lagi
+
+    masalah = []
+    for nama, exp in lewat_semua:
         lewat = (sekarang - exp) / 86400000
         kapan = waktu(exp)
+        sebab = ("`claude auth status` → loggedIn: false" if login is False
+                 else "status login tidak bisa dibaca")
         masalah.append((
             "KRITIS",
-            f"OAuth '{nama}' KEDALUWARSA",
-            f"habis {kapan:%d %b %Y %H:%M} "
-            f"({'kurang dari sehari' if lewat < 1 else f'{int(lewat)} hari'} lalu). "
-            f"Penyegaran otomatis berhenti — jalankan `claude` lalu login ulang.",
+            f"Login Claude MATI ('{nama}')",
+            f"token habis {kapan:%d %b %Y %H:%M} "
+            f"({'kurang dari sehari' if lewat < 1 else f'{int(lewat)} hari'} lalu), {sebab}. "
+            f"Bot tidak bisa membalas chat. Login ulang: `claude auth login`, lalu "
+            f"`openclaw models auth login --provider anthropic --method cli --set-default`.",
         ))
     return masalah
 

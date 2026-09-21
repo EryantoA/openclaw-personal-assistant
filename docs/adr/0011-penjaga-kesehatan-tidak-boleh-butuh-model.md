@@ -86,3 +86,19 @@ Timeout yang terjadi tiga kali (18, 20, 21 Sep, 10–17 menit) **bukan** cacat s
 `pmset -g log`, Mac yang berjalan dengan baterai terbangun sebentar (DarkWake, sekitar 14
 detik), cron jalan, lalu Mac tidur lagi di tengah run. Selama Mac tidur, semua cron dan
 balasan bot berhenti. Ini soal pengaturan daya, bukan soal kode.
+
+**Koreksi 21 September 2026 (malam): "kedaluwarsa" bukan berarti mati.** Token akses baru
+disegarkan saat dipakai, jadi bot yang menganggur beberapa jam selalu tampak kedaluwarsa.
+Pukul 22:33 penjaga melaporkan "OAuth KEDALUWARSA 21:06", padahal `claude auth status`
+masih `loggedIn: true`, dan satu giliran agent langsung menyegarkan token itu sampai 06:34.
+Kalau dibiarkan, alarm palsu ini akan muncul hampir setiap pagi pukul 08:00. Sekarang token
+yang lewat baru dilaporkan kalau `claude auth status` juga `loggedIn: false`, yaitu keadaan
+21 Sep siang saat login memang mati. Kalau status itu tidak bisa dibaca, peringatan tetap
+dikirim.
+
+**Blind spot yang diakui:** `claude auth status` hanya membaca kredensial di komputer
+(±0,3 detik, tanpa jaringan). Kalau token di server sudah dicabut sementara kredensialnya
+masih tersimpan, perintah ini tetap bilang `true` dan penjaga diam. Karena semua cron sudah
+tidak butuh model ([0013](0013-laporan-mingguan-dihitung-skrip-dikirim-senin.md)), dampaknya
+terbatas pada balasan chat, dan itu langsung terasa oleh pemakai.
+
