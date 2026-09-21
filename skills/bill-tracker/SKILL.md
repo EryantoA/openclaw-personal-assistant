@@ -180,6 +180,11 @@ kosong; kamu hanya perlu memberikannya bila ada di struk.
    `IMP-262`. Bukan struk dan bukan chat, jadi tidak memakai `STRUK-` maupun `TRX-`. Kamu
    tidak pernah membuat ini saat mencatat dari pesan — awalan ini hanya muncul pada data
    yang diimpor massal.
+6. **Baris lama berresi bebas** (`SS-20SEP-SOCK`, `MOMOYO-14SEP`, `TRX-20260908-CATFOOD`, …;
+   ±120 baris Jul–Sep 2026, sebelum skill ini benar-benar dimuat) **dibiarkan apa adanya**,
+   begitu pula `waktu` yang kosong di sana. Keputusan pemilik 21 Sep 2026: tidak dimigrasi.
+   Jangan mengubahnya dan jangan menganggapnya kesalahan saat membuat laporan — resi itu tetap
+   unik. Aturan format di atas berlaku untuk transaksi **baru**.
 
 > **Struk banyak item = SATU panggilan `catat.py`** dengan semua item di `items`, sehingga
 > semuanya berbagi satu `no_resi`. Jangan memanggilnya sekali per item — panggilan kedua akan
