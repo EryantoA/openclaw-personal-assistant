@@ -338,23 +338,23 @@ def kirim_kalau_ada(isi: str) -> int:
 
     Cron cek_budget_malam dulu giliran agent; 12 dari 53 malam gagal sebelum sempat mengecek
     (OAuth mati, kuota, timeout) dan peringatan 26 Agu 2026 tidak pernah terkirim. Sekarang
-    command payload, sama dengan Laporan Mingguan/Bulanan (docs/adr/0013). kirim() dipinjam
-    dari laporan-bulanan.py — di-import di sini, bukan di atas, karena laporan-bulanan.py
-    sendiri memuat file ini.
+    command payload, sama dengan Laporan Mingguan/Bulanan (docs/adr/0013). kirim() dari
+    scripts/pengirim.py, dimuat di sini saja supaya pemakai lain file ini (laporan bulanan
+    dan mingguan, yang hanya butuh fungsi cek) tidak ikut memuatnya.
     """
     if not isi:
         print("\n(tidak ada yang perlu dikirim)")
         return 0
-    spec = importlib.util.spec_from_file_location("laporan_bulanan", SCRIPT_DIR / "laporan-bulanan.py")
-    bulanan = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(bulanan)
-    tujuan = bulanan.tujuan_baku()
+    spec = importlib.util.spec_from_file_location("pengirim", SCRIPT_DIR / "pengirim.py")
+    pengirim = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pengirim)
+    tujuan = pengirim.tujuan_baku()
     if not tujuan:
         print("\n❌ Tidak ada tujuan pengiriman (channels.whatsapp.allowFrom kosong).")
         return 1
     semua_ok = True
     for kanal, ke in tujuan:
-        ok, ket = bulanan.kirim(isi, kanal, ke)
+        ok, ket = pengirim.kirim(isi, kanal, ke)
         print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
         semua_ok = semua_ok and ok
     return 0 if semua_ok else 1

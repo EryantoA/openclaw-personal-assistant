@@ -92,15 +92,15 @@ class AturanSimpan(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.asli = {k: getattr(lb, k) for k in
-                     ("BILLS", "BUDGET", "SIMPANAN", "OPENCLAW_JSON", "kirim", "perkiraan_absen")}
+                     ("BILLS", "BUDGET", "SIMPANAN", "tujuan_baku", "kirim", "perkiraan_absen")}
         lb.BILLS, lb.BUDGET = self.tmp / "bills.csv", self.tmp / "budget.json"
-        lb.SIMPANAN, lb.OPENCLAW_JSON = self.tmp / "laporan.json", self.tmp / "openclaw.json"
+        lb.SIMPANAN = self.tmp / "laporan.json"
+        lb.tujuan_baku = lambda: [("whatsapp", "+0")]
         lb.perkiraan_absen = lambda bulan: []
         with open(lb.BILLS, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=KOLOM)
             w.writeheader()
             w.writerows(DASAR)
-        lb.OPENCLAW_JSON.write_text(json.dumps({"channels": {"whatsapp": {"allowFrom": ["+0"]}}}))
 
     def tearDown(self):
         for k, v in self.asli.items():
@@ -123,7 +123,7 @@ class AturanSimpan(unittest.TestCase):
         self.assertEqual(disimpan["saldo_akhir"], 29_900_000)
 
     def test_tanpa_tujuan_keluar_2(self):
-        lb.OPENCLAW_JSON.write_text("{}")
+        lb.tujuan_baku = lambda: []
         self.assertEqual(lb.main(["--bulan", "2026-08", "--kirim"]), 2)
         self.assertFalse(lb.SIMPANAN.exists())
 

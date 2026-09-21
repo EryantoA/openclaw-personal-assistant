@@ -24,18 +24,18 @@ import argparse
 import csv
 import importlib.util
 import json
-import subprocess
 import sys
-import time
 from datetime import date, datetime
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pengirim  # noqa: E402
 
 AKAR = Path(__file__).resolve().parent.parent
 DATA = AKAR / "data"
 BILLS = DATA / "bills.csv"
 BUDGET = DATA / "budget.json"
 SIMPANAN = DATA / "laporan-bulanan.json"
-OPENCLAW_JSON = Path.home() / ".openclaw" / "openclaw.json"
 
 KATEGORI_SALDO_AWAL = "opening_balance"
 KATEGORI_TERATAS = 5
@@ -232,47 +232,10 @@ def simpanan_baru(simpanan, bulan, arus):
 
 
 # ── Mengirim ──────────────────────────────────────────────────────────────
-def tujuan_baku():
-    """Nomor pemilik dari config — tidak ditulis keras di repo (ADR-0011)."""
-    try:
-        d = json.loads(OPENCLAW_JSON.read_text(encoding="utf-8"))
-        return [("whatsapp", d["channels"]["whatsapp"]["allowFrom"][0])]
-    except Exception:  # noqa: BLE001
-        return []
-
-
-def kirim_sekali(pesan, kanal, ke):
-    argv = ["openclaw", "message", "send", "--channel", kanal, "--target", ke, "-m", pesan]
-    try:
-        p = subprocess.run(argv, capture_output=True, text=True, timeout=60)
-        return p.returncode == 0, (p.stderr or p.stdout).strip()[:200]
-    except Exception as e:  # noqa: BLE001
-        return False, str(e)
-
-
-def kirim(pesan, kanal, ke, coba=3, jeda=60):
-    """Coba ulang: koneksi WhatsApp sesekali putus sesaat.
-
-    Riwayat penjaga kesehatan 5–21 Sep 2026 mencatat 9 kegagalan kirim acak ("Connection
-    Closed", "No active WhatsApp Web listener") di antara ~60 run, sementara run sebelum dan
-    sesudahnya terkirim. Pesan yang terbit sebulan sekali tidak boleh bergantung pada menit
-    yang kebetulan buruk. Risikonya pesan ganda kalau "gagal" ternyata sampai — lebih murah
-    daripada laporan yang tidak sampai.
-
-    `kirim()` dan `tujuan_baku()` punya tiga pemakai: skrip ini, scripts/laporan-mingguan.py,
-    dan `check-bills.py --kirim` (cron cek_budget_malam) — keduanya lewat importlib. Kalau
-    signature-nya berubah, cek juga `python3 scripts/laporan-mingguan.py --hari-ini 2026-09-21`
-    dan `python3 scripts/check-bills.py --mode all --tanggal 2026-08-31`.
-    """
-    ket = ""
-    for i in range(coba):
-        if i:
-            time.sleep(jeda)
-        ok, ket = kirim_sekali(pesan, kanal, ke)
-        if ok:
-            return True, ket
-        print(f"(percobaan {i + 1}/{coba} gagal: {ket[:120]})", file=sys.stderr)
-    return False, ket
+# Lewat scripts/pengirim.py, bersama Laporan Mingguan dan cek budget malam. Dirujuk lewat
+# nama modul ini supaya tes bisa menggantinya tanpa mengirim sungguhan.
+tujuan_baku = pengirim.tujuan_baku
+kirim = pengirim.kirim
 
 
 def main(argv=None):

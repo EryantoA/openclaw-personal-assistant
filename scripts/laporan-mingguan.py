@@ -9,8 +9,8 @@ Cron menjalankannya Senin 07:00 dengan --kirim; permintaan lewat chat menjalanka
 Aturan hitung sengaja dipinjam, bukan ditulis ulang:
   - Saldo           → akun.saldo_global (transfer tak ikut, Saldo Awal ikut)
   - Perkiraan       → check-bills.perkiraan_absen (sama dengan Laporan Bulanan, ADR 0012)
-  - Tujuan          → periksa-kesehatan.tujuan_baku (nomor pemilik dari config)
-  - Kirim           → laporan-bulanan.kirim (3 percobaan, jeda 60 dtk — kirim WA gagal acak ±23%)
+  - Tujuan          → pengirim.tujuan_baku (nomor pemilik dari config)
+  - Kirim           → pengirim.kirim (3 percobaan, jeda 60 dtk — kirim WA gagal acak ±23%)
 
 "Pekan lalu" dihitung ulang dari catatan hari ini — tidak ada simpanan, tidak ada Koreksi.
 
@@ -41,8 +41,7 @@ def _muat_modul(nama, file):
 
 akun = _muat_modul("akun", "akun.py")
 cek = _muat_modul("check_bills", "check-bills.py")
-kesehatan = _muat_modul("periksa_kesehatan", "periksa-kesehatan.py")
-bulanan = _muat_modul("laporan_bulanan", "laporan-bulanan.py")
+pengirim = _muat_modul("pengirim", "pengirim.py")
 
 rupiah = akun.rupiah
 jumlah = akun.jumlah
@@ -291,13 +290,13 @@ def main():
 
     if not a.kirim:
         return 0
-    tujuan = kesehatan.tujuan_baku()
+    tujuan = pengirim.tujuan_baku()
     if not tujuan:
         print("\n❌ Tidak ada tujuan pengiriman (channels.whatsapp.allowFrom kosong).")
         return 1
     semua_ok = True
     for kanal, ke in tujuan:
-        ok, ket = bulanan.kirim(laporan, kanal, ke)
+        ok, ket = pengirim.kirim(laporan, kanal, ke)
         print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
         semua_ok = semua_ok and ok
     return 0 if semua_ok else 1
