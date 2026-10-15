@@ -306,8 +306,7 @@ Detail:
 ### Bukti Transfer: konfirmasi dulu, baru catat
 
 Foto/screenshot mutasi bank atau e-wallet **tidak** langsung dicatat. Kerangka konfirmasi
-(`🧾 Bukti transfer terbaca (belum dicatat)` + pertanyaan kategori dan akun) dan aturan dua
-langkahnya didefinisikan **hanya di `AGENTS.md`** — ikuti itu, jangan membuat bentuk sendiri.
+(ringkasan bacaan + pertanyaan kategori dan akun) dan aturan dua langkahnya didefinisikan **hanya di `AGENTS.md`** — ikuti itu, jangan membuat bentuk sendiri.
 Intinya: jumlah persis dari bukti, `no_resi` = `STRUK-<nomor referensi>` tanpa awalan karangan,
 akun dari `data/akun.json` (nama orang bukan akun), balasan akhir memakai kerangka
 `✅ Sudah dicatat!` di atas (ADR-0014).
