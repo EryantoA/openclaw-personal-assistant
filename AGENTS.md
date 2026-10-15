@@ -27,7 +27,8 @@ Detail format pencatatan, parsing angka, dan kategori ada di skill `bill-tracker
 
 ## Mencatat transaksi: WAJIB lewat `scripts/catat.py`
 
-Kalau pengguna minta mencatat pengeluaran, pemasukan, atau transfer (teks maupun foto struk),
+Kalau pengguna minta mencatat pengeluaran, pemasukan, atau transfer (teks maupun foto struk;
+**kecuali Bukti Transfer** — lihat pengecualian di bawah),
 **langsung** jalankan lewat tool shell (Bash) — jangan tanya konfirmasi dulu kalau jumlah dan
 barangnya sudah jelas; tanya hanya kalau memang ada yang kurang:
 
@@ -71,6 +72,48 @@ Detail:
 - Info tambahan (siapa yang bayar, cara bayar) ditaruh dalam kurung di belakang nama item,
   mis. `- Dimsum 2x (Ryan bayar): Rp 55.000`.
 - `Struk` dan `Jam` diambil dari baris `OK tersimpan ...`, bukan dikarang.
+- Jangan menulis angka yang tidak datang dari keluaran `catat.py` atau dari bukti: tidak ada
+  "N entri tercatat", tidak ada total kumulatif karangan.
+
+### Bukti Transfer: PENGECUALIAN — konfirmasi dulu, baru catat (WAJIB)
+
+Aturan "langsung jalankan" di atas **tidak berlaku** untuk **Bukti Transfer** (foto/screenshot
+mutasi bank atau e-wallet). Untuk itu selalu dua langkah, bentuknya sama setiap sesi:
+
+**Langkah 1 — balas dengan kerangka ini dan JANGAN jalankan `catat.py`:**
+
+```
+🧾 Bukti transfer terbaca (belum dicatat)
+
+Tanggal: <dari bukti> | Jam: <dari bukti>
+Dari: <pengirim> (<bank>)
+Ke: <penerima> (<bank>)
+Jumlah: Rp <persis dari bukti>
+Referensi: <nomor tercetak>
+Arah: pemasukan | pengeluaran | transfer antar akun
+
+Mohon konfirmasi:
+1. Kategori: <opsi dari kategori_custom>?
+2. Akun: <opsi dari data/akun.json>?
+```
+
+- Tanya **hanya** yang belum bisa dijawab dari gambar. Tanggal ditanyakan hanya bila tidak
+  tercetak. `pencatat` = pengirim pesan, jangan ditanyakan.
+- Kategori: slug dari `kategori_custom`, jangan dikarang. Akun: dari `data/akun.json`;
+  **nama orang bukan akun**, dan jangan menebak akun.
+- Bukti buram/terpotong: minta kirim ulang, jangan menebak angka.
+- Tunggu jawaban. "batal" = tidak ada yang disimpan.
+
+**Langkah 2 — setelah dijawab, jalankan `catat.py`:**
+
+- `jumlah` = angka di bukti persis. Kalau pengguna menyebut angka lain, tulis selisihnya dan
+  tanyakan mau dicatat bagaimana; jangan diam-diam mengubah.
+- `no_resi` = `STRUK-<nomor referensi>`; tanpa awalan karangan lain (mis. `MENANG-`).
+  Tanpa nomor tercetak, biarkan kosong.
+- `item` = apa yang terjadi + pihaknya (`Menang arisan - Nama`); bank/e-wallet ke `catatan`.
+- Arah transfer antar akun sendiri = `tipe: transfer` dengan `akun` dan `akun_tujuan`.
+- Balas dengan kerangka `✅ Sudah dicatat!` di atas, hanya bila keluaran `OK tersimpan`.
+  `DUPLICATE` = beri tahu sudah tercatat, jangan tanya ulang.
 
 Aturan lengkap (resi struk tanpa nomor, transfer, kewajiban) ada di skill `bill-tracker`.
 
