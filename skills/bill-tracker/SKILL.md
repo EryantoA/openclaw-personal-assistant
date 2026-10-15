@@ -300,6 +300,16 @@ Detail:
 
 - Info tambahan (siapa yang bayar, cara bayar) di dalam kurung setelah nama item.
 - Nama toko sudah ikut di nama item (`… - Budiman Swalayan`); jangan dibuat baris sendiri.
+- Jangan menulis angka yang tidak datang dari keluaran `catat.py` atau dari bukti
+  (mis. "N entri tercatat").
+
+### Bukti Transfer: konfirmasi dulu, baru catat
+
+Foto/screenshot mutasi bank atau e-wallet **tidak** langsung dicatat. Kerangka konfirmasi
+(ringkasan bacaan + pertanyaan kategori dan akun) dan aturan dua langkahnya didefinisikan **hanya di `AGENTS.md`** — ikuti itu, jangan membuat bentuk sendiri.
+Intinya: jumlah persis dari bukti, `no_resi` = `STRUK-<nomor referensi>` tanpa awalan karangan,
+akun dari `data/akun.json` (nama orang bukan akun), balasan akhir memakai kerangka
+`✅ Sudah dicatat!` di atas (ADR-0014).
 
 Setelah konfirmasi, cek budget otomatis (lihat bagian Cek Budget Otomatis).
 
