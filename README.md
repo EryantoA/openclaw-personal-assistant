@@ -187,11 +187,13 @@ alfamart 87500 - sabun, pasta gigi, minyak goreng
 
 Bot akan membalas konfirmasi otomatis:
 ```
-✅ Berhasil dicatat!
-📦 Item: Beras
-📂 Kategori: Makanan
-💰 Jumlah: Rp 50.000
-📅 Tanggal: 20 Mei 2026
+✅ Sudah dicatat!
+
+Struk: TRX-20260520-4821 | Jam: 14:05
+
+Detail:
+- Beras: Rp 50.000
+- Total: Rp 50.000
 ```
 
 ### Catat dari Foto Struk 📸

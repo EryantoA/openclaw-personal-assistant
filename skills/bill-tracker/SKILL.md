@@ -268,34 +268,38 @@ tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,wakt
 
 ## Pesan Konfirmasi
 
-Setelah mencatat, selalu kirim konfirmasi yang jelas:
+Setelah `catat.py` membalas `OK tersimpan`, kirim konfirmasi **dengan kerangka yang sama persis**
+setiap kali (sama dengan `AGENTS.md`, yang selalu ada di prompt). Bentuknya tidak boleh
+berubah antar-sesi dan tidak boleh diringkas jadi satu baris:
 
 ```
-✅ Berhasil dicatat!
+✅ Sudah dicatat!
 
-📦 Item: Beras 5kg
-📂 Kategori: groceries
-💰 Jumlah: Rp 75.000
-📅 Tanggal: 15 Jan 2025  🕒 14:05
-🧾 No Resi: TRX-20250115-4821
+Struk: BSDUPG | Jam: 22:30
 
-Total pengeluaran hari ini: Rp 225.000
+Detail:
+- Dragon Red Fruit 1.21kg: Rp 34.010
+- Regal Biskuit 230gr: Rp 24.500
+- La Fonte Saus Pasta Bolognese: Rp 17.700
+- Counterpain Cream 15gr: Rp 30.400
+- Total: Rp 106.610
 ```
 
-Untuk foto struk dengan banyak item:
-```
-✅ Struk berhasil dianalisis!
+- `Struk` = `no_resi` dan `Jam` = `waktu`, **diambil dari baris `OK tersimpan`** — jangan dikarang.
+- Satu baris `- ` per item, lalu `- Total: …`. Chat biasa satu item pakai kerangka yang sama:
 
-🏪 Toko: Indomaret
-📅 Tanggal: 15 Jan 2025  🕒 09:30
-🧾 No Resi: STRUK-000123
-📋 3 item dicatat:
-  • Beras 5kg — Rp 75.000 (groceries)
-  • Sabun Mandi — Rp 8.500 (personal_care)
-  • Aqua 1500ml — Rp 5.000 (food)
-
-💳 Total: Rp 88.500
 ```
+✅ Sudah dicatat!
+
+Struk: TRX-20261015-0032 | Jam: 15:59
+
+Detail:
+- Gift reward melahirkan Kak Icha (Eryanto 50k + Elsi 50k): Rp 100.000
+- Total: Rp 100.000
+```
+
+- Info tambahan (siapa yang bayar, cara bayar) di dalam kurung setelah nama item.
+- Nama toko sudah ikut di nama item (`… - Budiman Swalayan`); jangan dibuat baris sendiri.
 
 Setelah konfirmasi, cek budget otomatis (lihat bagian Cek Budget Otomatis).
 

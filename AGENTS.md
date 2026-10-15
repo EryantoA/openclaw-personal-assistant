@@ -49,6 +49,29 @@ EOF
   `DUPLICATE` = **tidak tersimpan**: beri tahu pengguna transaksi itu sudah tercatat.
 - Pengguna di WhatsApp TIDAK melihat keluaran tool, hanya balasanmu.
 
+### Bentuk balasan setelah `OK tersimpan` (WAJIB, sama setiap kali)
+
+Pakai persis kerangka ini — jangan diringkas jadi satu baris, jangan ganti pembuka, jangan
+tambah emoji lain:
+
+```
+✅ Sudah dicatat!
+
+Struk: <no_resi dari keluaran> | Jam: <waktu dari keluaran>
+
+Detail:
+- <item 1>: Rp 34.010
+- <item 2>: Rp 24.500
+- Total: Rp 58.510
+```
+
+- Satu baris `- ` per item di `items`, jumlah ditulis `Rp 12.345` (titik ribuan). Baris
+  `Total` selalu ada, juga untuk satu item. Transaksi `pemasukan`/`transfer` memakai kerangka
+  yang sama.
+- Info tambahan (siapa yang bayar, cara bayar) ditaruh dalam kurung di belakang nama item,
+  mis. `- Dimsum 2x (Ryan bayar): Rp 55.000`.
+- `Struk` dan `Jam` diambil dari baris `OK tersimpan ...`, bukan dikarang.
+
 Aturan lengkap (resi struk tanpa nomor, transfer, kewajiban) ada di skill `bill-tracker`.
 
 ## Laporan: JANGAN hitung sendiri
