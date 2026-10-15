@@ -73,6 +73,12 @@ _Avoid_: tempat, merchant, vendor, deskripsi
 Penanda unik satu transaksi, sekaligus dasar deteksi duplikat.
 _Avoid_: nomor struk, id, referensi
 
+**Bukti Transfer**:
+Gambar mutasi bank atau e-wallet yang menjadi sumber satu Transaksi. Berbeda dari struk
+belanja: bot tidak langsung mencatatnya, tapi menampilkan bacaannya dan bertanya kategori
+dan akun dulu (ADR-0014). Nomor referensi di dalamnya menjadi No Resi `STRUK-<nomor>`.
+_Avoid_: struk transfer, slip
+
 **Duplikat**:
 Satu transaksi yang sama tercatat lebih dari sekali. Dua transaksi berbeda yang kebetulan
 sama isinya bukan duplikat.
