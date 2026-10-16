@@ -34,6 +34,7 @@ def _muat_modul(nama, file):
 
 
 akun = _muat_modul("akun", "akun.py")
+resi = _muat_modul("resi", "resi.py")
 _mingguan = _muat_modul("laporan_mingguan", "laporan-mingguan.py")  # satu definisi Pekan
 rupiah = akun.rupiah
 jumlah = akun.jumlah
@@ -52,24 +53,25 @@ def rentang_bulan(bulan):
     return date(t.year, t.month, 1), date(t.year, t.month, calendar.monthrange(t.year, t.month)[1])
 
 
-def susun(rows, mulai, akhir, judul):
+def susun(rows, mulai, akhir, judul, peta=None):
+    peta = resi.peta_pembeli() if peta is None else peta
     a, b = mulai.isoformat(), akhir.isoformat()
     per = defaultdict(float)
-    resi = defaultdict(set)
+    per_resi = defaultdict(set)
     for i, r in enumerate(rows):
         if (r.get("tipe") or "pengeluaran").strip().lower() != "pengeluaran":
             continue
         if not a <= (r.get("tanggal") or "") <= b:
             continue
-        nama = (r.get("pencatat") or "").strip() or TANPA_NAMA
+        nama = resi.kanon_pembeli(r.get("pencatat"), peta) or TANPA_NAMA
         per[nama] += jumlah(r)
-        resi[nama].add((r.get("no_resi") or "").strip() or f"baris-{i}")
+        per_resi[nama].add((r.get("no_resi") or "").strip() or f"baris-{i}")
     baris = [f"👥 PENGELUARAN PER PEMBELI — {judul}", ""]
     if not per:
         return "\n".join(baris + ["(tidak ada pengeluaran tercatat)"])
     semua = sum(per.values())
     for nama, v in sorted(per.items(), key=lambda kv: (-kv[1], kv[0])):
-        n = len(resi[nama])
+        n = len(per_resi[nama])
         baris.append(f"{nama}  {rupiah(v)} ({v / semua * 100:.0f}%) · {n} transaksi")
     baris += ["", f"Total: {rupiah(semua)}"]
     return "\n".join(baris)

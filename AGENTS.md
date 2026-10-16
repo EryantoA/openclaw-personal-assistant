@@ -47,7 +47,9 @@ EOF
 
 - Kunci JSON persis seperti contoh (Bahasa Indonesia). `tipe`: `pengeluaran` / `pemasukan` /
   `transfer`. `kategori`: slug dari `data/budget.json` → `kategori_custom` (mis. `food`, bukan
-  `Food`/`Makanan`). `pencatat`: nama pengirim pesan. Opsional: `waktu` (jam di struk),
+  `Food`/`Makanan`). `pencatat`: nama pengirim pesan; alias (mis. "ryan", "istri") dibakukan
+  skrip lewat `data/pembeli.json`, jadi tulis apa adanya dan pakai nama baku dari keluaran uji.
+  Opsional: `waktu` (jam di struk),
   `no_resi` (nomor tercetak di struk → `STRUK-<nomor>`), `catatan` (cara bayar, dsb.).
 - Satu struk berisi banyak barang = **satu** panggilan, semua barang di `items`.
 - Struk **tanpa nomor tercetak**: hitung dulu sidik jarinya (`python3 scripts/resi.py --fingerprint

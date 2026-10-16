@@ -133,7 +133,7 @@ def susun_baris(tx: dict, sekarang: datetime) -> list[dict]:
             "jumlah": jumlah,
             "catatan": str(it.get("catatan", tx.get("catatan")) or "").strip(),
             "channel": str(tx["channel"]).strip(),
-            "pencatat": str(tx["pencatat"]).strip(),
+            "pencatat": resi.kanon_pembeli(tx["pencatat"]),
             "akun": str(tx.get("akun") or "").strip(),
             "akun_tujuan": akun_tujuan,
             "waktu": waktu,

@@ -76,7 +76,9 @@ _Avoid_: draf, konfirmasi, preview
 
 **Pembeli**:
 Orang yang berbelanja, sama dengan `pencatat` di data: nama pengirim pesan. Tampil di balasan
-konfirmasi struk (ADR-0015). Bukan penerima transfer.
+konfirmasi struk (ADR-0015). Satu orang bisa punya banyak alias (nama panggilan, peran
+seperti "istri", beda huruf besar-kecil); semuanya dibakukan ke satu nama baku (ADR-0017).
+Bukan penerima transfer.
 _Avoid_: buyer, pembayar
 
 **No Resi**:

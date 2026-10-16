@@ -47,6 +47,12 @@ class KontrakPratinjau(unittest.TestCase):
         self.assertEqual(AGENTS.count("Pembeli: <pencatat dari keluaran>"), 2)  # pratinjau + balasan akhir
 
 
+class KontrakPembeli(unittest.TestCase):
+    def test_alias_dibakukan_skrip_bukan_model(self):
+        self.assertIn("data/pembeli.json", AGENTS)
+        self.assertTrue((AKAR / "data" / "pembeli.json.example").exists())
+
+
 class KontrakBacaStruk(unittest.TestCase):
     def test_selisih_total_dan_biaya_tambahan(self):
         for kata in ("Selisih", "Diskon", "PPN", "Layanan", "total tercetak"):

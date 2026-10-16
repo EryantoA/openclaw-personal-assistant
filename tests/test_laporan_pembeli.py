@@ -62,6 +62,22 @@ class PerPembeli(unittest.TestCase):
         self.assertIn("tidak ada pengeluaran", lp.susun([], *PEKAN, "Pekan X"))
 
 
+class Alias(unittest.TestCase):
+    PETA = lp.resi.bangun_peta({"Eryanto": ["Teikoku", "ryan", "suami"], "Elsi": ["istri", "Elsea"]})
+
+    def test_satu_orang_berbagai_nama_digabung(self):
+        rows = [b("2026-10-12", "pengeluaran", n, 10_000, f"R{i}")
+                for i, n in enumerate(["Eryanto", "eryanto", "ryan", "Ryan", "Teikoku", "teikoku", "suami",
+                                       "Elsi", "elsi", "istri", "Elsea"])]
+        teks = lp.susun(rows, *PEKAN, "Pekan X", peta=self.PETA)
+        baris = [l for l in teks.splitlines() if l.startswith(("Eryanto", "Elsi"))]
+        self.assertEqual(len(baris), 2)
+        self.assertIn("Rp 70.000", baris[0])
+        self.assertIn("7 transaksi", baris[0])
+        self.assertIn("Rp 40.000", baris[1])
+        self.assertNotIn("Tanpa nama", teks)
+
+
 class Rentang(unittest.TestCase):
     def test_pekan_senin_sampai_minggu(self):
         self.assertEqual(lp.rentang_pekan(date(2026, 10, 15)), (date(2026, 10, 12), date(2026, 10, 18)))
