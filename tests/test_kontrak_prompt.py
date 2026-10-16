@@ -14,6 +14,7 @@ SKILL = (AKAR / "skills" / "bill-tracker" / "SKILL.md").read_text(encoding="utf-
 KERANGKA_AKHIR = "✅ Sudah dicatat!"
 KERANGKA_PRATINJAU = "🧾 Akan disimpan (belum dicatat)"
 KERANGKA_CARI = "🔍 Hasil pencarian"
+KALIMAT_DRAF_DIBUANG = "⚠️ Yang tadi tidak tersimpan."
 
 
 class KontrakPratinjau(unittest.TestCase):
@@ -27,6 +28,8 @@ class KontrakPratinjau(unittest.TestCase):
         self.assertIn("*ya*", AGENTS)
         self.assertIn("*batal*", AGENTS)
         self.assertIn("buang draf lama", AGENTS)  # draf lama dibuang bila ada transaksi baru
+        self.assertIn(KALIMAT_DRAF_DIBUANG, AGENTS)  # kalimat pembuka baku, bukan parafrase
+        self.assertIn("baris PERTAMA balasan", AGENTS)
         self.assertIn("scripts/resi.py --fingerprint", AGENTS)  # struk tanpa nomor tetap terdeteksi dobel
 
     def test_tidak_ada_lagi_aturan_langsung_catat(self):
