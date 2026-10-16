@@ -161,8 +161,9 @@ Field JSON: `tanggal` (YYYY-MM-DD), `tipe`, `channel`, `pencatat`, `items` (daft
 `{kategori, item, jumlah}`, `catatan` per item opsional) wajib; `waktu`, `no_resi`, `catatan`,
 `akun`, `akun_tujuan` opsional. `jumlah` boleh angka atau teks rupiah (`"Rp 12.000"`).
 
-> Skrip ini hanya untuk **menambah** transaksi. Mengubah atau menghapus baris yang sudah ada
-> (koreksi, "hapus terakhir") tetap dikerjakan dengan membaca lalu menulis ulang file.
+> Skrip ini hanya untuk **menambah** transaksi. Mencari, mengubah, atau menghapus baris yang
+> sudah ada (koreksi, "hapus terakhir") lewat `scripts/buku.py` — alurnya didefinisikan **hanya
+> di `AGENTS.md`** (bagian *Mengubah dan menghapus*, ADR-0018). Jangan menulis ulang file.
 
 ## 🧾 Waktu & No Resi (WAJIB tiap transaksi)
 
@@ -440,7 +441,7 @@ Hanya pengeluaran; baris tanpa pencatat tampil sebagai "Tanpa nama".
 ### 🔍 Cari Transaksi
 Trigger: `cari [keyword]`, `history [kategori]`
 Contoh: `cari listrik`, `history makanan bulan ini`
-Bentuk hasil (Tanggal, Pembeli, Jam, resi per hasil) didefinisikan **hanya di `AGENTS.md`** (bagian *Mencari transaksi*).
+Dijalankan lewat `scripts/buku.py cari`; bentuk hasil (Tanggal, Pembeli, Jam, resi per hasil) didefinisikan **hanya di `AGENTS.md`** (bagian *Mencari transaksi*).
 
 ### 🧾 Cek Resi (sudah dicatat atau belum)
 Trigger: `cek resi [no]`, `resi [no]`, `sudah dicatat [no]`
@@ -462,9 +463,12 @@ struk **tidak** dianggap dobel.
 - Output `DUPLICATE N baris dalam M grup: ...` → laporkan ke pengguna daftar grupnya, sarankan cek/hapus manual (jangan hapus otomatis).
 - Output `OK tidak ada duplikat` → beri tahu datanya bersih.
 
-### 🗑️ Hapus Transaksi Terakhir
-Trigger: `hapus terakhir`, `cancel`, `batal`
-Hapus baris terakhir di CSV dan konfirmasi.
+### 🗑️ Hapus / Ubah Transaksi
+Trigger: `hapus terakhir`, `hapus transaksi ...`, `ubah ...`, `koreksi ...`, `salah catat`
+Lewat `scripts/buku.py hapus|ubah` dengan Pratinjau dulu — alur dan kerangkanya didefinisikan
+**hanya di `AGENTS.md`** (bagian *Mengubah dan menghapus*). "Hapus terakhir" menghapus Transaksi
+terakhir yang dicatat pengirim (semua Item-nya), bukan baris terakhir berkas. Kata `batal` saja
+adalah jawaban untuk Pratinjau yang sedang menunggu, bukan perintah hapus.
 
 ---
 
@@ -873,6 +877,6 @@ pergantian bulan menampilkan Budget dan Perkiraan kedua bulan (bulan lama bertan
 7. **Emoji** boleh digunakan untuk membuat pesan lebih menarik
 8. **Baca budget.json** di awal setiap sesi untuk memuat kategori custom dan budget aktif
 9. **Cek budget** otomatis setiap kali ada transaksi baru dicatat
-10. **Jangan pernah hapus data** — hapus terakhir hanya hapus 1 baris terakhir, bukan reset semua
+10. **Jangan pernah hapus data massal** — hapus hanya lewat `buku.py hapus` untuk tepat satu Transaksi atau satu Item setelah Pratinjau, bukan reset semua
 11. **Transfer bukan belanja** — `tipe=transfer` tidak pernah masuk Total Pemasukan, Total Pengeluaran, Arus Kas Bulan, Saldo global, maupun budget. Kalau Saldo global berubah setelah mencatat transfer, itu bug — hentikan dan laporkan
 12. **Jangan tebak akun** — baris sebelum tanggal cutover memang berkolom `akun` kosong dan itu benar. Sesudah cutover, kalau pengguna tidak menyebut akunnya, **tanyakan**. Saldo per akun selalu disajikan dengan menyebut batas cutover-nya (ADR-0010)

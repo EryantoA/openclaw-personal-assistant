@@ -8,9 +8,12 @@ dengan baris yang baru dicatat.
 # Cron memakai /usr/bin/python3 3.9 — lihat catatan yang sama di resi.py.
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
 import re
 from datetime import date
+from pathlib import Path
 
 import resi
 
@@ -102,3 +105,17 @@ def cek_duplikat_lapis2(baris: list[dict], ada: list[dict], paksa: bool = False,
                 return (f"DUPLICATE {resi.row_summary(row)} | cocok pada: {', '.join(fields)} "
                         f"(aksi={cfg.get('aksi', 'tolak')}{saran})")
     return None
+
+
+@contextlib.contextmanager
+def kunci_berkas(path: Path):
+    """Kunci eksklusif untuk satu CSV, lewat berkas `<nama>.lock` di sampingnya.
+
+    Bukan mengunci CSV-nya sendiri: buku.py mengganti CSV dengan rename atomik, dan kunci pada
+    inode lama tidak melindungi penulis yang menunggu (tulisannya jatuh ke berkas yang sudah
+    tak terpakai). catat.py dan buku.py sama-sama lewat sini.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path.with_name(path.name + ".lock"), "a+") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        yield

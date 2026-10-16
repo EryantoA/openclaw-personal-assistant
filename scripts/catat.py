@@ -36,17 +36,14 @@ from __future__ import annotations
 
 import argparse
 import csv
-import fcntl
 import io
-import json
-import re
 import sys
 from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import resi  # noqa: E402
-from validasi import TIPE, Tolak, cek_baris, cek_duplikat_lapis2, kategori_sah  # noqa: E402,F401
+from validasi import Tolak, cek_baris, cek_duplikat_lapis2, kategori_sah, kunci_berkas  # noqa: E402
 
 KUNCI_TX = {"tanggal", "tipe", "channel", "pencatat", "items", "waktu", "no_resi", "catatan",
             "akun", "akun_tujuan"}
@@ -110,9 +107,8 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
         return 2, f"ERROR {e}"
 
     path = resi.BILLS_CSV
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a+", encoding="utf-8", newline="") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)  # dua pesan WhatsApp bersamaan tidak saling menimpa
+    # Dua pesan WhatsApp bersamaan (atau buku.py) tidak saling menimpa
+    with kunci_berkas(path), open(path, "a+", encoding="utf-8", newline="") as f:
         f.seek(0)
         isi = f.read()
         ada = list(csv.DictReader(io.StringIO(isi)))

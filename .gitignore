@@ -53,3 +53,7 @@ data/laporan-bulanan.json
 # Nama baku anggota keluarga + alias-nya (nama orang = data pribadi, ADR-0004).
 # Bentuknya ada di data/pembeli.json.example (nama karangan). Lihat docs/adr/0017.
 data/pembeli.json
+
+# Kunci tulis CSV (validasi.kunci_berkas) dan jejak ubah/hapus buku.py - lihat docs/adr/0018
+data/*.lock
+data/riwayat-ubah.csv

@@ -15,6 +15,8 @@ keuangan. Setiap transaksi yang **sudah tersimpan** kamu konfirmasi dengan ringk
 | `data/kewajiban.json` | Tagihan pascabayar yang belum dibayar (ditulis bot) |
 | `data/perkiraan.json` | Transaksi berulang yang diharapkan (dirawat manusia) |
 | `scripts/catat.py` | **Satu-satunya** cara menambah transaksi ke `bills.csv` (JSON di stdin; isi waktu, no resi, cek duplikat) — jangan tulis baris dengan Edit/Write |
+| `scripts/buku.py` | Mencari (`cari`), mengubah (`ubah`), dan menghapus (`hapus`) transaksi yang **sudah tercatat** — ubah/hapus lewat Pratinjau (ADR-0018). Jangan edit `bills.csv` dengan Edit/Write |
+| `data/riwayat-ubah.csv` | Jejak ubah/hapus (append-only, diisi `buku.py`, jangan disentuh) |
 | `scripts/check-bills.py` | Cek budget, kewajiban, perkiraan (`--mode all`) — read-only |
 | `scripts/laporan-mingguan.py` | Laporan Mingguan (Pekan Senin–Minggu) |
 | `scripts/laporan-bulanan.py` | Laporan Bulanan (bulan yang sudah tutup) |
@@ -157,18 +159,88 @@ Aturan lengkap (resi struk tanpa nomor, transfer, kewajiban) ada di skill `bill-
 
 ## Mencari transaksi
 
-Permintaan `cari ...` / `history ...`: baca `data/bills.csv`, lalu balas **tiap hasil** dengan
-kerangka ini (maksimal 10 hasil terbaru; sisanya sebut jumlahnya):
+Permintaan `cari ...` / `history ...` / "transaksi 12 Oktober": jalankan `scripts/buku.py cari`,
+lalu **salin keluarannya utuh** sebagai balasan. Jangan membaca `data/bills.csv` sendiri.
+
+```bash
+python3 scripts/buku.py cari --kata indomaret --dari 2026-10-01 --sampai 2026-10-31
+```
+
+Filter (boleh digabung): `--kata` (nama Item/toko), `--resi`, `--tanggal`, `--dari`/`--sampai`,
+`--kategori`, `--pembeli` (alias dibakukan), `--tipe`, `--batas N` (bawaan 10). `--terakhir`
+mengurutkan berdasarkan yang terakhir dicatat — untuk "transaksi terakhir saya" pakai
+`--pembeli <pengirim> --terakhir --batas 1`. Bentuk keluarannya (satu blok per struk):
 
 ```
 🔍 Hasil pencarian: <kata kunci> (<jumlah> transaksi)
 
 Struk: <no_resi> | Tanggal: <tanggal> | Jam: <waktu>
 Pembeli: <pencatat>
-- <item>: Rp 12.345
+- [1] <item>: Rp 12.345
+- Total: Rp 12.345
 ```
 
-Kolom kosong ditulis `-`. Jangan menghitung ulang total; kalau diminta total, jalankan laporan.
+Angka `[n]` adalah nomor Item di dalam struk itu — dipakai untuk mengubah atau menghapus satu Item.
+Tak ada hasil → skrip menjawab "tidak ditemukan"; sampaikan apa adanya.
+
+## Mengubah dan menghapus transaksi yang sudah tercatat
+
+**Jangan pernah mengedit `data/bills.csv` dengan Edit/Write/echo/sed**, juga untuk koreksi atau
+"hapus terakhir". Satu-satunya jalan: `scripts/buku.py ubah` / `hapus`, selalu dua langkah
+(ADR-0018): `--uji` → Pratinjau → tunggu jawaban → eksekusi. Berlaku sama untuk semua pengirim.
+
+1. **Tunjuk Transaksinya.** Jalankan `buku.py cari` (lihat di atas). Cocok lebih dari satu
+   Transaksi, atau pengguna belum jelas yang mana: tampilkan hasilnya dan **tanya yang mana**;
+   jangan menebak. "Hapus terakhir" = `cari --pembeli <pengirim> --terakhir --batas 1`, lalu
+   Pratinjau seperti biasa.
+2. **Uji.** Susun JSON (kunci persis seperti contoh) dan jalankan dengan `--uji`:
+
+```bash
+python3 scripts/buku.py ubah --uji <<'EOF'
+{"no_resi": "STRUK-000123", "item_ke": 2, "set": {"jumlah": 25000, "kategori": "groceries"}, "oleh": "Eryanto"}
+EOF
+python3 scripts/buku.py hapus --uji <<'EOF'
+{"no_resi": "STRUK-000123", "oleh": "Eryanto"}
+EOF
+```
+
+   `oleh` = nama pengirim pesan. `item_ke` = nomor Item dari hasil `cari`: kosong = seluruh
+   Transaksi (hapus) atau kolom tingkat-Transaksi (`tanggal`, `waktu`, `tipe`, `pencatat`,
+   `akun`, `akun_tujuan`); angka = satu Item; `"semua"` = semua Item (ubah). `no_resi` dan
+   `channel` tidak bisa diubah; baris `opening_balance` tidak bisa disentuh. `ERROR` → perbaiki
+   atau sampaikan alasannya ke pengguna; `DUPLICATE` → hasil ubahnya sama dengan Transaksi lain,
+   beri tahu dan berhenti.
+3. **Pratinjau.** Keluaran `OK lolos cek` memuat `sidik` dan baris-baris perubahan (termasuk
+   baris `⚠️` bila ada). Balas **hanya** dengan salah satu kerangka ini, isi dari keluaran uji
+   (jangan mengarang angka):
+
+```
+✏️ Akan diubah (belum berubah)
+
+<baris "Ubah Transaksi ..." dan perubahannya, disalin dari keluaran>
+<baris ⚠️ bila ada>
+
+Balas *ya* untuk mengubah, *batal*, atau tulis yang mau diubah.
+```
+
+```
+🗑️ Akan dihapus (belum berubah)
+
+<baris "Hapus ..." dan rinciannya, disalin dari keluaran>
+<baris ⚠️ bila ada>
+
+Balas *ya* untuk menghapus, *batal*, atau tulis yang mau diubah.
+```
+
+4. **Tunggu jawaban.** *ya* → jalankan perintah yang sama **tanpa** `--uji` dengan JSON yang sama
+   ditambah `"sidik": "<dari keluaran uji>"`. Koreksi bebas → uji ulang (sidik baru) dan kirim
+   Pratinjau baru. *batal* → tidak ada yang berubah; katakan begitu. Perintah atau transaksi baru
+   sebelum menjawab → buang draf lama dengan `⚠️ Yang tadi tidak tersimpan.` sebagai baris
+   PERTAMA balasan, lalu lanjutkan yang baru.
+5. **Lapor.** Hanya bila keluarannya diawali `OK terubah` / `OK terhapus`, balas `✅ Sudah
+   diubah!` / `✅ Sudah dihapus!` diikuti baris-baris keluaran. `ERROR` (termasuk "sidik tidak
+   cocok") = **tidak ada yang berubah**: katakan begitu dan buat Pratinjau ulang bila perlu.
+   Pengguna di WhatsApp tidak melihat keluaran tool, hanya balasanmu.
 
 ## Laporan: JANGAN hitung sendiri
 

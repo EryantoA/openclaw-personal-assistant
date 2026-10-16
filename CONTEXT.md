@@ -71,8 +71,16 @@ _Avoid_: tempat, merchant, vendor, deskripsi
 
 **Pratinjau**:
 Tampilan apa yang akan disimpan ke CSV, dikirim bot sebelum pencatatan dan menunggu jawaban.
-Bukan Transaksi: belum ada baris yang tertulis, jadi tidak mengubah Saldo (ADR-0016).
+Bukan Transaksi: belum ada baris yang tertulis, jadi tidak mengubah Saldo (ADR-0016). Berlaku
+juga sebelum mengubah atau menghapus Transaksi yang sudah tercatat, dengan tampilan sebelum →
+sesudah (ADR-0018).
 _Avoid_: draf, konfirmasi, preview
+
+**Jejak Perubahan**:
+Catatan append-only (`data/riwayat-ubah.csv`) tentang setiap Transaksi yang diubah atau dihapus:
+kapan, siapa, isi sebelum dan sesudah. Bukan Transaksi dan tidak ikut hitungan apa pun; tidak
+bisa diubah atau dihapus lewat chat (ADR-0018).
+_Avoid_: log, audit, riwayat edit
 
 **Pembeli**:
 Orang yang berbelanja, sama dengan `pencatat` di data: nama pengirim pesan. Tampil di balasan
