@@ -15,6 +15,8 @@ KERANGKA_AKHIR = "✅ Sudah dicatat!"
 KERANGKA_PRATINJAU = "🧾 Akan disimpan (belum dicatat)"
 KERANGKA_CARI = "🔍 Hasil pencarian"
 KALIMAT_DRAF_DIBUANG = "⚠️ Yang tadi tidak tersimpan."
+KERANGKA_UBAH = "✏️ Akan diubah (belum berubah)"
+KERANGKA_HAPUS = "🗑️ Akan dihapus (belum berubah)"
 
 
 class KontrakPratinjau(unittest.TestCase):
@@ -90,6 +92,38 @@ class KontrakBacaData(unittest.TestCase):
         self.assertNotIn(KERANGKA_CARI, SKILL)
         self.assertIn("hanya di `AGENTS.md`", SKILL)
         self.assertIn("Pembeli: <pencatat>", AGENTS)
+
+
+class KontrakUbahHapus(unittest.TestCase):
+    """Ubah/hapus transaksi yang sudah tercatat (ADR-0018): kontrak hanya di AGENTS.md."""
+
+    def test_kerangka_pratinjau_didefinisikan_sekali_di_agents(self):
+        for kerangka in (KERANGKA_UBAH, KERANGKA_HAPUS):
+            self.assertEqual(AGENTS.count(kerangka), 1)
+            self.assertNotIn(kerangka, SKILL)
+
+    def test_dua_langkah_dengan_uji_dan_sidik(self):
+        for teks in ("buku.py ubah --uji", "buku.py hapus --uji", "\"sidik\"", "*ya*", "*batal*"):
+            self.assertIn(teks, AGENTS)
+        self.assertIn("tanya yang mana", AGENTS)  # penunjuk ambigu tidak ditebak
+
+    def test_klaim_hanya_setelah_keluaran_ok(self):
+        self.assertIn("OK terubah", AGENTS)
+        self.assertIn("OK terhapus", AGENTS)
+        self.assertIn("tidak ada yang berubah", AGENTS)
+
+    def test_tulis_langsung_ke_csv_dilarang(self):
+        self.assertIn("Jangan pernah mengedit `data/bills.csv`", AGENTS)
+        self.assertNotIn("tetap dikerjakan dengan membaca lalu menulis ulang file", SKILL)
+        self.assertNotIn("Hapus baris terakhir di CSV", SKILL)
+        self.assertIn("hanya di `AGENTS.md`", SKILL)
+
+    def test_dokumen_dan_ignore(self):
+        self.assertTrue(list((AKAR / "docs" / "adr").glob("0018-*.md")))
+        self.assertIn("**Jejak Perubahan**", (AKAR / "CONTEXT.md").read_text(encoding="utf-8"))
+        ignore = (AKAR / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("data/riwayat-ubah.csv", ignore)
+        self.assertIn("data/*.lock", ignore)
 
 
 class Dokumen(unittest.TestCase):
