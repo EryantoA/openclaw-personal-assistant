@@ -1,3 +1,6 @@
+> **Sebagian digantikan oleh [0016](0016-pratinjau-sebelum-simpan-untuk-semua-pencatatan.md):**
+> konfirmasi dulu kini berlaku untuk semua pencatatan, bukan hanya Bukti Transfer.
+
 # Bukti Transfer dikonfirmasi dulu, kontraknya hidup di AGENTS.md
 
 Foto bukti transfer lewat dua langkah: bot membalas ringkasan bacaan + pertanyaan

@@ -49,3 +49,7 @@ data/akun.json
 # Angka yang pernah dilaporkan Laporan Bulanan — nominal sungguhan, dasar Koreksi.
 # Keadaan operasional, dibuat scripts/laporan-bulanan.py --kirim. Lihat docs/adr/0012.
 data/laporan-bulanan.json
+
+# Nama baku anggota keluarga + alias-nya (nama orang = data pribadi, ADR-0004).
+# Bentuknya ada di data/pembeli.json.example (nama karangan). Lihat docs/adr/0017.
+data/pembeli.json

@@ -43,9 +43,15 @@ class Catat(unittest.TestCase):
         }), encoding="utf-8")
         self.asli = (resi.BILLS_CSV, resi.BUDGET_JSON)
         resi.BILLS_CSV, resi.BUDGET_JSON = self.csv, budget
+        self.pembeli = d / "pembeli.json"
+        self.pembeli.write_text(json.dumps({"Eryanto": ["ryan", "Teikoku"], "Elsi": ["istri"]}),
+                                encoding="utf-8")
+        self.asli_pembeli = resi.PEMBELI_JSON
+        resi.PEMBELI_JSON = self.pembeli
 
     def tearDown(self):
         resi.BILLS_CSV, resi.BUDGET_JSON = self.asli
+        resi.PEMBELI_JSON = self.asli_pembeli
         self.tmp.cleanup()
 
     def baris(self):
@@ -61,6 +67,38 @@ class Catat(unittest.TestCase):
         self.assertEqual(baru["waktu"], "22:46")
         self.assertRegex(baru["no_resi"], r"^TRX-20260921-\d{4}$")
         self.assertEqual(rows[1], next(csv.reader([LAMA])))  # baris lama tak tersentuh
+
+    def test_keluaran_ok_membawa_resi_waktu_tanggal_dan_pencatat(self):
+        kode, pesan = ct.catat(tx(no_resi="STRUK-000123", waktu="09:15"), sekarang=JAM)
+        self.assertEqual(kode, 0, pesan)
+        baris_ok = pesan.splitlines()[0]
+        self.assertEqual(
+            baris_ok,
+            "OK tersimpan 1 baris | no_resi STRUK-000123 | waktu 09:15 | tanggal 2026-09-21 | pencatat Eryanto")
+
+    def test_keluaran_uji_membawa_field_yang_sama_untuk_pratinjau(self):
+        kode, pesan = ct.catat(tx(waktu="09:15"), uji=True, sekarang=JAM)
+        self.assertEqual(kode, 0, pesan)
+        self.assertRegex(pesan, r"^OK lolos cek \(tidak ditulis\): no_resi TRX-20260921-\d{4} waktu 09:15 "
+                                r"\| tanggal 2026-09-21 \| pencatat Eryanto$")
+        self.assertEqual(len(self.baris()), 2)  # tidak menulis
+
+    def test_pencatat_alias_disimpan_dengan_nama_baku(self):
+        for i, (alias, baku) in enumerate((("ryan", "Eryanto"), ("TEIKOKU", "Eryanto"),
+                                            ("Istri", "Elsi"), ("Elsi", "Elsi"))):
+            kode, pesan = ct.catat(tx(pencatat=alias, no_resi=f"STRUK-{alias}",
+                                      items=[{"kategori": "food", "item": "x", "jumlah": 1000 + i}]), sekarang=JAM)
+            self.assertEqual(kode, 0, pesan)
+            self.assertEqual(self.baris()[-1][7], baku)
+            self.assertIn(f"pencatat {baku}", pesan.splitlines()[0])
+
+    def test_pencatat_tak_dikenal_atau_tanpa_berkas_dibiarkan(self):
+        ct.catat(tx(pencatat="Tamu", no_resi="STRUK-1"), sekarang=JAM)
+        self.assertEqual(self.baris()[-1][7], "Tamu")
+        self.pembeli.unlink()
+        ct.catat(tx(pencatat="ryan", no_resi="STRUK-2",
+                    items=[{"kategori": "food", "item": "x", "jumlah": 2000}]), sekarang=JAM)
+        self.assertEqual(self.baris()[-1][7], "ryan")
 
     def test_struk_banyak_item_berbagi_satu_resi(self):
         kode, _ = ct.catat(tx(no_resi="STRUK-000123", items=[

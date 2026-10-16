@@ -57,6 +57,7 @@ PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
 BILLS_CSV = DATA_DIR / "bills.csv"
 BUDGET_JSON = DATA_DIR / "budget.json"
+PEMBELI_JSON = DATA_DIR / "pembeli.json"  # nama baku -> daftar alias (data pribadi, tidak di git)
 
 # Header lengkap (kolom `waktu` & `no_resi` di akhir demi kompatibilitas data lama)
 COLUMNS = [
@@ -118,6 +119,32 @@ def load_duplicate_config() -> dict:
             fields.append(f)
     cfg["match_fields"] = fields or list(DEFAULT_DUPLICATE_CHECK["match_fields"])
     return cfg
+
+
+# ── Pembeli ──────────────────────────────────────────────────
+def bangun_peta(data: dict) -> dict:
+    """{"Eryanto": ["ryan", ...]} -> {"eryanto": "Eryanto", "ryan": "Eryanto", ...} (huruf kecil)."""
+    peta = {}
+    for baku, alias in (data or {}).items():
+        for nama in [baku, *(alias or [])]:
+            peta.setdefault(str(nama).strip().casefold(), str(baku).strip())
+    return peta
+
+
+def peta_pembeli() -> dict:
+    """Peta alias -> nama baku dari data/pembeli.json; kosong bila berkas tak ada/rusak."""
+    try:
+        with open(PEMBELI_JSON, encoding="utf-8") as f:
+            return bangun_peta(json.load(f))
+    except Exception:
+        return {}
+
+
+def kanon_pembeli(nama, peta=None) -> str:
+    """Nama baku untuk satu nama pembeli; nama tak dikenal dikembalikan apa adanya (dirapikan)."""
+    nama = str(nama or "").strip()
+    peta = peta_pembeli() if peta is None else peta
+    return peta.get(nama.casefold(), nama)
 
 
 # ── Normalisasi ──────────────────────────────────────────────

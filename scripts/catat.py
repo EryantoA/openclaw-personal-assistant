@@ -133,7 +133,7 @@ def susun_baris(tx: dict, sekarang: datetime) -> list[dict]:
             "jumlah": jumlah,
             "catatan": str(it.get("catatan", tx.get("catatan")) or "").strip(),
             "channel": str(tx["channel"]).strip(),
-            "pencatat": str(tx["pencatat"]).strip(),
+            "pencatat": resi.kanon_pembeli(tx["pencatat"]),
             "akun": str(tx.get("akun") or "").strip(),
             "akun_tujuan": akun_tujuan,
             "waktu": waktu,
@@ -187,7 +187,8 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
         if pesan:
             return 1, pesan
         if uji:
-            return 0, f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} waktu {baris[0]['waktu']}"
+            return 0, (f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} waktu {baris[0]['waktu']} "
+                       f"| tanggal {baris[0]['tanggal']} | pencatat {baris[0]['pencatat']}")
 
         # Ikuti akhir baris yang sudah dipakai file (bills.csv saat ini CRLF) supaya tidak campur
         eol = "\r\n" if "\r\n" in isi else "\n"
@@ -204,7 +205,8 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
     ditulis = out.getvalue().strip().splitlines()
     ditulis = [l for l in ditulis if not l.startswith("tanggal,")]
     return 0, (f"OK tersimpan {len(baris)} baris | no_resi {baris[0]['no_resi']} | "
-               f"waktu {baris[0]['waktu']}\n" + "\n".join(ditulis))
+               f"waktu {baris[0]['waktu']} | tanggal {baris[0]['tanggal']} | "
+               f"pencatat {baris[0]['pencatat']}\n" + "\n".join(ditulis))
 
 
 def main() -> int:

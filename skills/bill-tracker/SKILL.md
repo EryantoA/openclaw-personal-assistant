@@ -27,8 +27,14 @@ Gunakan tool `image` untuk menganalisis struk. Ekstrak:
 - Tanggal transaksi
 - **Jam transaksi** (jika tercetak) → untuk kolom `waktu`
 - **Nomor struk / No. Transaksi / No. Nota / Ref** (jika tercetak) → untuk `no_resi`
-- Setiap item beserta harga
-- Total bayar
+- Setiap item beserta harga, dan **harga satuan × jumlah** bila tercetak
+- **Diskon, PPN, biaya layanan** bila tercetak (jadi item sendiri hanya setelah pengguna setuju)
+- **Cara bayar** (tunai/bank/e-wallet) → `catatan`
+- **Total bayar tercetak** → dibandingkan dengan jumlah item; selisih ditanyakan
+- **Pembeli** = pengirim pesan (`pencatat`), bukan dibaca dari struk
+
+> Semua pencatatan lewat **Pratinjau** dulu, baru disimpan (ADR-0016). Kerangka dan aturannya
+> didefinisikan **hanya di `AGENTS.md`** — ikuti itu, jangan membuat bentuk sendiri.
 
 ### Format yang Didukung
 - Angka: `50rb`, `50k`, `50.000`, `50000`, `Rp 50.000`
@@ -125,6 +131,10 @@ slug di sana yang belum ada di tabel ini, slug itu tetap sah dipakai.
 
 ## ✍️ Mencatat = `scripts/catat.py` (WAJIB, satu-satunya jalan tulis)
 
+> Urutan wajib: `catat.py --uji` → Pratinjau → jawaban pengguna (*ya*) → `catat.py` tanpa
+> `--uji` (ADR-0016). Perintah di bawah menunjukkan bentuk JSON; jangan menjalankannya tanpa
+> Pratinjau.
+
 **Jangan pernah menulis baris ke `data/bills.csv` dengan tool Edit/Write/echo.** Setiap
 transaksi baru dicatat lewat tool shell (Bash) dengan satu panggilan:
 
@@ -143,7 +153,7 @@ balasanmu** — jadi selalu tulis konfirmasi atau pesan duplikatnya sendiri:
 
 | Keluaran (exit code) | Artinya | Balasanmu |
 |---|---|---|
-| `OK tersimpan ...` (0) | Sudah tercatat. Baris yang ditulis ikut dicetak | Konfirmasi (lihat Pesan Konfirmasi) memakai `no_resi` & `waktu` dari keluaran |
+| `OK tersimpan ...` (0) | Sudah tercatat. Baris yang ditulis ikut dicetak | Konfirmasi (lihat Pesan Konfirmasi) memakai `no_resi`, `waktu`, `tanggal` & `pencatat` dari keluaran |
 | `DUPLICATE ...` (1) | **Tidak** dicatat | Pesan duplikat (lihat di bawah) |
 | `ERROR ...` (2) | Masukan salah, **tidak** dicatat | Perbaiki JSON-nya lalu jalankan lagi; kalau datanya memang kurang, tanya pengguna |
 
@@ -275,7 +285,8 @@ berubah antar-sesi dan tidak boleh diringkas jadi satu baris:
 ```
 ✅ Sudah dicatat!
 
-Struk: BSDUPG | Jam: 22:30
+Struk: BSDUPG | Tanggal: 2026-10-15 | Jam: 22:30
+Pembeli: Eryanto
 
 Detail:
 - Dragon Red Fruit 1.21kg: Rp 34.010
@@ -285,13 +296,15 @@ Detail:
 - Total: Rp 106.610
 ```
 
-- `Struk` = `no_resi` dan `Jam` = `waktu`, **diambil dari baris `OK tersimpan`** — jangan dikarang.
+- `Struk` = `no_resi`, `Tanggal` = `tanggal`, `Jam` = `waktu`, `Pembeli` = `pencatat`, **diambil dari
+  baris `OK tersimpan`** — jangan dikarang (ADR-0015).
 - Satu baris `- ` per item, lalu `- Total: …`. Chat biasa satu item pakai kerangka yang sama:
 
 ```
 ✅ Sudah dicatat!
 
-Struk: TRX-20261015-0032 | Jam: 15:59
+Struk: TRX-20261015-0032 | Tanggal: 2026-10-15 | Jam: 15:59
+Pembeli: Eryanto
 
 Detail:
 - Gift reward melahirkan Kak Icha (Eryanto 50k + Elsi 50k): Rp 100.000
@@ -303,13 +316,13 @@ Detail:
 - Jangan menulis angka yang tidak datang dari keluaran `catat.py` atau dari bukti
   (mis. "N entri tercatat").
 
-### Bukti Transfer: konfirmasi dulu, baru catat
+### Pratinjau dan Bukti Transfer
 
-Foto/screenshot mutasi bank atau e-wallet **tidak** langsung dicatat. Kerangka konfirmasi
-(ringkasan bacaan + pertanyaan kategori dan akun) dan aturan dua langkahnya didefinisikan **hanya di `AGENTS.md`** — ikuti itu, jangan membuat bentuk sendiri.
-Intinya: jumlah persis dari bukti, `no_resi` = `STRUK-<nomor referensi>` tanpa awalan karangan,
-akun dari `data/akun.json` (nama orang bukan akun), balasan akhir memakai kerangka
-`✅ Sudah dicatat!` di atas (ADR-0014).
+Kerangka Pratinjau (`Akan disimpan (belum dicatat)`), varian Bukti Transfer, pembandingan total
+struk, dan aturan *ya* / koreksi / *batal* didefinisikan **hanya di `AGENTS.md`** — ikuti itu,
+jangan membuat bentuk sendiri. Intinya: jumlah persis dari bukti, `no_resi` =
+`STRUK-<nomor referensi>` tanpa awalan karangan, akun dari `data/akun.json` (nama orang bukan
+akun), balasan akhir memakai kerangka `✅ Sudah dicatat!` di atas (ADR-0016).
 
 Setelah konfirmasi, cek budget otomatis (lihat bagian Cek Budget Otomatis).
 
@@ -418,9 +431,16 @@ Saldo terakhir (akhir Februari 2025): Rp 950.000
 
 > 💡 Untuk versi Excel per-bulan (satu sheet tiap bulan), lihat bagian **Fitur Backup** → `export excel`.
 
+### 👥 Pengeluaran per Pembeli
+Trigger: `pengeluaran per orang`, `siapa paling banyak belanja`, `per pembeli`
+Jalankan `python3 scripts/laporan-pembeli.py` (pekan lalu), `--berjalan` (pekan ini), atau
+`--bulan YYYY-MM`, lalu salin keluarannya utuh (seperti laporan lain; tanpa menghitung sendiri).
+Hanya pengeluaran; baris tanpa pencatat tampil sebagai "Tanpa nama".
+
 ### 🔍 Cari Transaksi
 Trigger: `cari [keyword]`, `history [kategori]`
 Contoh: `cari listrik`, `history makanan bulan ini`
+Bentuk hasil (Tanggal, Pembeli, Jam, resi per hasil) didefinisikan **hanya di `AGENTS.md`** (bagian *Mencari transaksi*).
 
 ### 🧾 Cek Resi (sudah dicatat atau belum)
 Trigger: `cek resi [no]`, `resi [no]`, `sudah dicatat [no]`
