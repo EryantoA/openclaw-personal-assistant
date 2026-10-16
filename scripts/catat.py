@@ -204,7 +204,8 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
     ditulis = out.getvalue().strip().splitlines()
     ditulis = [l for l in ditulis if not l.startswith("tanggal,")]
     return 0, (f"OK tersimpan {len(baris)} baris | no_resi {baris[0]['no_resi']} | "
-               f"waktu {baris[0]['waktu']}\n" + "\n".join(ditulis))
+               f"waktu {baris[0]['waktu']} | tanggal {baris[0]['tanggal']} | "
+               f"pencatat {baris[0]['pencatat']}\n" + "\n".join(ditulis))
 
 
 def main() -> int:

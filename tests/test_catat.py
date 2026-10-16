@@ -62,6 +62,14 @@ class Catat(unittest.TestCase):
         self.assertRegex(baru["no_resi"], r"^TRX-20260921-\d{4}$")
         self.assertEqual(rows[1], next(csv.reader([LAMA])))  # baris lama tak tersentuh
 
+    def test_keluaran_ok_membawa_resi_waktu_tanggal_dan_pencatat(self):
+        kode, pesan = ct.catat(tx(no_resi="STRUK-000123", waktu="09:15"), sekarang=JAM)
+        self.assertEqual(kode, 0, pesan)
+        baris_ok = pesan.splitlines()[0]
+        self.assertEqual(
+            baris_ok,
+            "OK tersimpan 1 baris | no_resi STRUK-000123 | waktu 09:15 | tanggal 2026-09-21 | pencatat Eryanto")
+
     def test_struk_banyak_item_berbagi_satu_resi(self):
         kode, _ = ct.catat(tx(no_resi="STRUK-000123", items=[
             {"kategori": "food", "item": "Roti, isi keju", "jumlah": "Rp 12.000"},

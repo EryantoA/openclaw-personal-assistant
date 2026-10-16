@@ -69,6 +69,11 @@ tanda pisah — `Susu UHT + Yakult - Budiman Swalayan`. Toko tidak punya kolom s
 bagian dari Item. Bank dan e-wallet bukan toko — itu cara bayar, tempatnya di Catatan.
 _Avoid_: tempat, merchant, vendor, deskripsi
 
+**Pembeli**:
+Orang yang berbelanja, sama dengan `pencatat` di data: nama pengirim pesan. Tampil di balasan
+konfirmasi struk (ADR-0015). Bukan penerima transfer.
+_Avoid_: buyer, pembayar
+
 **No Resi**:
 Penanda unik satu transaksi, sekaligus dasar deteksi duplikat.
 _Avoid_: nomor struk, id, referensi

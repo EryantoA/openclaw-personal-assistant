@@ -15,6 +15,18 @@ KERANGKA_AKHIR = "✅ Sudah dicatat!"
 KERANGKA_KONFIRMASI = "🧾 Bukti transfer terbaca (belum dicatat)"
 
 
+class KontrakStruk(unittest.TestCase):
+    def test_kerangka_struk_memuat_lima_hal_di_agents_dan_skill(self):
+        for teks in (AGENTS, SKILL):
+            self.assertIn("| Tanggal: ", teks)
+            self.assertIn("| Jam: ", teks)
+            self.assertIn("Pembeli: ", teks)
+            self.assertIn("ADR-0015", teks)
+
+    def test_kerangka_akhir_didefinisikan_sekali_di_agents(self):
+        self.assertEqual(AGENTS.count("Pembeli: <pencatat dari keluaran>"), 1)
+
+
 class KontrakBuktiTransfer(unittest.TestCase):
     def test_konfirmasi_dan_balasan_akhir_didefinisikan_di_agents(self):
         self.assertEqual(AGENTS.count(KERANGKA_KONFIRMASI), 1)

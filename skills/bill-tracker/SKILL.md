@@ -143,7 +143,7 @@ balasanmu** — jadi selalu tulis konfirmasi atau pesan duplikatnya sendiri:
 
 | Keluaran (exit code) | Artinya | Balasanmu |
 |---|---|---|
-| `OK tersimpan ...` (0) | Sudah tercatat. Baris yang ditulis ikut dicetak | Konfirmasi (lihat Pesan Konfirmasi) memakai `no_resi` & `waktu` dari keluaran |
+| `OK tersimpan ...` (0) | Sudah tercatat. Baris yang ditulis ikut dicetak | Konfirmasi (lihat Pesan Konfirmasi) memakai `no_resi`, `waktu`, `tanggal` & `pencatat` dari keluaran |
 | `DUPLICATE ...` (1) | **Tidak** dicatat | Pesan duplikat (lihat di bawah) |
 | `ERROR ...` (2) | Masukan salah, **tidak** dicatat | Perbaiki JSON-nya lalu jalankan lagi; kalau datanya memang kurang, tanya pengguna |
 
@@ -275,7 +275,8 @@ berubah antar-sesi dan tidak boleh diringkas jadi satu baris:
 ```
 ✅ Sudah dicatat!
 
-Struk: BSDUPG | Jam: 22:30
+Struk: BSDUPG | Tanggal: 2026-10-15 | Jam: 22:30
+Pembeli: Eryanto
 
 Detail:
 - Dragon Red Fruit 1.21kg: Rp 34.010
@@ -285,13 +286,15 @@ Detail:
 - Total: Rp 106.610
 ```
 
-- `Struk` = `no_resi` dan `Jam` = `waktu`, **diambil dari baris `OK tersimpan`** — jangan dikarang.
+- `Struk` = `no_resi`, `Tanggal` = `tanggal`, `Jam` = `waktu`, `Pembeli` = `pencatat`, **diambil dari
+  baris `OK tersimpan`** — jangan dikarang (ADR-0015).
 - Satu baris `- ` per item, lalu `- Total: …`. Chat biasa satu item pakai kerangka yang sama:
 
 ```
 ✅ Sudah dicatat!
 
-Struk: TRX-20261015-0032 | Jam: 15:59
+Struk: TRX-20261015-0032 | Tanggal: 2026-10-15 | Jam: 15:59
+Pembeli: Eryanto
 
 Detail:
 - Gift reward melahirkan Kak Icha (Eryanto 50k + Elsi 50k): Rp 100.000

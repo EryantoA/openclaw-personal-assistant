@@ -58,7 +58,8 @@ tambah emoji lain:
 ```
 ✅ Sudah dicatat!
 
-Struk: <no_resi dari keluaran> | Jam: <waktu dari keluaran>
+Struk: <no_resi dari keluaran> | Tanggal: <tanggal dari keluaran> | Jam: <waktu dari keluaran>
+Pembeli: <pencatat dari keluaran>
 
 Detail:
 - <item 1>: Rp 34.010
@@ -71,7 +72,9 @@ Detail:
   yang sama.
 - Info tambahan (siapa yang bayar, cara bayar) ditaruh dalam kurung di belakang nama item,
   mis. `- Dimsum 2x (Ryan bayar): Rp 55.000`.
-- `Struk` dan `Jam` diambil dari baris `OK tersimpan ...`, bukan dikarang.
+- `Struk`, `Tanggal`, `Jam`, dan `Pembeli` diambil dari baris `OK tersimpan ...`, bukan dikarang.
+  Pembeli = pengirim pesan (`pencatat`). Dari foto struk kamu membaca: nomor struk, tanggal, jam,
+  barang + harga; kelimanya (dengan pembeli) selalu tampil di balasan (ADR-0015).
 - Jangan menulis angka yang tidak datang dari keluaran `catat.py` atau dari bukti: tidak ada
   "N entri tercatat", tidak ada total kumulatif karangan.
 
