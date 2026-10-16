@@ -120,8 +120,9 @@ class Cari(Dasar):
         self.assertEqual(urut[0], "STRUK-T")                      # tanggal terbaru
         urut = re.findall(r"Struk: (\S+)", self.cari(terakhir=True, batas=10)[1])
         self.assertEqual(urut[0], "SALDO-AWAL")                   # paling bawah di berkas
-        self.assertIn("STRUK-GAJI", self.cari(pembeli="ryan", batas=1, terakhir=True)[1] +
-                      self.cari(pembeli="ryan", terakhir=True)[1])
+        kode, pesan = self.cari(pembeli="ryan", batas=1, terakhir=True)
+        self.assertIn("Struk: SALDO-AWAL", pesan)  # milik Eryanto dan paling bawah di berkas
+        self.assertEqual(pesan.count("Struk:"), 1)
 
     def test_tanpa_hasil_dijawab_jelas(self):
         kode, pesan = self.cari(kata="tidak-ada")
@@ -134,6 +135,33 @@ class Cari(Dasar):
         self.assertEqual(self.mentah(), sebelum)
         self.assertEqual(self.cadangan(), [])
         self.assertEqual(self.jejak(), [])
+
+
+class BarisLama(Dasar):
+    """Baris yang dicatat sebelum aturan sekarang tetap bisa dikoreksi di kolom lain."""
+
+    def setUp(self):
+        super().setUp()
+        self.tulis(self.mentah().decode() +
+                   "2026-08-01,pengeluaran,Makanan,Warung lama,20000,,WhatsApp,ryan,,,,LAMA-1\n")
+
+    def test_waktu_kosong_dan_kategori_usang_tidak_menghalangi_ubah_jumlah(self):
+        kode, pesan = self.terapkan("ubah", {"no_resi": "LAMA-1", "set": {"jumlah": 21000}})
+        self.assertEqual(kode, 0, pesan)
+        self.assertEqual(self.baris()[-1], ["2026-08-01", "pengeluaran", "Makanan", "Warung lama", "21000",
+                                           "", "WhatsApp", "ryan", "", "", "", "LAMA-1"])
+
+    def test_kolom_yang_diubah_tetap_divalidasi(self):
+        kode, _ = self.jalan("ubah", {"no_resi": "LAMA-1", "set": {"waktu": "9.30"}}, uji=True)
+        self.assertEqual(kode, 2)
+        kode, _ = self.jalan("ubah", {"no_resi": "LAMA-1", "set": {"kategori": "Makanan2"}}, uji=True)
+        self.assertEqual(kode, 2)
+
+    def test_pencarian_pembeli_menemukan_baris_beralias(self):
+        self.assertIn("LAMA-1", self.cari_pembeli("Eryanto"))
+
+    def cari_pembeli(self, nama):
+        return bk.cari(self.skema, pembeli=nama, dari="2026-08-01", sampai="2026-08-01")[1]
 
 
 class Hapus(Dasar):
@@ -413,7 +441,7 @@ class Skema(Dasar):
         self.mainan = self.d / "mainan.csv"
         self.mainan.write_text("id,nama,warna\nA1,bola,merah\nA2,balon,biru\n", encoding="utf-8")
 
-        def cek(b, awalan=""):
+        def cek(b, awalan="", ubah=None):
             if not str(b.get("nama") or "").strip():
                 raise bk.Tolak(f"{awalan}nama kosong")
             return {"id": b["id"], "nama": str(b["nama"]).strip(), "warna": str(b.get("warna") or "")}

@@ -47,3 +47,8 @@ kepatuhan model). Pagar sebenarnya ada di skrip: sidik wajib, validasi, dan cada
 Memulihkan hapus yang keliru masih manual (salin dari `data/backups/` atau baca jejak); tidak
 ada "undo" lewat chat. Berkas JSON (kewajiban, perkiraan, akun, pembeli, budget) bukan CSV dan
 belum mendapat jalur yang sama.
+
+`resi.py --backfill` masih menulis ulang `bills.csv` tanpa kunci `*.lock`; jangan dijalankan
+bersamaan dengan `buku.py` atau `catat.py` (tugas sekali jalan, bukan cron).
+Baris lama yang tidak lolos aturan sekarang (waktu kosong, kategori usang) tetap bisa diubah:
+`ubah` hanya memvalidasi kolom yang sedang diubah, kolom lainnya dibiarkan apa adanya.

@@ -31,46 +31,55 @@ def kategori_sah() -> set[str]:
         return set()
 
 
-def cek_baris(b: dict, sah: set[str], awalan: str = "") -> dict:
+def cek_baris(b: dict, sah: set[str], awalan: str = "", ubah: set | None = None) -> dict:
     """Validasi satu baris 12 kolom dan kembalikan salinan yang sudah dinormalisasi.
 
     `awalan` ("item 2: ") hanya disisipkan pada galat tingkat-item supaya pesan lama tetap sama.
+    `ubah` (kumpulan nama kolom) membatasi cek pada kolom yang memang sedang diubah: baris lama
+    yang sudah ada sebelum aturan ini (waktu kosong, kategori usang) tetap bisa dikoreksi di
+    kolom lain. None = semua kolom (baris baru).
     """
+    def perlu(*kolom):
+        return ubah is None or any(k in ubah for k in kolom)
+
     for f in ("tanggal", "tipe", "channel", "pencatat"):
-        if not str(b.get(f) or "").strip():
+        if perlu(f) and not str(b.get(f) or "").strip():
             raise Tolak(f"field `{f}` wajib diisi")
-    tanggal = str(b["tanggal"]).strip()
-    try:
-        date.fromisoformat(tanggal)
-    except ValueError:
-        raise Tolak(f"tanggal harus YYYY-MM-DD, dapat {tanggal!r}")
-    tipe = str(b["tipe"]).strip()
-    if tipe not in TIPE:
+    tanggal = str(b.get("tanggal") or "").strip()
+    if perlu("tanggal"):
+        try:
+            date.fromisoformat(tanggal)
+        except ValueError:
+            raise Tolak(f"tanggal harus YYYY-MM-DD, dapat {tanggal!r}")
+    tipe = str(b.get("tipe") or "").strip()
+    if perlu("tipe") and tipe not in TIPE:
         raise Tolak(f"tipe harus salah satu {sorted(TIPE)}, dapat {tipe!r}")
     waktu = str(b.get("waktu") or "").strip()
-    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", waktu):
+    if perlu("waktu") and not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", waktu):
         raise Tolak(f"waktu harus HH:MM, dapat {waktu!r}")
     akun = str(b.get("akun") or "").strip()
     akun_tujuan = str(b.get("akun_tujuan") or "").strip()
-    if akun_tujuan and tipe != "transfer":
-        raise Tolak("akun_tujuan hanya untuk tipe=transfer")
-    if tipe == "transfer" and not (akun and akun_tujuan):
-        raise Tolak("tipe=transfer wajib mengisi akun (asal) dan akun_tujuan")
+    if perlu("tipe", "akun", "akun_tujuan"):
+        if akun_tujuan and tipe != "transfer":
+            raise Tolak("akun_tujuan hanya untuk tipe=transfer")
+        if tipe == "transfer" and not (akun and akun_tujuan):
+            raise Tolak("tipe=transfer wajib mengisi akun (asal) dan akun_tujuan")
 
     kategori = str(b.get("kategori") or "").strip()
-    if kategori == "opening_balance":
-        raise Tolak("kategori opening_balance tidak boleh dibuat (ADR-0008)")
-    if tipe == "transfer" or kategori == "transfer":
-        # Transfer punya kategorinya sendiri, di luar kategori_custom (SKILL.md → Akun & Transfer)
-        if tipe != kategori:
-            raise Tolak(f"{awalan}tipe=transfer wajib berkategori transfer, dan sebaliknya")
-    elif sah and kategori not in sah:
-        raise Tolak(f"{awalan}kategori {kategori!r} tidak ada di budget.json kategori_custom")
+    if perlu("kategori", "tipe"):
+        if kategori == "opening_balance":
+            raise Tolak("kategori opening_balance tidak boleh dibuat (ADR-0008)")
+        if tipe == "transfer" or kategori == "transfer":
+            # Transfer punya kategorinya sendiri, di luar kategori_custom (SKILL.md → Akun & Transfer)
+            if tipe != kategori:
+                raise Tolak(f"{awalan}tipe=transfer wajib berkategori transfer, dan sebaliknya")
+        elif sah and perlu("kategori") and kategori not in sah:
+            raise Tolak(f"{awalan}kategori {kategori!r} tidak ada di budget.json kategori_custom")
     item = str(b.get("item") or "").strip()
-    if not item:
+    if perlu("item") and not item:
         raise Tolak(f"{awalan}`item` kosong")
     jumlah = resi.norm_total(b.get("jumlah"))
-    if not jumlah or int(jumlah) <= 0:
+    if perlu("jumlah") and (not jumlah or int(jumlah) <= 0):
         raise Tolak(f"{awalan}jumlah harus angka rupiah > 0, dapat {b.get('jumlah')!r}")
     return {
         "tanggal": tanggal,
@@ -79,8 +88,8 @@ def cek_baris(b: dict, sah: set[str], awalan: str = "") -> dict:
         "item": item,
         "jumlah": jumlah,
         "catatan": str(b.get("catatan") or "").strip(),
-        "channel": str(b["channel"]).strip(),
-        "pencatat": resi.kanon_pembeli(b["pencatat"]),
+        "channel": str(b.get("channel") or "").strip(),
+        "pencatat": resi.kanon_pembeli(b.get("pencatat")),
         "akun": akun,
         "akun_tujuan": akun_tujuan,
         "waktu": waktu,

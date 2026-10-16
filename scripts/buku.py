@@ -154,8 +154,8 @@ def tampil_nilai(kolom: str, nilai) -> str:
 
 
 # ── Skema bills.csv ──────────────────────────────────────────────────────
-def _cek_bills(baris: dict, awalan: str = "") -> dict:
-    return validasi.cek_baris(baris, validasi.kategori_sah(), awalan)
+def _cek_bills(baris: dict, awalan: str = "", ubah=None) -> dict:
+    return validasi.cek_baris(baris, validasi.kategori_sah(), awalan, ubah)
 
 
 def _terlindung_bills(d: dict) -> Optional[str]:
@@ -264,8 +264,11 @@ def cari(skema: Skema, kata: str = "", resi_: str = "", tanggal: str = "", dari:
         b = baca(skema.path())
     except Tolak as e:
         return 2, f"ERROR {e}"
+    except (OSError, UnicodeDecodeError, csv.Error) as e:
+        return 2, f"ERROR tak terduga ({type(e).__name__}: {e})"
+    peta = resi.peta_pembeli()  # baris lama bisa menyimpan alias; bandingkan nama bakunya
     if pembeli:
-        pembeli = resi.kanon_pembeli(pembeli)
+        pembeli = resi.kanon_pembeli(pembeli, peta)
     urut = {}
     for i, r in enumerate(b.recs):
         if r.d is None:
@@ -282,7 +285,7 @@ def cari(skema: Skema, kata: str = "", resi_: str = "", tanggal: str = "", dari:
             continue
         if kategori and (d.get("kategori") or "").strip().casefold() != kategori.strip().casefold():
             continue
-        if pembeli and (d.get("pencatat") or "").strip().casefold() != pembeli.casefold():
+        if pembeli and resi.kanon_pembeli(d.get("pencatat"), peta).casefold() != pembeli.casefold():
             continue
         if tipe and (d.get("tipe") or "").strip() != tipe:
             continue
@@ -354,7 +357,12 @@ def _tulis_atomik(skema: Skema, b: Berkas, teks_baru: str, aksi: str, sekarang: 
             if raw not in sisa:
                 raise Tolak("verifikasi salinan gagal: ada baris lain yang berubah")
         _tambah_jejak(path, sekarang, aksi, jejak)
-        os.replace(kerja, path)
+        try:
+            os.replace(kerja, path)
+        except OSError:
+            # Jejak sudah ditulis lebih dulu (jejak tak boleh kurang dari perubahan): tandai gagal
+            _tambah_jejak(path, sekarang, f"gagal-{aksi}", jejak)
+            raise
     finally:
         if kerja.exists():
             kerja.unlink()
@@ -372,10 +380,6 @@ def _tambah_jejak(path: Path, sekarang: datetime, aksi: str, jejak: dict) -> Non
                     json.dumps(jejak["sesudah"], ensure_ascii=False)])
         f.flush()
         os.fsync(f.fileno())
-
-
-def _kepala(aksi: str, b: str) -> str:
-    return f"{aksi} | no_resi {b}"
 
 
 def _siapkan(skema: Skema, aksi: str, req: dict, izinkan: set) -> tuple:
@@ -403,6 +407,8 @@ def jalankan(skema: Skema, aksi: str, req: dict, uji: bool = False,
         return 1, str(e)
     except Tolak as e:
         return 2, f"ERROR {e}"
+    except Exception as e:  # noqa: BLE001  exit 1 berarti DUPLICATE; kegagalan lain harus 2
+        return 2, f"ERROR tak terduga ({type(e).__name__}: {e}); berkas asli tidak diubah"
 
 
 def _jalankan(skema: Skema, aksi: str, req: dict, uji: bool, sekarang: datetime) -> tuple:
@@ -427,7 +433,8 @@ def _jalankan(skema: Skema, aksi: str, req: dict, uji: bool, sekarang: datetime)
             ke = _item_ke(req, len(idx), boleh_semua=False)
             hasil = _rencana_hapus(skema, nomor, lama, ke)
         else:
-            hasil = _rencana_ubah(skema, nomor, lama, req, len(idx))
+            lain = [r.d for i, r in enumerate(b.recs) if baris_sah(r) and i not in idx]
+            hasil = _rencana_ubah(skema, nomor, lama, req, len(idx), lain)
         baru, ke, inti, uraian = hasil
 
         # Peringatan memakai Transaksi utuh sebelum dan sesudah
@@ -496,7 +503,7 @@ def _rencana_hapus(skema: Skema, nomor: str, lama: list, ke) -> tuple:
     return baru, ke_catat, inti, uraian
 
 
-def _rencana_ubah(skema: Skema, nomor: str, lama: list, req: dict, n: int) -> tuple:
+def _rencana_ubah(skema: Skema, nomor: str, lama: list, req: dict, n: int, lain: list) -> tuple:
     perubahan = req.get("set")
     if not isinstance(perubahan, dict) or not perubahan:
         raise Tolak('`set` harus objek berisi minimal satu kolom, mis. {"jumlah": 25000}')
@@ -519,13 +526,12 @@ def _rencana_ubah(skema: Skema, nomor: str, lama: list, req: dict, n: int) -> tu
     sasaran = list(range(n)) if ke in (None, "semua") else [ke - 1]
     baru, berubah = [], []
     for i, d in enumerate(lama):
-        kandidat = dict(d)
-        for k, v in perubahan.items():
-            if k in skema.tingkat_transaksi or i in sasaran:
-                kandidat[k] = v
-        awalan = f"item {i + 1}: " if n > 1 else ""
+        disentuh = {k for k in perubahan if k in skema.tingkat_transaksi or i in sasaran}
+        kandidat = {**d, **{k: perubahan[k] for k in disentuh}}
         if kandidat != d:
-            kandidat = {**kandidat, **skema.cek_baris(kandidat, awalan)}
+            norm = skema.cek_baris(kandidat, f"item {i + 1}: " if n > 1 else "", disentuh)
+            # hanya kolom yang diubah yang dinormalisasi; kolom lama dibiarkan apa adanya
+            kandidat = {**d, **{k: norm[k] for k in disentuh}}
         if kandidat != d:
             berubah.append(i)
             baru.append(kandidat)
@@ -540,7 +546,6 @@ def _rencana_ubah(skema: Skema, nomor: str, lama: list, req: dict, n: int) -> tu
             if any(resi.norm_field(f, baru[i].get(f)) != resi.norm_field(f, lama[i].get(f))
                    for f in cfg["match_fields"])]
     if kena:
-        lain = _baris_lain(skema, nomor)
         pesan = skema.cek_duplikat(kena, lain)
         if pesan:
             raise Dobel(pesan)
@@ -561,11 +566,6 @@ def _rencana_ubah(skema: Skema, nomor: str, lama: list, req: dict, n: int) -> tu
         uraian.append(f"Total Transaksi: {rp(total(lama))} → {rp(total(baru))}")
     inti = {"no_resi": nomor, "item_ke": ke, "set": perubahan}
     return baru, ke, inti, uraian
-
-
-def _baris_lain(skema: Skema, nomor: str) -> list:
-    return [r.d for r in baca(skema.path()).recs
-            if baris_sah(r) and (r.d.get(skema.kunci) or "").strip() != nomor]
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────
