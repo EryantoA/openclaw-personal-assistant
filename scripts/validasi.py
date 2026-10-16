@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""
+validasi.py — aturan satu baris transaksi, dipakai bersama oleh catat.py (tambah) dan buku.py
+(ubah). Aturannya hanya didefinisikan di sini supaya baris yang diubah lolos cek yang sama
+dengan baris yang baru dicatat.
+"""
+
+# Cron memakai /usr/bin/python3 3.9 — lihat catatan yang sama di resi.py.
+from __future__ import annotations
+
+import json
+import re
+from datetime import date
+
+import resi
+
+TIPE = {"pengeluaran", "pemasukan", "transfer"}
+
+
+class Tolak(Exception):
+    """Masukan tidak valid (exit 2)."""
+
+
+def kategori_sah() -> set[str]:
+    try:
+        return set(json.loads(resi.BUDGET_JSON.read_text(encoding="utf-8"))["kategori_custom"])
+    except Exception:
+        return set()
+
+
+def cek_baris(b: dict, sah: set[str], awalan: str = "") -> dict:
+    """Validasi satu baris 12 kolom dan kembalikan salinan yang sudah dinormalisasi.
+
+    `awalan` ("item 2: ") hanya disisipkan pada galat tingkat-item supaya pesan lama tetap sama.
+    """
+    for f in ("tanggal", "tipe", "channel", "pencatat"):
+        if not str(b.get(f) or "").strip():
+            raise Tolak(f"field `{f}` wajib diisi")
+    tanggal = str(b["tanggal"]).strip()
+    try:
+        date.fromisoformat(tanggal)
+    except ValueError:
+        raise Tolak(f"tanggal harus YYYY-MM-DD, dapat {tanggal!r}")
+    tipe = str(b["tipe"]).strip()
+    if tipe not in TIPE:
+        raise Tolak(f"tipe harus salah satu {sorted(TIPE)}, dapat {tipe!r}")
+    waktu = str(b.get("waktu") or "").strip()
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", waktu):
+        raise Tolak(f"waktu harus HH:MM, dapat {waktu!r}")
+    akun = str(b.get("akun") or "").strip()
+    akun_tujuan = str(b.get("akun_tujuan") or "").strip()
+    if akun_tujuan and tipe != "transfer":
+        raise Tolak("akun_tujuan hanya untuk tipe=transfer")
+    if tipe == "transfer" and not (akun and akun_tujuan):
+        raise Tolak("tipe=transfer wajib mengisi akun (asal) dan akun_tujuan")
+
+    kategori = str(b.get("kategori") or "").strip()
+    if kategori == "opening_balance":
+        raise Tolak("kategori opening_balance tidak boleh dibuat (ADR-0008)")
+    if tipe == "transfer" or kategori == "transfer":
+        # Transfer punya kategorinya sendiri, di luar kategori_custom (SKILL.md → Akun & Transfer)
+        if tipe != kategori:
+            raise Tolak(f"{awalan}tipe=transfer wajib berkategori transfer, dan sebaliknya")
+    elif sah and kategori not in sah:
+        raise Tolak(f"{awalan}kategori {kategori!r} tidak ada di budget.json kategori_custom")
+    item = str(b.get("item") or "").strip()
+    if not item:
+        raise Tolak(f"{awalan}`item` kosong")
+    jumlah = resi.norm_total(b.get("jumlah"))
+    if not jumlah or int(jumlah) <= 0:
+        raise Tolak(f"{awalan}jumlah harus angka rupiah > 0, dapat {b.get('jumlah')!r}")
+    return {
+        "tanggal": tanggal,
+        "tipe": tipe,
+        "kategori": kategori,
+        "item": item,
+        "jumlah": jumlah,
+        "catatan": str(b.get("catatan") or "").strip(),
+        "channel": str(b["channel"]).strip(),
+        "pencatat": resi.kanon_pembeli(b["pencatat"]),
+        "akun": akun,
+        "akun_tujuan": akun_tujuan,
+        "waktu": waktu,
+        "no_resi": str(b.get("no_resi") or "").strip(),
+    }
+
+
+def cek_duplikat_lapis2(baris: list[dict], ada: list[dict], paksa: bool = False,
+                        saran_paksa: bool = True) -> str | None:
+    """Pesan DUPLICATE bila salah satu baris cocok (match_fields budget.json) dengan baris di
+    `ada`, None bila lolos. `ada` tidak boleh memuat baris Transaksi yang sama."""
+    cfg = resi.load_duplicate_config()
+    if paksa or not cfg.get("aktif", True):
+        return None
+    fields = cfg["match_fields"]
+    for b in baris:
+        kunci = {f: resi.norm_field(f, b.get(f)) for f in fields}
+        for row in ada:
+            if all(resi.norm_field(f, row.get(f)) == kunci[f] for f in fields):
+                saran = ("; ulangi dengan --paksa hanya bila pengguna menegaskan ini transaksi baru"
+                         if saran_paksa else "")
+                return (f"DUPLICATE {resi.row_summary(row)} | cocok pada: {', '.join(fields)} "
+                        f"(aksi={cfg.get('aksi', 'tolak')}{saran})")
+    return None

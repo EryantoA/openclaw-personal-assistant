@@ -46,8 +46,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import resi  # noqa: E402
+from validasi import TIPE, Tolak, cek_baris, cek_duplikat_lapis2, kategori_sah  # noqa: E402,F401
 
-TIPE = {"pengeluaran", "pemasukan", "transfer"}
 KUNCI_TX = {"tanggal", "tipe", "channel", "pencatat", "items", "waktu", "no_resi", "catatan",
             "akun", "akun_tujuan"}
 KUNCI_ITEM = {"kategori", "item", "jumlah", "catatan"}
@@ -63,41 +63,14 @@ TIDAK_TERSIMPAN = ("TIDAK ADA YANG DISIMPAN. Jangan membalas bahwa transaksi sud
                    "perbaiki lalu jalankan lagi, atau sampaikan ke pengguna apa adanya.")
 
 
-class Tolak(Exception):
-    """Masukan tidak valid (exit 2)."""
-
-
-def kategori_sah() -> set[str]:
-    try:
-        return set(json.loads(resi.BUDGET_JSON.read_text(encoding="utf-8"))["kategori_custom"])
-    except Exception:
-        return set()
-
-
 def susun_baris(tx: dict, sekarang: datetime) -> list[dict]:
     """Validasi transaksi dan kembalikan baris-baris 12 kolom (no_resi belum diisi bila kosong)."""
     asing = sorted(set(tx) - KUNCI_TX)
     if asing:
         raise Tolak(f"kunci tidak dikenal {asing}; kunci yang sah: {sorted(KUNCI_TX)}")
-    for f in ("tanggal", "tipe", "channel", "pencatat"):
-        if not str(tx.get(f) or "").strip():
-            raise Tolak(f"field `{f}` wajib diisi")
-    tanggal = str(tx["tanggal"]).strip()
-    try:
-        date.fromisoformat(tanggal)
-    except ValueError:
-        raise Tolak(f"tanggal harus YYYY-MM-DD, dapat {tanggal!r}")
-    tipe = str(tx["tipe"]).strip()
-    if tipe not in TIPE:
-        raise Tolak(f"tipe harus salah satu {sorted(TIPE)}, dapat {tipe!r}")
-    waktu = str(tx.get("waktu") or "").strip() or sekarang.strftime("%H:%M")
-    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", waktu):
-        raise Tolak(f"waktu harus HH:MM, dapat {waktu!r}")
-    akun_tujuan = str(tx.get("akun_tujuan") or "").strip()
-    if akun_tujuan and tipe != "transfer":
-        raise Tolak("akun_tujuan hanya untuk tipe=transfer")
-    if tipe == "transfer" and not (str(tx.get("akun") or "").strip() and akun_tujuan):
-        raise Tolak("tipe=transfer wajib mengisi akun (asal) dan akun_tujuan")
+    dasar = {f: tx.get(f) for f in ("tanggal", "tipe", "channel", "pencatat", "akun", "akun_tujuan",
+                                     "no_resi")}
+    dasar["waktu"] = str(tx.get("waktu") or "").strip() or sekarang.strftime("%H:%M")
 
     items = tx.get("items")
     if not isinstance(items, list) or not items:
@@ -110,35 +83,12 @@ def susun_baris(tx: dict, sekarang: datetime) -> list[dict]:
         asing = sorted(set(it) - KUNCI_ITEM)
         if asing:
             raise Tolak(f"item {i}: kunci tidak dikenal {asing}; kunci yang sah: {sorted(KUNCI_ITEM)}")
-        kategori = str(it.get("kategori") or "").strip()
-        if kategori == "opening_balance":
-            raise Tolak("kategori opening_balance tidak boleh dibuat (ADR-0008)")
-        if tipe == "transfer" or kategori == "transfer":
-            # Transfer punya kategorinya sendiri, di luar kategori_custom (SKILL.md → Akun & Transfer)
-            if tipe != kategori:
-                raise Tolak(f"item {i}: tipe=transfer wajib berkategori transfer, dan sebaliknya")
-        elif sah and kategori not in sah:
-            raise Tolak(f"item {i}: kategori {kategori!r} tidak ada di budget.json kategori_custom")
-        item = str(it.get("item") or "").strip()
-        if not item:
-            raise Tolak(f"item {i}: `item` kosong")
-        jumlah = resi.norm_total(it.get("jumlah"))
-        if not jumlah or int(jumlah) <= 0:
-            raise Tolak(f"item {i}: jumlah harus angka rupiah > 0, dapat {it.get('jumlah')!r}")
-        baris.append({
-            "tanggal": tanggal,
-            "tipe": tipe,
-            "kategori": kategori,
-            "item": item,
-            "jumlah": jumlah,
-            "catatan": str(it.get("catatan", tx.get("catatan")) or "").strip(),
-            "channel": str(tx["channel"]).strip(),
-            "pencatat": resi.kanon_pembeli(tx["pencatat"]),
-            "akun": str(tx.get("akun") or "").strip(),
-            "akun_tujuan": akun_tujuan,
-            "waktu": waktu,
-            "no_resi": str(tx.get("no_resi") or "").strip(),
-        })
+        baris.append(cek_baris({**dasar,
+                                "kategori": it.get("kategori"),
+                                "item": it.get("item"),
+                                "jumlah": it.get("jumlah"),
+                                "catatan": it.get("catatan", tx.get("catatan"))},
+                               sah, awalan=f"item {i}: "))
     return baris
 
 
@@ -150,18 +100,7 @@ def cek_duplikat(baris: list[dict], ada: list[dict], paksa: bool) -> str | None:
             return (f"DUPLICATE no_resi {resi_baru} sudah ada: {resi.row_summary(row)} "
                     f"(Lapis 1 — tidak bisa dipaksa; struk yang sama sudah tercatat)")
 
-    cfg = resi.load_duplicate_config()
-    if paksa or not cfg.get("aktif", True):
-        return None
-    fields = cfg["match_fields"]
-    for b in baris:
-        kunci = {f: resi.norm_field(f, b.get(f)) for f in fields}
-        for row in ada:
-            if all(resi.norm_field(f, row.get(f)) == kunci[f] for f in fields):
-                return (f"DUPLICATE {resi.row_summary(row)} | cocok pada: {', '.join(fields)} "
-                        f"(aksi={cfg.get('aksi', 'tolak')}; ulangi dengan --paksa hanya bila "
-                        f"pengguna menegaskan ini transaksi baru)")
-    return None
+    return cek_duplikat_lapis2(baris, ada, paksa)
 
 
 def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime | None = None) -> tuple[int, str]:
