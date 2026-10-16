@@ -70,5 +70,15 @@ class Rentang(unittest.TestCase):
         self.assertEqual(lp.rentang_bulan("2026-02"), (date(2026, 2, 1), date(2026, 2, 28)))
 
 
+class Penjaga(unittest.TestCase):
+    def test_pekan_belum_tutup_ditolak(self):
+        with self.assertRaises(SystemExit):
+            lp.main(["--pekan", "2026-10-14", "--hari-ini", "2026-10-15"])
+
+    def test_bulan_depan_ditolak(self):
+        with self.assertRaises(SystemExit):
+            lp.main(["--bulan", "2030-01", "--hari-ini", "2026-10-15"])
+
+
 if __name__ == "__main__":
     unittest.main()

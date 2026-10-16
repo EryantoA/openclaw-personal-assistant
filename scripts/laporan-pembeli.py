@@ -34,6 +34,7 @@ def _muat_modul(nama, file):
 
 
 akun = _muat_modul("akun", "akun.py")
+_mingguan = _muat_modul("laporan_mingguan", "laporan-mingguan.py")  # satu definisi Pekan
 rupiah = akun.rupiah
 jumlah = akun.jumlah
 
@@ -42,7 +43,7 @@ TANPA_NAMA = "Tanpa nama"
 
 
 def rentang_pekan(d):
-    mulai = d - timedelta(days=d.weekday())
+    mulai = _mingguan.awal_pekan(d)
     return mulai, mulai + timedelta(days=6)
 
 
@@ -93,7 +94,12 @@ def main(argv=None):
             mulai, akhir = rentang_bulan(a.bulan)
         except ValueError:
             ap.error(f"--bulan tidak valid: {a.bulan}")
+        if mulai > hari_ini:
+            ap.error(f"{a.bulan} belum dimulai")
         judul = f"Bulan {BULAN[mulai.month]} {mulai.year}"
+        if akhir >= hari_ini:  # bulan berjalan: angkanya belum final
+            akhir = hari_ini
+            judul += f" (s.d. {_tgl(hari_ini)})"
     else:
         if a.berjalan:
             mulai, _ = rentang_pekan(hari_ini)
@@ -101,6 +107,8 @@ def main(argv=None):
         else:
             acuan = date.fromisoformat(a.pekan) if a.pekan else hari_ini - timedelta(days=7)
             mulai, akhir = rentang_pekan(acuan)
+            if akhir >= hari_ini:
+                ap.error(f"Pekan {mulai}–{akhir} belum tutup; pakai --berjalan")
         judul = f"Pekan {_tgl(mulai)}–{_tgl(akhir)} {akhir.year}"
 
     if not akun.BILLS.exists():

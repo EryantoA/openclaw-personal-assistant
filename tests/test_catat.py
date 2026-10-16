@@ -70,6 +70,13 @@ class Catat(unittest.TestCase):
             baris_ok,
             "OK tersimpan 1 baris | no_resi STRUK-000123 | waktu 09:15 | tanggal 2026-09-21 | pencatat Eryanto")
 
+    def test_keluaran_uji_membawa_field_yang_sama_untuk_pratinjau(self):
+        kode, pesan = ct.catat(tx(waktu="09:15"), uji=True, sekarang=JAM)
+        self.assertEqual(kode, 0, pesan)
+        self.assertRegex(pesan, r"^OK lolos cek \(tidak ditulis\): no_resi TRX-20260921-\d{4} waktu 09:15 "
+                                r"\| tanggal 2026-09-21 \| pencatat Eryanto$")
+        self.assertEqual(len(self.baris()), 2)  # tidak menulis
+
     def test_struk_banyak_item_berbagi_satu_resi(self):
         kode, _ = ct.catat(tx(no_resi="STRUK-000123", items=[
             {"kategori": "food", "item": "Roti, isi keju", "jumlah": "Rp 12.000"},

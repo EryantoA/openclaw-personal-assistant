@@ -20,5 +20,5 @@ benar-benar tertulis di buku kas. Skema `bills.csv` tidak berubah.
 
 ## Batas
 
-Struk tetap langsung dicatat, tanpa konfirmasi dua langkah (itu hanya Bukti Transfer). Tes hanya
+Keputusan "struk langsung dicatat" di sini **digantikan oleh [0016](0016-pratinjau-sebelum-simpan-untuk-semua-pencatatan.md)**: kini semua pencatatan lewat Pratinjau; kerangka balasan akhir tetap berlaku. Tes hanya
 membuktikan teks kontrak dan keluaran skrip, bukan kepatuhan model.

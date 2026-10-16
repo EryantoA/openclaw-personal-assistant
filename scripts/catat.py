@@ -187,7 +187,8 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
         if pesan:
             return 1, pesan
         if uji:
-            return 0, f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} waktu {baris[0]['waktu']}"
+            return 0, (f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} waktu {baris[0]['waktu']} "
+                       f"| tanggal {baris[0]['tanggal']} | pencatat {baris[0]['pencatat']}")
 
         # Ikuti akhir baris yang sudah dipakai file (bills.csv saat ini CRLF) supaya tidak campur
         eol = "\r\n" if "\r\n" in isi else "\n"

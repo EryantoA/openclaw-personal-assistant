@@ -69,6 +69,11 @@ tanda pisah — `Susu UHT + Yakult - Budiman Swalayan`. Toko tidak punya kolom s
 bagian dari Item. Bank dan e-wallet bukan toko — itu cara bayar, tempatnya di Catatan.
 _Avoid_: tempat, merchant, vendor, deskripsi
 
+**Pratinjau**:
+Tampilan apa yang akan disimpan ke CSV, dikirim bot sebelum pencatatan dan menunggu jawaban.
+Bukan Transaksi: belum ada baris yang tertulis, jadi tidak mengubah Saldo (ADR-0016).
+_Avoid_: draf, konfirmasi, preview
+
 **Pembeli**:
 Orang yang berbelanja, sama dengan `pencatat` di data: nama pengirim pesan. Tampil di balasan
 konfirmasi struk (ADR-0015). Bukan penerima transfer.
@@ -79,9 +84,9 @@ Penanda unik satu transaksi, sekaligus dasar deteksi duplikat.
 _Avoid_: nomor struk, id, referensi
 
 **Bukti Transfer**:
-Gambar mutasi bank atau e-wallet yang menjadi sumber satu Transaksi. Berbeda dari struk
-belanja: bot tidak langsung mencatatnya, tapi menampilkan bacaannya dan bertanya kategori
-dan akun dulu (ADR-0014). Nomor referensi di dalamnya menjadi No Resi `STRUK-<nomor>`.
+Gambar mutasi bank atau e-wallet yang menjadi sumber satu Transaksi. Seperti semua
+pencatatan ia lewat Pratinjau (ADR-0016), dengan baris Referensi dan Arah tambahan dan
+pertanyaan akun yang wajib (ADR-0014). Nomor referensi di dalamnya menjadi No Resi `STRUK-<nomor>`.
 _Avoid_: struk transfer, slip
 
 **Duplikat**:
