@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import csv
 import io
+import json
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -122,7 +123,8 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
         if pesan:
             return 1, pesan
         if uji:
-            return 0, (f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} waktu {baris[0]['waktu']} "
+            return 0, (f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} "
+                       f"| label {resi.label_resi(baris[0]['no_resi'])} | waktu {baris[0]['waktu']} "
                        f"| tanggal {baris[0]['tanggal']} | pencatat {baris[0]['pencatat']}")
 
         # Ikuti akhir baris yang sudah dipakai file (bills.csv saat ini CRLF) supaya tidak campur
@@ -140,6 +142,7 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
     ditulis = out.getvalue().strip().splitlines()
     ditulis = [l for l in ditulis if not l.startswith("tanggal,")]
     return 0, (f"OK tersimpan {len(baris)} baris | no_resi {baris[0]['no_resi']} | "
+               f"label {resi.label_resi(baris[0]['no_resi'])} | "
                f"waktu {baris[0]['waktu']} | tanggal {baris[0]['tanggal']} | "
                f"pencatat {baris[0]['pencatat']}\n" + "\n".join(ditulis))
 

@@ -74,14 +74,20 @@ class Catat(unittest.TestCase):
         baris_ok = pesan.splitlines()[0]
         self.assertEqual(
             baris_ok,
-            "OK tersimpan 1 baris | no_resi STRUK-000123 | waktu 09:15 | tanggal 2026-09-21 | pencatat Eryanto")
+            "OK tersimpan 1 baris | no_resi STRUK-000123 | label Struk | waktu 09:15 | "
+            "tanggal 2026-09-21 | pencatat Eryanto")
 
     def test_keluaran_uji_membawa_field_yang_sama_untuk_pratinjau(self):
         kode, pesan = ct.catat(tx(waktu="09:15"), uji=True, sekarang=JAM)
         self.assertEqual(kode, 0, pesan)
-        self.assertRegex(pesan, r"^OK lolos cek \(tidak ditulis\): no_resi TRX-20260921-\d{4} waktu 09:15 "
-                                r"\| tanggal 2026-09-21 \| pencatat Eryanto$")
+        self.assertRegex(pesan, r"^OK lolos cek \(tidak ditulis\): no_resi TRX-20260921-\d{4} "
+                                r"\| label No Resi \| waktu 09:15 \| tanggal 2026-09-21 \| pencatat Eryanto$")
         self.assertEqual(len(self.baris()), 2)  # tidak menulis
+
+    def test_keluaran_membawa_label_no_resi_untuk_resi_bebas(self):
+        kode, pesan = ct.catat(tx(no_resi="IMP-262"), sekarang=JAM)
+        self.assertEqual(kode, 0, pesan)
+        self.assertIn("no_resi IMP-262 | label No Resi", pesan.splitlines()[0])
 
     def test_pencatat_alias_disimpan_dengan_nama_baku(self):
         for i, (alias, baku) in enumerate((("ryan", "Eryanto"), ("TEIKOKU", "Eryanto"),
@@ -167,6 +173,20 @@ class Catat(unittest.TestCase):
         self.assertEqual(kode, 0)
         self.assertIn("tidak ditulis", pesan)
         self.assertEqual(len(self.baris()), 2)
+
+
+class LabelResi(unittest.TestCase):
+    def test_struk_untuk_awalan_struk(self):
+        for no_resi in ("STRUK-000123", "STRUK-a1b2c3d4"):
+            self.assertEqual(resi.label_resi(no_resi), "Struk")
+
+    def test_no_resi_untuk_awalan_lain(self):
+        for no_resi in ("TRX-20260921-0001", "IMP-262", "SALDO-AWAL", "MOMOYO-14SEP"):
+            self.assertEqual(resi.label_resi(no_resi), "No Resi")
+
+    def test_kosong_tidak_error(self):
+        for no_resi in ("", None):
+            self.assertEqual(resi.label_resi(no_resi), "No Resi")
 
 
 if __name__ == "__main__":

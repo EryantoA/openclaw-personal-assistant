@@ -286,7 +286,7 @@ berubah antar-sesi dan tidak boleh diringkas jadi satu baris:
 ```
 ✅ Sudah dicatat!
 
-Struk: BSDUPG | Tanggal: 2026-10-15 | Jam: 22:30
+Struk: STRUK-BSDUPG | Tanggal: 2026-10-15 | Jam: 22:30
 Pembeli: Eryanto
 
 Detail:
@@ -297,14 +297,19 @@ Detail:
 - Total: Rp 106.610
 ```
 
-- `Struk` = `no_resi`, `Tanggal` = `tanggal`, `Jam` = `waktu`, `Pembeli` = `pencatat`, **diambil dari
-  baris `OK tersimpan`** — jangan dikarang (ADR-0015).
+- `<label>` (`Struk` atau `No Resi`) = `label`, `<no_resi>` = `no_resi`, `Tanggal` = `tanggal`,
+  `Jam` = `waktu`, `Pembeli` = `pencatat`, **diambil dari baris `OK tersimpan`** — jangan dikarang
+  (ADR-0015).
+- `label` dari `catat.py` adalah `Struk` hanya bila No Resi benar-benar dari struk/Bukti Transfer
+  (awalan `STRUK-`); selain itu (chat biasa, impor, resi bebas lama) labelnya `No Resi`. Contoh di
+  atas berlabel `Struk` karena `no_resi`-nya `STRUK-BSDUPG` (awalan `STRUK-`). Chat biasa **tanpa** struk
+  berlabel `No Resi`, seperti contoh di bawah — **jangan** ikut menulis `Struk` untuk kasus ini.
 - Satu baris `- ` per item, lalu `- Total: …`. Chat biasa satu item pakai kerangka yang sama:
 
 ```
 ✅ Sudah dicatat!
 
-Struk: TRX-20261015-0032 | Tanggal: 2026-10-15 | Jam: 15:59
+No Resi: TRX-20261015-0032 | Tanggal: 2026-10-15 | Jam: 15:59
 Pembeli: Eryanto
 
 Detail:

@@ -213,7 +213,8 @@ def _format_cari_bills(kata_kunci: str, groups: list, jumlah: int) -> str:
         keluar[0] += f" — tampil {len(groups)} terbaru"
     for rows in groups:
         r0 = rows[0]
-        keluar += ["", f"Struk: {r0.get('no_resi') or '-'} | Tanggal: {r0.get('tanggal') or '-'} | "
+        label = resi.label_resi(r0.get("no_resi"))
+        keluar += ["", f"{label}: {r0.get('no_resi') or '-'} | Tanggal: {r0.get('tanggal') or '-'} | "
                        f"Jam: {r0.get('waktu') or '-'}",
                    f"Pembeli: {r0.get('pencatat') or '-'}"]
         for i, r in enumerate(rows, 1):

@@ -59,15 +59,15 @@ EOF
   supaya kirim ulang struk yang sama terdeteksi (aturan di skill). Chat biasa: kosongkan.
 - `DUPLICATE` = sudah tercatat: beri tahu pengguna dan **berhenti** (tidak ada Pratinjau).
   `ERROR`: perbaiki JSON-nya dan uji lagi.
-- Keluaran `OK lolos cek` memberi `no_resi`, `waktu`, `tanggal`, `pencatat` — pakai itu di
-  Pratinjau, jangan mengarang.
+- Keluaran `OK lolos cek` memberi `no_resi`, `label`, `waktu`, `tanggal`, `pencatat` — pakai itu
+  di Pratinjau, jangan mengarang.
 
 Balas **hanya** dengan kerangka ini (jangan jalankan `catat.py` tanpa `--uji` dulu):
 
 ```
 🧾 Akan disimpan (belum dicatat)
 
-Struk: <no_resi dari keluaran> | Tanggal: <tanggal dari keluaran> | Jam: <waktu dari keluaran>
+<label dari keluaran>: <no_resi dari keluaran> | Tanggal: <tanggal dari keluaran> | Jam: <waktu dari keluaran>
 Pembeli: <pencatat dari keluaran>
 
 Detail:
@@ -81,6 +81,10 @@ Catatan: <cara bayar, bila ada>
 
 Balas *ya* untuk simpan, *batal*, atau tulis yang mau diubah.
 ```
+
+- `<label dari keluaran>` = field `label` dari keluaran `catat.py` — `Struk` bila No Resi benar-benar
+  dari struk/Bukti Transfer (awalan `STRUK-`), `No Resi` untuk selainnya (chat biasa, impor, resi
+  bebas lama). Dihitung skrip, bukan ditebak dari isi pesan — jangan dikarang.
 
 - Tanya **hanya** yang belum bisa dijawab: kategori (slug dari `kategori_custom`, jangan
   dikarang) dan akun (dari `data/akun.json`; **nama orang bukan akun**, jangan menebak akun).
@@ -137,7 +141,7 @@ tambah emoji lain (ADR-0015):
 ```
 ✅ Sudah dicatat!
 
-Struk: <no_resi dari keluaran> | Tanggal: <tanggal dari keluaran> | Jam: <waktu dari keluaran>
+<label dari keluaran>: <no_resi dari keluaran> | Tanggal: <tanggal dari keluaran> | Jam: <waktu dari keluaran>
 Pembeli: <pencatat dari keluaran>
 
 Detail:
@@ -150,7 +154,8 @@ Detail:
   `Total` selalu ada, juga untuk satu item. `pemasukan`/`transfer` memakai kerangka yang sama.
 - Info tambahan (siapa yang bayar, cara bayar) ditaruh dalam kurung di belakang nama item,
   mis. `- Dimsum 2x (Ryan bayar): Rp 55.000`.
-- `Struk`, `Tanggal`, `Jam`, dan `Pembeli` diambil dari baris `OK tersimpan ...`, bukan dikarang.
+- `<label dari keluaran>` (`Struk` atau `No Resi`, lihat Langkah 1), `Tanggal`, `Jam`, dan
+  `Pembeli` diambil dari baris `OK tersimpan ...`, bukan dikarang.
 - Jangan menulis angka yang tidak datang dari keluaran `catat.py` atau dari bukti: tidak ada
   "N entri tercatat", tidak ada total kumulatif karangan.
 - `DUPLICATE` = beri tahu sudah tercatat, jangan tanya ulang.
@@ -169,16 +174,20 @@ python3 scripts/buku.py cari --kata indomaret --dari 2026-10-01 --sampai 2026-10
 Filter (boleh digabung): `--kata` (nama Item/toko), `--resi`, `--tanggal`, `--dari`/`--sampai`,
 `--kategori`, `--pembeli` (alias dibakukan), `--tipe`, `--batas N` (bawaan 10). `--terakhir`
 mengurutkan berdasarkan yang terakhir dicatat — untuk "transaksi terakhir saya" pakai
-`--pembeli <pengirim> --terakhir --batas 1`. Bentuk keluarannya (satu blok per struk):
+`--pembeli <pengirim> --terakhir --batas 1`. Bentuk keluarannya (satu blok per Transaksi):
 
 ```
 🔍 Hasil pencarian: <kata kunci> (<jumlah> transaksi)
 
-Struk: <no_resi> | Tanggal: <tanggal> | Jam: <waktu>
+<label>: <no_resi> | Tanggal: <tanggal> | Jam: <waktu>
 Pembeli: <pencatat>
 - [1] <item>: Rp 12.345
 - Total: Rp 12.345
 ```
+
+`<label>` sudah dihitung `buku.py` per Transaksi (`Struk` untuk No Resi berawalan `STRUK-`,
+`No Resi` untuk selainnya) — bisa berbeda antar blok dalam satu hasil pencarian yang sama; salin
+apa adanya, jangan diseragamkan.
 
 Angka `[n]` adalah nomor Item di dalam struk itu — dipakai untuk mengubah atau menghapus satu Item.
 Tak ada hasil → skrip menjawab "tidak ditemukan"; sampaikan apa adanya.

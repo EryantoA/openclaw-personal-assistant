@@ -116,18 +116,28 @@ class Cari(Dasar):
         self.assertEqual(pesan.count("Struk:"), 2)
 
     def test_terbaru_dulu_dan_terakhir_dicatat(self):
-        urut = [m for m in re.findall(r"Struk: (\S+)", self.cari(batas=10)[1])]
+        urut = [m for m in re.findall(r"(?:Struk|No Resi): (\S+)", self.cari(batas=10)[1])]
         self.assertEqual(urut[0], "STRUK-T")                      # tanggal terbaru
-        urut = re.findall(r"Struk: (\S+)", self.cari(terakhir=True, batas=10)[1])
+        urut = re.findall(r"(?:Struk|No Resi): (\S+)", self.cari(terakhir=True, batas=10)[1])
         self.assertEqual(urut[0], "SALDO-AWAL")                   # paling bawah di berkas
         kode, pesan = self.cari(pembeli="ryan", batas=1, terakhir=True)
-        self.assertIn("Struk: SALDO-AWAL", pesan)  # milik Eryanto dan paling bawah di berkas
-        self.assertEqual(pesan.count("Struk:"), 1)
+        self.assertIn("No Resi: SALDO-AWAL", pesan)  # milik Eryanto dan paling bawah di berkas
+        self.assertNotIn("Struk:", pesan)  # SALDO-AWAL bukan struk
 
     def test_tanpa_hasil_dijawab_jelas(self):
         kode, pesan = self.cari(kata="tidak-ada")
         self.assertEqual(kode, 0)
         self.assertIn("tidak ditemukan", pesan)
+
+    def test_label_struk_hanya_untuk_awalan_struk_campur_dalam_satu_hasil(self):
+        self.tulis(self.mentah().decode() +
+                   "2026-10-15,pengeluaran,food,Gift reward,100000,,whatsapp,Eryanto,,,15:59,"
+                   "TRX-20261015-0032\n")
+        kode, pesan = self.cari(dari="2026-10-13", sampai="2026-10-16")
+        self.assertEqual(kode, 0, pesan)
+        self.assertIn("Struk: STRUK-T", pesan)
+        self.assertIn("No Resi: TRX-20261015-0032", pesan)
+        self.assertNotIn("Struk: TRX-20261015-0032", pesan)
 
     def test_read_only(self):
         sebelum = self.mentah()

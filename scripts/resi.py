@@ -205,6 +205,12 @@ def fingerprint_resi(merchant: str, tanggal: str, total: str) -> str:
     return f"STRUK-{h}"
 
 
+def label_resi(no_resi: str | None) -> str:
+    """Label tampilan untuk no_resi: "Struk" hanya bila benar-benar dari struk/Bukti Transfer
+    (awalan STRUK-), selain itu "No Resi" (chat, impor, SALDO-AWAL, resi bebas lama)."""
+    return "Struk" if str(no_resi or "").strip().startswith("STRUK-") else "No Resi"
+
+
 def row_summary(row: dict) -> str:
     """Ringkasan singkat sebuah baris untuk pesan duplikat."""
     tgl = (row.get("tanggal") or "").strip()

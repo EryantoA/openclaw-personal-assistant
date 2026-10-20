@@ -40,8 +40,18 @@ class KontrakPratinjau(unittest.TestCase):
         self.assertNotIn("PENGECUALIAN", AGENTS)
 
     def test_kerangka_akhir_sama_di_skill_dan_agents(self):
+        # AGENTS.md memakai placeholder label (Struk/No Resi dihitung skrip, lihat ADR-0015);
+        # SKILL.md menunjukkan kedua label lewat dua contoh konkret berdampingan.
+        self.assertIn(KERANGKA_AKHIR + "\n\n<label dari keluaran>: ", AGENTS)
+        self.assertIn(KERANGKA_AKHIR + "\n\nStruk: ", SKILL)
+        self.assertIn(KERANGKA_AKHIR + "\n\nNo Resi: ", SKILL)
+
+    def test_label_struk_hanya_untuk_struk_dijelaskan(self):
         for teks in (AGENTS, SKILL):
-            self.assertIn(KERANGKA_AKHIR + "\n\nStruk: ", teks)
+            self.assertIn("No Resi", teks)
+            self.assertIn("STRUK-", teks)
+        self.assertIn("jangan dikarang", AGENTS)
+        self.assertIn("jangan dikarang", SKILL)
 
     def test_pratinjau_dan_akhir_memuat_lima_hal_struk(self):
         for teks in (AGENTS, SKILL):
