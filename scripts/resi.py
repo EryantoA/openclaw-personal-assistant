@@ -211,6 +211,21 @@ def label_resi(no_resi: str | None) -> str:
     return "Struk" if str(no_resi or "").strip().startswith("STRUK-") else "No Resi"
 
 
+def arah_tampil(row: dict) -> str:
+    """Arah uang untuk balasan bot (ADR-0019); transfer menyebut akun asal → tujuan."""
+    tipe = (row.get("tipe") or "").strip()
+    if tipe == "pemasukan":
+        return "📥 Pemasukan"
+    if tipe == "transfer":
+        return f"🔁 Transfer ({row.get('akun') or '?'} → {row.get('akun_tujuan') or '?'})"
+    return "📤 Pengeluaran"
+
+
+def label_nama(row: dict) -> str:
+    """Label baris nama: "Pembeli" hanya untuk pengeluaran, selain itu "Pencatat" (ADR-0019)."""
+    return "Pembeli" if (row.get("tipe") or "").strip() == "pengeluaran" else "Pencatat"
+
+
 def row_summary(row: dict) -> str:
     """Ringkasan singkat sebuah baris untuk pesan duplikat."""
     tgl = (row.get("tanggal") or "").strip()

@@ -19,6 +19,12 @@ _Avoid_: income, pendapatan
 Uang yang keluar dari kas keluarga.
 _Avoid_: expense, outcome, belanja
 
+**Arah**:
+Ke mana uang sebuah Transaksi bergerak: Pemasukan, Pengeluaran, atau Transfer antar akun sendiri
+(bukan keduanya). Selalu disebut di Pratinjau dan balasan konfirmasi, supaya uang masuk tidak
+terbaca seperti belanja (ADR-0019).
+_Avoid_: income/outcome, jenis, tipe
+
 ### Yang Belum Jadi Transaksi
 
 **Kewajiban**:
@@ -84,7 +90,8 @@ _Avoid_: log, audit, riwayat edit
 
 **Pembeli**:
 Orang yang berbelanja, sama dengan `pencatat` di data: nama pengirim pesan. Tampil di balasan
-konfirmasi struk (ADR-0015). Satu orang bisa punya banyak alias (nama panggilan, peran
+konfirmasi (ADR-0015), tetapi hanya untuk Pengeluaran; pada Pemasukan dan Transfer nama yang
+sama tampil sebagai Pencatat, karena tidak ada yang dibeli (ADR-0019). Satu orang bisa punya banyak alias (nama panggilan, peran
 seperti "istri", beda huruf besar-kecil); semuanya dibakukan ke satu nama baku (ADR-0017).
 Bukan penerima transfer.
 _Avoid_: buyer, pembayar

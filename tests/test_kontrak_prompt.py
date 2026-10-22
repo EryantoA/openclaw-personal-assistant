@@ -59,7 +59,19 @@ class KontrakPratinjau(unittest.TestCase):
             self.assertIn("| Jam: ", teks)
             self.assertIn("Pembeli: ", teks)
             self.assertIn("ADR-0015", teks)
-        self.assertEqual(AGENTS.count("Pembeli: <pencatat dari keluaran>"), 2)  # pratinjau + balasan akhir
+        self.assertEqual(AGENTS.count("<nama_label dari keluaran>: <pencatat dari keluaran>"), 2)  # pratinjau + balasan akhir
+
+    def test_arah_di_pratinjau_dan_akhir(self):
+        # ADR-0019: arah uang selalu tampil, dihitung skrip
+        baris = "| Jam: <waktu dari keluaran>\nArah: <arah dari keluaran>\n<nama_label dari keluaran>: "
+        self.assertEqual(AGENTS.count(baris), 2)
+        for teks in (AGENTS, SKILL):
+            self.assertIn("ADR-0019", teks)
+            for arah in ("📥 Pemasukan", "📤 Pengeluaran", "🔁 Transfer"):
+                self.assertIn(arah, teks)
+        self.assertIn("Arah: 📥 Pemasukan\nPencatat: ", SKILL)
+        self.assertNotIn("Pemasukan dicatat!", SKILL)  # template lama yang bertentangan
+        self.assertNotIn("memakai kerangka yang sama", AGENTS)
 
 
 class KontrakPembeli(unittest.TestCase):
@@ -84,6 +96,7 @@ class KontrakBuktiTransfer(unittest.TestCase):
         self.assertNotIn("🧾 Bukti transfer terbaca", AGENTS)
         self.assertIn("Referensi: ", AGENTS)
         self.assertIn("Arah: ", AGENTS)
+        self.assertNotIn("Arah: pemasukan | pengeluaran", AGENTS)  # dilebur ke baris Arah umum
 
     def test_larangan_tertulis(self):
         self.assertIn("nama orang bukan akun", AGENTS)
@@ -140,6 +153,8 @@ class Dokumen(unittest.TestCase):
     def test_adr_dan_glosarium(self):
         self.assertTrue(list((AKAR / "docs" / "adr").glob("0016-*.md")))
         self.assertIn("**Pratinjau**", (AKAR / "CONTEXT.md").read_text(encoding="utf-8"))
+        self.assertTrue(list((AKAR / "docs" / "adr").glob("0019-*.md")))
+        self.assertIn("**Arah**", (AKAR / "CONTEXT.md").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
