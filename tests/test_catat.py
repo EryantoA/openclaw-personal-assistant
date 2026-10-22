@@ -75,19 +75,31 @@ class Catat(unittest.TestCase):
         self.assertEqual(
             baris_ok,
             "OK tersimpan 1 baris | no_resi STRUK-000123 | label Struk | waktu 09:15 | "
-            "tanggal 2026-09-21 | pencatat Eryanto")
+            "tanggal 2026-09-21 | pencatat Eryanto | nama_label Pembeli | arah 📤 Pengeluaran")
 
     def test_keluaran_uji_membawa_field_yang_sama_untuk_pratinjau(self):
         kode, pesan = ct.catat(tx(waktu="09:15"), uji=True, sekarang=JAM)
         self.assertEqual(kode, 0, pesan)
         self.assertRegex(pesan, r"^OK lolos cek \(tidak ditulis\): no_resi TRX-20260921-\d{4} "
-                                r"\| label No Resi \| waktu 09:15 \| tanggal 2026-09-21 \| pencatat Eryanto$")
+                                r"\| label No Resi \| waktu 09:15 \| tanggal 2026-09-21 \| pencatat Eryanto "
+                                r"\| nama_label Pembeli \| arah 📤 Pengeluaran$")
         self.assertEqual(len(self.baris()), 2)  # tidak menulis
 
     def test_keluaran_membawa_label_no_resi_untuk_resi_bebas(self):
         kode, pesan = ct.catat(tx(no_resi="IMP-262"), sekarang=JAM)
         self.assertEqual(kode, 0, pesan)
         self.assertIn("no_resi IMP-262 | label No Resi", pesan.splitlines()[0])
+
+    def test_keluaran_membawa_arah_dan_nama_label_per_tipe(self):
+        masuk = tx(tipe="pemasukan", items=[{"kategori": "food", "item": "Bonus", "jumlah": 170000}])
+        pindah = tx(tipe="transfer", akun="Bank Utama", akun_tujuan="Kas",
+                    items=[{"kategori": "transfer", "item": "Tarik tunai", "jumlah": 500000}])
+        for t, akhir in ((masuk, "| nama_label Pencatat | arah 📥 Pemasukan"),
+                         (pindah, "| nama_label Pencatat | arah 🔁 Transfer (Bank Utama → Kas)")):
+            for uji in (True, False):
+                kode, pesan = ct.catat(t, uji=uji, sekarang=JAM)
+                self.assertEqual(kode, 0, pesan)
+                self.assertTrue(pesan.splitlines()[0].endswith(akhir), pesan)
 
     def test_pencatat_alias_disimpan_dengan_nama_baku(self):
         for i, (alias, baku) in enumerate((("ryan", "Eryanto"), ("TEIKOKU", "Eryanto"),
@@ -173,6 +185,17 @@ class Catat(unittest.TestCase):
         self.assertEqual(kode, 0)
         self.assertIn("tidak ditulis", pesan)
         self.assertEqual(len(self.baris()), 2)
+
+
+class Arah(unittest.TestCase):
+    def test_arah_dan_nama_label(self):
+        self.assertEqual(resi.arah_tampil({"tipe": "pengeluaran"}), "📤 Pengeluaran")
+        self.assertEqual(resi.arah_tampil({"tipe": "pemasukan"}), "📥 Pemasukan")
+        self.assertEqual(resi.arah_tampil({"tipe": "transfer", "akun": "BCA", "akun_tujuan": "Tabungan"}),
+                         "🔁 Transfer (BCA → Tabungan)")
+        self.assertEqual(resi.label_nama({"tipe": "pengeluaran"}), "Pembeli")
+        for tipe in ("pemasukan", "transfer"):
+            self.assertEqual(resi.label_nama({"tipe": tipe}), "Pencatat")
 
 
 class LabelResi(unittest.TestCase):

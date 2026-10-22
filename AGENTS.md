@@ -59,8 +59,8 @@ EOF
   supaya kirim ulang struk yang sama terdeteksi (aturan di skill). Chat biasa: kosongkan.
 - `DUPLICATE` = sudah tercatat: beri tahu pengguna dan **berhenti** (tidak ada Pratinjau).
   `ERROR`: perbaiki JSON-nya dan uji lagi.
-- Keluaran `OK lolos cek` memberi `no_resi`, `label`, `waktu`, `tanggal`, `pencatat` — pakai itu
-  di Pratinjau, jangan mengarang.
+- Keluaran `OK lolos cek` memberi `no_resi`, `label`, `waktu`, `tanggal`, `pencatat`,
+  `nama_label`, `arah` — pakai itu di Pratinjau, jangan mengarang.
 
 Balas **hanya** dengan kerangka ini (jangan jalankan `catat.py` tanpa `--uji` dulu):
 
@@ -68,7 +68,8 @@ Balas **hanya** dengan kerangka ini (jangan jalankan `catat.py` tanpa `--uji` du
 🧾 Akan disimpan (belum dicatat)
 
 <label dari keluaran>: <no_resi dari keluaran> | Tanggal: <tanggal dari keluaran> | Jam: <waktu dari keluaran>
-Pembeli: <pencatat dari keluaran>
+Arah: <arah dari keluaran>
+<nama_label dari keluaran>: <pencatat dari keluaran>
 
 Detail:
 - <item 1>: Rp 34.010
@@ -119,13 +120,14 @@ Balas *ya* untuk simpan, *batal*, atau tulis yang mau diubah.
 ### Varian Bukti Transfer
 
 Foto/screenshot mutasi bank atau e-wallet memakai alur dan kerangka Pratinjau yang sama, dengan
-dua baris tambahan di bawah `Pembeli:`:
+satu baris tambahan di bawah baris nama (`Pembeli:`/`Pencatat:`):
 
 ```
 Referensi: <nomor tercetak>
-Arah: pemasukan | pengeluaran | transfer antar akun
 ```
 
+- Arah uang (masuk, keluar, atau pindah antar akun sendiri) ditentukan lewat `tipe` di JSON;
+  baris `Arah:` di kerangka lalu tampil dari keluaran uji.
 - Pertanyaan kategori dan akun **wajib** (akun tidak boleh ditebak).
 - `jumlah` = angka di bukti persis.
 - `no_resi` = `STRUK-<nomor referensi>`; tanpa awalan karangan lain (mis. `MENANG-`).
@@ -142,7 +144,8 @@ tambah emoji lain (ADR-0015):
 ✅ Sudah dicatat!
 
 <label dari keluaran>: <no_resi dari keluaran> | Tanggal: <tanggal dari keluaran> | Jam: <waktu dari keluaran>
-Pembeli: <pencatat dari keluaran>
+Arah: <arah dari keluaran>
+<nama_label dari keluaran>: <pencatat dari keluaran>
 
 Detail:
 - <item 1>: Rp 34.010
@@ -151,11 +154,15 @@ Detail:
 ```
 
 - Satu baris `- ` per item di `items`, jumlah ditulis `Rp 12.345` (titik ribuan). Baris
-  `Total` selalu ada, juga untuk satu item. `pemasukan`/`transfer` memakai kerangka yang sama.
+  `Total` selalu ada, juga untuk satu item.
+- Baris `Arah:` membedakan arah uang dan **selalu ada**, di Pratinjau maupun balasan akhir
+  (ADR-0019): `📤 Pengeluaran`, `📥 Pemasukan`, atau `🔁 Transfer (<akun> → <akun_tujuan>)`.
+  Baris nama berlabel `Pembeli` hanya untuk pengeluaran, `Pencatat` untuk pemasukan dan
+  transfer. Keduanya disalin dari `arah` dan `nama_label` keluaran — jangan ditebak sendiri.
 - Info tambahan (siapa yang bayar, cara bayar) ditaruh dalam kurung di belakang nama item,
   mis. `- Dimsum 2x (Ryan bayar): Rp 55.000`.
-- `<label dari keluaran>` (`Struk` atau `No Resi`, lihat Langkah 1), `Tanggal`, `Jam`, dan
-  `Pembeli` diambil dari baris `OK tersimpan ...`, bukan dikarang.
+- `<label dari keluaran>` (`Struk` atau `No Resi`, lihat Langkah 1), `Tanggal`, `Jam`, `Arah`,
+  dan baris nama diambil dari baris `OK tersimpan ...`, bukan dikarang.
 - Jangan menulis angka yang tidak datang dari keluaran `catat.py` atau dari bukti: tidak ada
   "N entri tercatat", tidak ada total kumulatif karangan.
 - `DUPLICATE` = beri tahu sudah tercatat, jangan tanya ulang.

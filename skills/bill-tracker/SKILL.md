@@ -58,16 +58,8 @@ Untuk transaksi seperti ini, simpan baris dengan **`tipe=pemasukan`**. Gunakan k
 masuk akal (mis. `Gaji`, `Bonus`, `Penjualan`, atau `Lainnya`). Pemasukan **tidak** dihitung
 sebagai pengeluaran dan **tidak** mengurangi budget.
 
-Pesan konfirmasi pemasukan:
-```
-✅ Pemasukan dicatat!
-
-📥 Sumber: Gaji bulanan
-📂 Kategori: Gaji
-💰 Jumlah: Rp 5.000.000
-📅 Tanggal: 25 Jan 2025  🕒 08:00
-🧾 No Resi: TRX-20250125-0117
-```
+Konfirmasinya memakai kerangka bersama di bagian **Pesan Konfirmasi** — bedanya hanya baris
+`Arah: 📥 Pemasukan` dan baris nama berlabel `Pencatat` (ADR-0019).
 
 > Semua transaksi lain (belanja, tagihan, jajan) default `tipe=pengeluaran`.
 
@@ -287,6 +279,7 @@ berubah antar-sesi dan tidak boleh diringkas jadi satu baris:
 ✅ Sudah dicatat!
 
 Struk: STRUK-BSDUPG | Tanggal: 2026-10-15 | Jam: 22:30
+Arah: 📤 Pengeluaran
 Pembeli: Eryanto
 
 Detail:
@@ -298,8 +291,8 @@ Detail:
 ```
 
 - `<label>` (`Struk` atau `No Resi`) = `label`, `<no_resi>` = `no_resi`, `Tanggal` = `tanggal`,
-  `Jam` = `waktu`, `Pembeli` = `pencatat`, **diambil dari baris `OK tersimpan`** — jangan dikarang
-  (ADR-0015).
+  `Jam` = `waktu`, `Arah` = `arah`, baris nama = `<nama_label>: <pencatat>`, **diambil dari
+  baris `OK tersimpan`** — jangan dikarang (ADR-0015, ADR-0019).
 - `label` dari `catat.py` adalah `Struk` hanya bila No Resi benar-benar dari struk/Bukti Transfer
   (awalan `STRUK-`); selain itu (chat biasa, impor, resi bebas lama) labelnya `No Resi`. Contoh di
   atas berlabel `Struk` karena `no_resi`-nya `STRUK-BSDUPG` (awalan `STRUK-`). Chat biasa **tanpa** struk
@@ -310,11 +303,28 @@ Detail:
 ✅ Sudah dicatat!
 
 No Resi: TRX-20261015-0032 | Tanggal: 2026-10-15 | Jam: 15:59
+Arah: 📤 Pengeluaran
 Pembeli: Eryanto
 
 Detail:
 - Gift reward melahirkan Kak Icha (Eryanto 50k + Elsi 50k): Rp 100.000
 - Total: Rp 100.000
+```
+
+- **Arah selalu tampil** (ADR-0019), disalin dari `arah` keluaran: `📤 Pengeluaran`,
+  `📥 Pemasukan`, atau `🔁 Transfer (<akun> → <akun_tujuan>)`. Baris nama memakai
+  `nama_label`: `Pembeli` untuk pengeluaran, `Pencatat` untuk pemasukan dan transfer:
+
+```
+✅ Sudah dicatat!
+
+No Resi: TRX-20261022-0003 | Tanggal: 2026-10-22 | Jam: 11:33
+Arah: 📥 Pemasukan
+Pencatat: Eryanto
+
+Detail:
+- Bonus: Rp 170.000
+- Total: Rp 170.000
 ```
 
 - Info tambahan (siapa yang bayar, cara bayar) di dalam kurung setelah nama item.

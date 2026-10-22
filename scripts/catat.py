@@ -125,7 +125,8 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
         if uji:
             return 0, (f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} "
                        f"| label {resi.label_resi(baris[0]['no_resi'])} | waktu {baris[0]['waktu']} "
-                       f"| tanggal {baris[0]['tanggal']} | pencatat {baris[0]['pencatat']}")
+                       f"| tanggal {baris[0]['tanggal']} | pencatat {baris[0]['pencatat']}"
+                       f"{_arah(baris[0])}")
 
         # Ikuti akhir baris yang sudah dipakai file (bills.csv saat ini CRLF) supaya tidak campur
         eol = "\r\n" if "\r\n" in isi else "\n"
@@ -144,7 +145,12 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
     return 0, (f"OK tersimpan {len(baris)} baris | no_resi {baris[0]['no_resi']} | "
                f"label {resi.label_resi(baris[0]['no_resi'])} | "
                f"waktu {baris[0]['waktu']} | tanggal {baris[0]['tanggal']} | "
-               f"pencatat {baris[0]['pencatat']}\n" + "\n".join(ditulis))
+               f"pencatat {baris[0]['pencatat']}{_arah(baris[0])}\n" + "\n".join(ditulis))
+
+
+def _arah(b: dict) -> str:
+    """Ekor keluaran OK: label baris nama dan arah uang, untuk Pratinjau dan balasan (ADR-0019)."""
+    return f" | nama_label {resi.label_nama(b)} | arah {resi.arah_tampil(b)}"
 
 
 def main() -> int:
