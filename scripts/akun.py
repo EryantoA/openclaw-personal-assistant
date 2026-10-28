@@ -31,15 +31,9 @@ def rupiah(n):
     return f"Rp {n:,.0f}".replace(",", ".")
 
 
-# Sementara: laporan-mingguan.py & laporan-pembeli.py masih memakai akun.jumlah dan
-# akun.saldo_global; keduanya pindah ke buku_kas di commit berikutnya, lalu ini dihapus.
+# Sementara: laporan-pembeli.py masih memakai akun.jumlah; pindah ke buku_kas di commit
+# berikutnya, lalu ini dihapus.
 jumlah = buku_kas.jumlah
-
-
-def saldo_global(rows, sampai=None):
-    """Saldo sebelum tanggal `sampai` (teks ISO, eksklusif), atau seluruhnya bila None."""
-    per = date.fromisoformat(sampai) - timedelta(days=1) if sampai else date.max
-    return buku_kas.saldo(rows, per=per)
 
 
 def muat():

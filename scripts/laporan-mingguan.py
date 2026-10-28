@@ -7,7 +7,7 @@ Cron menjalankannya Senin 07:00 dengan --kirim; permintaan lewat chat menjalanka
 --berjalan dan meneruskan output apa adanya.
 
 Aturan hitung sengaja dipinjam, bukan ditulis ulang:
-  - Saldo           → akun.saldo_global (transfer tak ikut, Saldo Awal ikut)
+  - Arah, jumlah, Saldo → buku_kas (transfer tak ikut, Saldo Awal ikut Saldo, bukan Pemasukan)
   - Perkiraan       → check-bills.perkiraan_absen (sama dengan Laporan Bulanan, ADR 0012)
   - Tujuan          → pengirim.tujuan_baku (nomor pemilik dari config)
   - Kirim           → pengirim.kirim (3 percobaan, jeda 60 dtk — kirim WA gagal acak ±23%)
@@ -30,6 +30,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS))
+import buku_kas  # noqa: E402
 
 
 def _muat_modul(nama, file):
@@ -44,7 +46,7 @@ cek = _muat_modul("check_bills", "check-bills.py")
 pengirim = _muat_modul("pengirim", "pengirim.py")
 
 rupiah = akun.rupiah
-jumlah = akun.jumlah
+jumlah = buku_kas.jumlah
 
 BULAN = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 HARI = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
@@ -56,11 +58,6 @@ EMOJI = {
 }
 ITEM_MAKS = 60  # struk gabungan bisa ratusan karakter
 HARI_KOSONG_MIN = 2  # berturut-turut, dalam satu Pekan (ADR 0013)
-KATEGORI_BUKAN_PEMASUKAN = {"opening_balance"}  # Saldo Awal bukan Pemasukan (CONTEXT.md)
-
-
-def tipe(r):
-    return (r.get("tipe") or "pengeluaran").strip().lower()
 
 
 def tgl(d):
@@ -73,17 +70,15 @@ def awal_pekan(d):
 
 def di_antara(rows, mulai, akhir):
     """Baris bertanggal mulai..akhir (inklusif)."""
-    a, b = mulai.isoformat(), akhir.isoformat()
-    return [r for r in rows if a <= (r.get("tanggal") or "") <= b]
+    return [r for r in rows if (t := buku_kas.tanggal(r)) is not None and mulai <= t <= akhir]
 
 
 def pengeluaran(rows):
-    return [r for r in rows if tipe(r) == "pengeluaran"]
+    return [r for r in rows if buku_kas.arah(r) == "pengeluaran"]
 
 
 def pemasukan(rows):
-    return [r for r in rows if tipe(r) == "pemasukan"
-            and (r.get("kategori") or "").strip().lower() not in KATEGORI_BUKAN_PEMASUKAN]
+    return [r for r in rows if buku_kas.arah(r) == "pemasukan" and not buku_kas.saldo_awal(r)]
 
 
 def total(rows):
@@ -92,7 +87,7 @@ def total(rows):
 
 # ── Bagian-bagian laporan ────────────────────────────────────────────────
 def bagian_kategori(keluar):
-    per = defaultdict(float)
+    per = defaultdict(int)
     for r in keluar:
         per[(r.get("kategori") or "other").strip().lower()] += jumlah(r)
     semua = total(keluar)
@@ -122,7 +117,7 @@ def bagian_terbesar(keluar, n=3):
     urut = sorted(keluar, key=lambda r: -jumlah(r))[:n]
     baris = [f"🏆 {n} TERBESAR"]
     for i, r in enumerate(urut, 1):
-        d = date.fromisoformat(r["tanggal"])
+        d = buku_kas.tanggal(r)
         item = r.get("item") or "(tanpa item)"
         if len(item) > ITEM_MAKS:
             item = item[:ITEM_MAKS - 1].rstrip() + "…"
@@ -213,10 +208,10 @@ def bagian_perkiraan(mulai, akhir, pekan_tutup):
 
 def hari_kosong(rows, mulai, akhir):
     """Deret ≥HARI_KOSONG_MIN hari tanpa Pengeluaran di dalam [mulai, akhir]."""
-    ada = {r["tanggal"] for r in pengeluaran(di_antara(rows, mulai, akhir))}
+    ada = {buku_kas.tanggal(r) for r in pengeluaran(di_antara(rows, mulai, akhir))}
     deret, kini, d = [], [], mulai
     while d <= akhir:
-        if d.isoformat() in ada:
+        if d in ada:
             if len(kini) >= HARI_KOSONG_MIN:
                 deret.append(kini)
             kini = []
@@ -245,12 +240,16 @@ def susun(rows, mulai, akhir, pekan_tutup):
         nama = ", ".join(f"{HARI[d.weekday()]} {d.day}" for d in deret)
         baris += [f"⚠️ Tidak ada catatan pada {nama} {BULAN[deret[-1].month]} — "
                   "angka pekan ini mungkin kurang", ""]
+    tak = buku_kas.tak_terhitung(rows)
+    if tak:
+        baris += [f"⚠️ {len(tak)} transaksi tidak terhitung (tanggal tidak sah / tipe tidak "
+                  "dikenal) — periksa bills.csv", ""]
 
     baris += bagian_kategori(keluar)
     baris += bagian_banding(keluar, keluar_lalu)
     baris += [""] + bagian_terbesar(keluar)
 
-    saldo = akun.saldo_global(rows, sampai=(akhir + timedelta(days=1)).isoformat())
+    saldo = buku_kas.saldo(rows, per=akhir)
     baris += [
         "",
         f"💰 Pemasukan pekan ini: {rupiah(total(pemasukan(di_antara(rows, mulai, akhir))))}",
@@ -284,7 +283,7 @@ def main():
             ap.error(f"Pekan {mulai}–{akhir} belum tutup; pakai --berjalan")
         tutup = True
 
-    rows, _ = akun.muat()
+    rows = buku_kas.muat()
     laporan = susun(rows, mulai, akhir, tutup)
     print(laporan)
 
