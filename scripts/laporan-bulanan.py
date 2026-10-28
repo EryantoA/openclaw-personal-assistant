@@ -14,14 +14,11 @@ pesannya terkirim. Kalau pengiriman gagal, skrip keluar dengan kode 1 supaya cro
 `error` dan penjaga kesehatan menangkapnya — dan tidak ada yang disimpan, supaya Koreksi bulan
 depan tidak dihitung terhadap angka yang tak pernah diterima siapa pun.
 
-Aturan hitung (sama dengan scripts/export-excel.py dan SKILL.md):
-  - `transfer` dilewati seluruhnya — uangnya cuma pindah akun.
-  - `opening_balance` ikut Saldo, tapi tidak ikut Pemasukan maupun Arus Kas Bulan.
-  - Saldo kumulatif dari baris pertama; baris tanpa tanggal valid tidak ikut apa pun.
-  - Baris tanpa `tipe` dianggap pengeluaran (data lama).
+Aturan hitung (Transfer, Saldo Awal, baris tanpa tanggal/tipe tak dikenal) ada di
+scripts/buku_kas.py, satu untuk semua laporan.
 """
 import argparse
-import csv
+import calendar
 import importlib.util
 import json
 import sys
@@ -29,6 +26,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import buku_kas  # noqa: E402
 import pengirim  # noqa: E402
 
 AKAR = Path(__file__).resolve().parent.parent
@@ -37,7 +35,6 @@ BILLS = DATA / "bills.csv"
 BUDGET = DATA / "budget.json"
 SIMPANAN = DATA / "laporan-bulanan.json"
 
-KATEGORI_SALDO_AWAL = "opening_balance"
 KATEGORI_TERATAS = 5
 NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
               "Agustus", "September", "Oktober", "November", "Desember"]
@@ -45,11 +42,7 @@ NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
 
 # ── Membaca ───────────────────────────────────────────────────────────────
 def muat_baris(path=None):
-    path = path or BILLS
-    if not path.exists():
-        return []
-    with open(path, encoding="utf-8", newline="") as f:
-        return list(csv.DictReader(f))
+    return buku_kas.muat(path or BILLS)
 
 
 def muat_json(path, bawaan):
@@ -59,62 +52,33 @@ def muat_json(path, bawaan):
         return bawaan
 
 
-def tipe(r):
-    return (r.get("tipe") or "pengeluaran").strip().lower()
+def di_bulan(r, bulan):
+    tgl = buku_kas.tanggal(r)
+    return tgl is not None and tgl.strftime("%Y-%m") == bulan
 
 
-def jumlah(r):
-    try:
-        return float(r.get("jumlah") or 0)
-    except (TypeError, ValueError):
-        return 0.0
+def akhir_bulan(bulan):
+    t, b = map(int, bulan.split("-"))
+    return date(t, b, calendar.monthrange(t, b)[1])
 
 
-def kunci_bulan(r):
-    """'YYYY-MM' dari kolom tanggal, atau None kalau tanggalnya tidak valid."""
-    try:
-        return date.fromisoformat((r.get("tanggal") or "").strip()).strftime("%Y-%m")
-    except ValueError:
-        return None
-
-
-# ── Menghitung ────────────────────────────────────────────────────────────
-def arus_per_bulan(baris):
-    """{bulan: {pemasukan, pengeluaran, saldo_awal}} untuk semua bulan bertanggal."""
-    hasil = {}
-    for r in baris:
-        b = kunci_bulan(r)
-        t = tipe(r)
-        if b is None or t == "transfer":
-            continue
-        h = hasil.setdefault(b, {"pemasukan": 0.0, "pengeluaran": 0.0, "saldo_awal": 0.0})
-        if (r.get("kategori") or "").strip().lower() == KATEGORI_SALDO_AWAL:
-            h["saldo_awal"] += jumlah(r)
-        elif t == "pemasukan":
-            h["pemasukan"] += jumlah(r)
-        elif t == "pengeluaran":
-            h["pengeluaran"] += jumlah(r)
-    return hasil
-
-
-def saldo_akhir(arus, bulan):
-    """Saldo kumulatif per akhir `bulan`."""
-    return sum(h["saldo_awal"] + h["pemasukan"] - h["pengeluaran"]
-               for b, h in arus.items() if b <= bulan)
+def saldo_akhir(baris, bulan):
+    """Saldo per akhir `bulan`."""
+    return buku_kas.saldo(baris, per=akhir_bulan(bulan))
 
 
 def per_kategori(baris, bulan):
     total = {}
     for r in baris:
-        if kunci_bulan(r) == bulan and tipe(r) == "pengeluaran":
+        if di_bulan(r, bulan) and buku_kas.arah(r) == "pengeluaran":
             k = (r.get("kategori") or "other").strip().lower() or "other"
-            total[k] = total.get(k, 0.0) + jumlah(r)
+            total[k] = total.get(k, 0) + buku_kas.jumlah(r)
     return total
 
 
 def jumlah_transaksi(baris, bulan):
-    return sum(1 for r in baris if kunci_bulan(r) == bulan and tipe(r) != "transfer"
-               and (r.get("kategori") or "").strip().lower() != KATEGORI_SALDO_AWAL)
+    return sum(1 for r in baris if di_bulan(r, bulan)
+               and buku_kas.arah(r) in ("pemasukan", "pengeluaran") and not buku_kas.saldo_awal(r))
 
 
 def bulan_sebelum(bulan):
@@ -122,7 +86,7 @@ def bulan_sebelum(bulan):
     return f"{t - 1}-12" if b == 1 else f"{t}-{b - 1:02d}"
 
 
-def cari_koreksi(arus, simpanan, bulan_laporan):
+def cari_koreksi(baris, simpanan, bulan_laporan):
     """Bulan yang pernah dilaporkan dan Pemasukan/Pengeluarannya berubah sejak itu.
 
     Hanya bulan asal perubahan yang disebut: Saldo akhir bulan-bulan sesudahnya memang ikut
@@ -132,12 +96,12 @@ def cari_koreksi(arus, simpanan, bulan_laporan):
     for b, lama in sorted(simpanan.get("bulan", {}).items()):
         if b == bulan_laporan:
             continue
-        kini = arus.get(b, {"pemasukan": 0.0, "pengeluaran": 0.0})
+        kini = buku_kas.arus_kas_bulan(baris, b)
         d_in = round(kini["pemasukan"] - lama["pemasukan"])
         d_out = round(kini["pengeluaran"] - lama["pengeluaran"])
         if d_in or d_out:
             koreksi.append({"bulan": b, "pemasukan": d_in, "pengeluaran": d_out,
-                            "saldo_akhir": saldo_akhir(arus, b)})
+                            "saldo_akhir": saldo_akhir(baris, b)})
     return koreksi
 
 
@@ -166,8 +130,7 @@ def nama_bulan(bulan):
 
 
 def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
-    arus = arus_per_bulan(baris)
-    h = arus.get(bulan, {"pemasukan": 0.0, "pengeluaran": 0.0, "saldo_awal": 0.0})
+    h = buku_kas.arus_kas_bulan(baris, bulan)
     arus_kas = h["pemasukan"] - h["pengeluaran"]
     lalu = bulan_sebelum(bulan)
     nb, nl = nama_bulan(bulan), NAMA_BULAN[int(lalu[5:]) - 1]
@@ -180,7 +143,7 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
            f"📥 Pemasukan:   {rp(h['pemasukan'])}",
            f"📤 Pengeluaran: {rp(h['pengeluaran'])}  ({jumlah_transaksi(baris, bulan)} transaksi)",
            f"{'💚' if arus_kas >= 0 else '🔴'} Arus Kas Bulan: {rp(arus_kas)}",
-           f"🏦 Saldo akhir {NAMA_BULAN[int(bulan[5:]) - 1]}: {rp(saldo_akhir(arus, bulan))}"]
+           f"🏦 Saldo akhir {NAMA_BULAN[int(bulan[5:]) - 1]}: {rp(saldo_akhir(baris, bulan))}"]
 
     batas = float(budget.get("budget_bulanan") or 0)
     if batas > 0:
@@ -206,7 +169,7 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
             out.append(f"  • {e.get('nama') or e.get('id')} — {rp(float(e['nominal']))}, "
                        f"biasanya tgl {int(e['tanggal_biasanya'])}, tidak {arah}")
 
-    for k in cari_koreksi(arus, simpanan, bulan):
+    for k in cari_koreksi(baris, simpanan, bulan):
         bagian = []
         if k["pengeluaran"]:
             bagian.append(f"pengeluaran {'naik' if k['pengeluaran'] > 0 else 'turun'} "
@@ -218,24 +181,29 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
                     f"Saldo akhir {NAMA_BULAN[int(k['bulan'][5:]) - 1]} sekarang "
                     f"{rp(k['saldo_akhir'])}."]
 
+    tak = buku_kas.tak_terhitung(baris)
+    if tak:
+        out += ["", f"⚠️ {len(tak)} transaksi tidak terhitung (tanggal tidak sah / tipe tidak "
+                    f"dikenal) — periksa bills.csv."]
+
     out += ["", "_Dihitung scripts/laporan-bulanan.py, tanpa model_"]
     return "\n".join(out)
 
 
-def simpanan_baru(simpanan, bulan, arus):
+def simpanan_baru(simpanan, bulan, baris):
     """Catat angka bulan yang dilaporkan, dan perbarui bulan yang Koreksinya baru disebut."""
     kini = datetime.now().isoformat(timespec="seconds")
     isi = {"bulan": dict(simpanan.get("bulan", {}))}
-    for k in cari_koreksi(arus, simpanan, bulan):
-        h = arus.get(k["bulan"], {"pemasukan": 0.0, "pengeluaran": 0.0})
+    for k in cari_koreksi(baris, simpanan, bulan):
+        h = buku_kas.arus_kas_bulan(baris, k["bulan"])
         isi["bulan"][k["bulan"]] = {**isi["bulan"][k["bulan"]],
                                     "pemasukan": round(h["pemasukan"]),
                                     "pengeluaran": round(h["pengeluaran"]),
                                     "dikoreksi": kini}
-    h = arus.get(bulan, {"pemasukan": 0.0, "pengeluaran": 0.0})
+    h = buku_kas.arus_kas_bulan(baris, bulan)
     isi["bulan"][bulan] = {"pemasukan": round(h["pemasukan"]),
                            "pengeluaran": round(h["pengeluaran"]),
-                           "saldo_akhir": round(saldo_akhir(arus, bulan)),
+                           "saldo_akhir": round(saldo_akhir(baris, bulan)),
                            "dilaporkan": kini}
     return isi
 
@@ -299,7 +267,7 @@ def main(argv=None):
         print("Angka TIDAK disimpan — laporan ini belum diterima.", file=sys.stderr)
         return 1
 
-    SIMPANAN.write_text(json.dumps(simpanan_baru(simpanan, bulan, arus_per_bulan(baris)),
+    SIMPANAN.write_text(json.dumps(simpanan_baru(simpanan, bulan, baris),
                                    indent=2, ensure_ascii=False), encoding="utf-8")
     return 0
 
