@@ -31,11 +31,6 @@ def rupiah(n):
     return f"Rp {n:,.0f}".replace(",", ".")
 
 
-# Sementara: laporan-pembeli.py masih memakai akun.jumlah; pindah ke buku_kas di commit
-# berikutnya, lalu ini dihapus.
-jumlah = buku_kas.jumlah
-
-
 def muat():
     rows = buku_kas.muat(BILLS)
     cfg = json.loads(AKUN.read_text(encoding="utf-8"))

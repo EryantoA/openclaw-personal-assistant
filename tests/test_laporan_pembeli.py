@@ -31,6 +31,15 @@ ROWS = [
 ]
 
 
+class TakTerhitung(unittest.TestCase):
+    def test_diperingatkan_dan_tidak_ikut_total(self):
+        kotor = ROWS + [b("", "pengeluaran", "Eryanto", 777_000, "H")]
+        teks = lp.susun(kotor, *PEKAN, "x", peta={})
+        self.assertIn("⚠️ 1 transaksi tidak terhitung", teks)
+        self.assertNotIn("tidak terhitung", lp.susun(ROWS, *PEKAN, "x", peta={}))
+        self.assertIn("Total: Rp 400.000", teks)
+
+
 class PerPembeli(unittest.TestCase):
     def setUp(self):
         self.teks = lp.susun(ROWS, *PEKAN, "Pekan 12–18 Okt 2026")

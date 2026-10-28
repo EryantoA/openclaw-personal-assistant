@@ -16,7 +16,6 @@ Usage:
 
 import argparse
 import calendar
-import csv
 import importlib.util
 import sys
 from collections import defaultdict
@@ -24,6 +23,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS))
+import buku_kas  # noqa: E402
 
 
 def _muat_modul(nama, file):
@@ -37,7 +38,6 @@ akun = _muat_modul("akun", "akun.py")
 resi = _muat_modul("resi", "resi.py")
 _mingguan = _muat_modul("laporan_mingguan", "laporan-mingguan.py")  # satu definisi Pekan
 rupiah = akun.rupiah
-jumlah = akun.jumlah
 
 BULAN = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 TANPA_NAMA = "Tanpa nama"
@@ -55,18 +55,22 @@ def rentang_bulan(bulan):
 
 def susun(rows, mulai, akhir, judul, peta=None):
     peta = resi.peta_pembeli() if peta is None else peta
-    a, b = mulai.isoformat(), akhir.isoformat()
-    per = defaultdict(float)
+    per = defaultdict(int)
     per_resi = defaultdict(set)
     for i, r in enumerate(rows):
-        if (r.get("tipe") or "pengeluaran").strip().lower() != "pengeluaran":
+        if buku_kas.arah(r) != "pengeluaran":
             continue
-        if not a <= (r.get("tanggal") or "") <= b:
+        tgl = buku_kas.tanggal(r)
+        if tgl is None or not mulai <= tgl <= akhir:
             continue
         nama = resi.kanon_pembeli(r.get("pencatat"), peta) or TANPA_NAMA
-        per[nama] += jumlah(r)
+        per[nama] += buku_kas.jumlah(r)
         per_resi[nama].add((r.get("no_resi") or "").strip() or f"baris-{i}")
     baris = [f"👥 PENGELUARAN PER PEMBELI — {judul}", ""]
+    tak = buku_kas.tak_terhitung(rows)
+    if tak:
+        baris += [f"⚠️ {len(tak)} transaksi tidak terhitung (tanggal tidak sah / tipe tidak "
+                  "dikenal) — periksa bills.csv", ""]
     if not per:
         return "\n".join(baris + ["(tidak ada pengeluaran tercatat)"])
     semua = sum(per.values())
@@ -113,12 +117,7 @@ def main(argv=None):
                 ap.error(f"Pekan {mulai}–{akhir} belum tutup; pakai --berjalan")
         judul = f"Pekan {_tgl(mulai)}–{_tgl(akhir)} {akhir.year}"
 
-    if not akun.BILLS.exists():
-        rows = []
-    else:
-        with akun.BILLS.open(encoding="utf-8", newline="") as f:
-            rows = list(csv.DictReader(f))
-    print(susun(rows, mulai, akhir, judul))
+    print(susun(buku_kas.muat(), mulai, akhir, judul))
     return 0
 
 
