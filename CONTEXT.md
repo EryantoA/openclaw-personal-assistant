@@ -11,6 +11,12 @@ aplikasi keuangan yang dipakai sebelumnya.
 Satu pergerakan uang nyata, tercatat sebagai satu baris.
 _Avoid_: entri, record
 
+**Buku Kas**:
+Seluruh Transaksi yang tercatat — `data/bills.csv`. Sumber tunggal Saldo dan Arus Kas Bulan;
+aturan membaca dan menghitungnya hidup di `scripts/buku_kas.py`. Kewajiban dan Perkiraan tidak
+ada di dalamnya.
+_Avoid_: ledger, database, sheet
+
 **Pemasukan**:
 Uang yang masuk ke kas keluarga.
 _Avoid_: income, pendapatan
