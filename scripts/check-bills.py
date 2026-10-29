@@ -20,12 +20,10 @@ Usage:
   python3 scripts/check-bills.py --mode all --kirim   # cron cek_budget_malam: kirim HANYA kalau ada isi
 """
 
-import json
 import os
 import sys
 import argparse
 import importlib.util
-import calendar
 from datetime import date
 from pathlib import Path
 from typing import Optional, List, Dict
@@ -34,45 +32,18 @@ from typing import Optional, List, Dict
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR.resolve()))
 import buku_kas  # noqa: E402
+import kewajiban  # noqa: E402
+import pengaturan  # noqa: E402
+import perkiraan  # noqa: E402
 PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
 BILLS_CSV = DATA_DIR / "bills.csv"
-BUDGET_JSON = DATA_DIR / "budget.json"
-KEWAJIBAN_JSON = DATA_DIR / "kewajiban.json"
-PERKIRAAN_JSON = DATA_DIR / "perkiraan.json"
-
-
-def load_budget() -> Dict:
-    """Load budget.json, return default jika belum ada."""
-    default = {"budget_bulanan": 0, "alert_persen": 80, "kategori_custom": []}
-    if not BUDGET_JSON.exists():
-        return default
-    try:
-        with open(BUDGET_JSON, encoding="utf-8") as f:
-            data = json.load(f)
-        # Merge with default for missing keys
-        return {**default, **data}
-    except Exception:
-        return default
 
 
 def load_bills() -> List[Dict]:
     """Baris bills.csv lewat buku_kas: kosong kalau belum ada, gagal jelas kalau rusak —
     cek malam yang diam karena file rusak terbaca kosong lebih buruk daripada cron error."""
     return buku_kas.muat(BILLS_CSV)
-
-
-def load_list(path: Path, key: str) -> List[Dict]:
-    """Load daftar dari file JSON berbentuk {"<key>": [...]}. Kosong kalau belum ada/rusak."""
-    if not path.exists():
-        return []
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        entries = data.get(key, [])
-        return entries if isinstance(entries, list) else []
-    except Exception:
-        return []
 
 
 def format_rupiah(amount: float) -> str:
@@ -91,7 +62,7 @@ def parse_tanggal(value: str) -> Optional[date]:
 # ── Mode: Cek Budget ─────────────────────────────────────────
 def check_budget(today: Optional[date] = None) -> str:
     """Cek total pengeluaran bulan ini vs budget."""
-    budget_data = load_budget()
+    budget_data = pengaturan.muat()
     budget_bulanan = budget_data.get("budget_bulanan", 0)
     alert_persen = budget_data.get("alert_persen", 80)
 
@@ -150,52 +121,23 @@ def check_budget(today: Optional[date] = None) -> str:
 
 # ── Mode: Cek Kewajiban ──────────────────────────────────────
 def check_kewajiban(today: Optional[date] = None) -> str:
-    """Ingatkan Kewajiban yang belum lunas, hanya di H-n dan hari-H.
-
-    Sebuah Kewajiban dianggap lunas kalau `lunas_resi`-nya menunjuk baris yang benar-benar ada
-    di bills.csv. Tautan yang menunjuk ke baris tak ada diperlakukan BELUM lunas — itu justru
-    kasus yang paling mungkin terjadi (bot salah/lupa menautkan), dan lebih baik ditanyakan
-    daripada dianggap beres diam-diam.
-    """
+    """Ingatkan Kewajiban yang belum lunas, hanya di H-n dan hari-H (aturannya di kewajiban.py)."""
     today = today or date.today()
-    entries = load_list(KEWAJIBAN_JSON, "kewajiban")
-    if not entries:
+    daftar = kewajiban.muat()
+    if not daftar:
         return ""
 
-    budget_data = load_budget()
-    h_minus = int(budget_data.get("kewajiban_ingat_h_minus", 2))
-    kedaluwarsa = int(budget_data.get("kewajiban_kedaluwarsa_hari", 5))
-
-    resi_ada = {(r.get("no_resi") or "").strip() for r in load_bills()}
-    resi_ada.discard("")
+    atur = pengaturan.muat()
+    kedaluwarsa = int(atur.get("kewajiban_kedaluwarsa_hari", 5))
 
     baris = []
-    for e in entries:
-        jt = parse_tanggal(e.get("jatuh_tempo", ""))
-        if jt is None:
-            continue
-
-        resi = (e.get("lunas_resi") or "").strip()
-        if resi and resi in resi_ada:
-            continue  # sudah dibayar dan tertaut — tidak perlu diingatkan
-
-        sisa = (jt - today).days
-        # Bunyi hanya di dua titik. Lewat kedaluwarsa → berhenti dilaporkan (bukan lunas,
-        # tapi tidak diketahui) supaya tidak menumpuk jadi notifikasi yang diabaikan.
-        if sisa not in (h_minus, 0):
-            continue
-
-        try:
-            nominal = format_rupiah(float(e.get("nominal", 0)))
-        except (ValueError, TypeError):
-            nominal = "Rp ?"
-
+    for e, sisa, tautan in kewajiban.diingatkan(daftar, load_bills(), today, atur):
+        n = kewajiban.nominal(e)
+        nominal = "Rp ?" if n is None else format_rupiah(n)
+        jt = kewajiban.jatuh_tempo(e)
         kapan = "HARI INI" if sisa == 0 else f"{sisa} hari lagi ({jt.strftime('%d %b')})"
-        nama = e.get("nama") or e.get("id") or "(tanpa nama)"
-        catatan = ""
-        if resi and resi not in resi_ada:
-            catatan = f"\n   ⚠️ tertaut ke {resi}, tapi barisnya tidak ada di bills.csv"
-        baris.append(f"• {nama} — {nominal}, jatuh tempo {kapan}{catatan}")
+        catatan = f"\n   ⚠️ tertaut ke {tautan}, tapi barisnya tidak ada di bills.csv" if tautan else ""
+        baris.append(f"• {kewajiban.nama(e)} — {nominal}, jatuh tempo {kapan}{catatan}")
 
     if not baris:
         return ""
@@ -212,78 +154,12 @@ def check_kewajiban(today: Optional[date] = None) -> str:
 
 
 # ── Mode: Cek Perkiraan ──────────────────────────────────────
-def perkiraan_absen(tahun: int, bulan: int, today: Optional[date] = None) -> List[Dict]:
-    """Perkiraan aktif yang tidak muncul di bills.csv pada bulan `tahun`-`bulan`.
-
-    `today` None berarti bulannya sudah tutup: semua Perkiraan diperiksa. Kalau diisi, yang
-    tanggalnya belum lewat toleransi dilewati — belum waktunya dipertanyakan. Dipakai juga oleh
-    scripts/laporan-bulanan.py, supaya dua pesan tidak memakai dua aturan pencocokan berbeda.
-
-    Pencocokan sengaja longgar (kategori + arah + nominal dalam toleransi): nominal ikut kurs
-    (Anthropic 366.588 vs 366.751) dan pemasukan kadang tercatat sebagai satu baris gabungan.
-    Salah tebak di sini cuma berujung pertanyaan, bukan klaim utang.
-    """
-    entries = [e for e in load_list(PERKIRAAN_JSON, "perkiraan") if e.get("aktif", True)]
-    if not entries:
-        return []
-
-    budget_data = load_budget()
-    toleransi_hari = int(budget_data.get("perkiraan_toleransi_hari", 3))
-    toleransi_persen = float(budget_data.get("perkiraan_toleransi_persen", 10))
-
-    kunci = f"{tahun:04d}-{bulan:02d}"
-    rows = [r for r in load_bills()
-            if (t := buku_kas.tanggal(r)) is not None and t.strftime("%Y-%m") == kunci]
-
-    absen = []
-    for e in entries:
-        try:
-            hari = int(e.get("tanggal_biasanya", 0))
-            nominal = float(e.get("nominal", 0))
-        except (ValueError, TypeError):
-            continue
-        if not 1 <= hari <= 31 or nominal <= 0:
-            continue
-
-        # Bulan pendek: tanggal 31 jatuh di hari terakhir bulan itu.
-        akhir_bulan = calendar.monthrange(tahun, bulan)[1]
-        tanggal_harap = date(tahun, bulan, min(hari, akhir_bulan))
-        if today is not None and (today - tanggal_harap).days <= toleransi_hari:
-            continue  # belum waktunya dipertanyakan
-
-        arah = (e.get("arah") or "keluar").strip().lower()
-        tipe_dicari = "pemasukan" if arah == "masuk" else "pengeluaran"
-        kategori = (e.get("kategori") or "").strip().lower()
-        # Toleransi bisa diperketat per entri. Perlu ketika dua perkiraan berbagi kategori
-        # dengan nominal berdekatan — dua gaji di `salary` cuma beda 1,4%, dan toleransi
-        # longgar membuat gaji yang satu menutupi absennya gaji yang lain.
-        try:
-            persen = float(e.get("toleransi_persen", toleransi_persen))
-        except (ValueError, TypeError):
-            persen = toleransi_persen
-        batas = nominal * persen / 100
-
-        ketemu = False
-        for r in rows:
-            if buku_kas.arah(r) != tipe_dicari:
-                continue
-            if (r.get("kategori") or "").strip().lower() != kategori:
-                continue
-            if abs(buku_kas.jumlah(r) - nominal) <= batas:
-                ketemu = True
-                break
-
-        if not ketemu:
-            absen.append(e)
-
-    return absen
-
-
 def check_perkiraan(today: Optional[date] = None) -> str:
     """Laporkan Perkiraan bulan ini yang belum muncul padahal tanggalnya sudah lewat."""
     today = today or date.today()
     baris = []
-    for e in perkiraan_absen(today.year, today.month, today):
+    for e in perkiraan.absen(perkiraan.muat(), load_bills(), today.year, today.month, today,
+                             pengaturan.muat()):
         arah = (e.get("arah") or "keluar").strip().lower()
         panah = "📥 belum masuk" if arah == "masuk" else "📤 belum keluar"
         nama = e.get("nama") or e.get("id") or "(tanpa nama)"
@@ -325,8 +201,9 @@ def kirim_kalau_ada(isi: str) -> int:
     Cron cek_budget_malam dulu giliran agent; 12 dari 53 malam gagal sebelum sempat mengecek
     (OAuth mati, kuota, timeout) dan peringatan 26 Agu 2026 tidak pernah terkirim. Sekarang
     command payload, sama dengan Laporan Mingguan/Bulanan (docs/adr/0013). kirim() dari
-    scripts/pengirim.py, dimuat di sini saja supaya pemakai lain file ini (laporan bulanan
-    dan mingguan, yang hanya butuh fungsi cek) tidak ikut memuatnya.
+    scripts/pengirim.py. Dimuat di sini saja karena dulu laporan bulanan dan mingguan meminjam
+    fungsi cek dari file ini; sejak Perkiraan/Kewajiban pindah ke module sendiri tidak ada lagi
+    yang meminjam, jadi ini boleh menjadi impor biasa.
     """
     if not isi:
         print("\n(tidak ada yang perlu dikirim)")
