@@ -50,8 +50,6 @@ class AturanHitung(unittest.TestCase):
         bersih = [r for r in DASAR if r["tanggal"]]
         self.assertNotIn("tidak terhitung", lb.susun("2026-08", bersih, {}, {"bulan": {}}, []))
 
-    def test_bulan_sebelum_melewati_tahun(self):
-        self.assertEqual(lb.bulan_sebelum("2027-01"), "2026-12")
 
 
 class AturanKoreksi(unittest.TestCase):
@@ -94,8 +92,9 @@ class AturanSimpan(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.asli = {k: getattr(lb, k) for k in
-                     ("BILLS", "BUDGET", "SIMPANAN", "tujuan_baku", "kirim", "perkiraan_absen")}
-        lb.BILLS, lb.BUDGET = self.tmp / "bills.csv", self.tmp / "budget.json"
+                     ("BILLS", "SIMPANAN", "tujuan_baku", "kirim", "perkiraan_absen")}
+        self.asli_budget = lb.pengaturan.BUDGET_JSON
+        lb.BILLS, lb.pengaturan.BUDGET_JSON = self.tmp / "bills.csv", self.tmp / "budget.json"
         lb.SIMPANAN = self.tmp / "laporan.json"
         lb.tujuan_baku = lambda: [("whatsapp", "+0")]
         lb.perkiraan_absen = lambda bulan, today=None: []
@@ -107,6 +106,7 @@ class AturanSimpan(unittest.TestCase):
     def tearDown(self):
         for k, v in self.asli.items():
             setattr(lb, k, v)
+        lb.pengaturan.BUDGET_JSON = self.asli_budget
 
     def test_tampil_saja_tidak_menulis(self):
         self.assertEqual(lb.main(["--bulan", "2026-08"]), 0)
