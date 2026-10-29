@@ -69,6 +69,13 @@ _Avoid_: modal awal, opening balance, saldo pembuka
 Batas pengeluaran yang ditetapkan untuk satu bulan. Hanya membatasi pengeluaran; pemasukan
 tidak dihitung terhadapnya.
 
+**Pengaturan**:
+Isi `data/budget.json`: Budget, kategori yang sah, aturan Duplikat Lapis 2, toleransi Perkiraan,
+dan kapan Kewajiban diingatkan. Budget hanya salah satu isinya, jadi berkasnya tidak disebut
+"budget". Dibaca lewat `scripts/pengaturan.py`; kategori dan aturan Duplikat masih lewat
+`resi.BUDGET_JSON` (ADR-0020).
+_Avoid_: config, budget (untuk seluruh berkas)
+
 ### Penanda
 
 **Kategori**:
