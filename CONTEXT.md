@@ -114,7 +114,11 @@ _Avoid_: struk transfer, slip
 
 **Duplikat**:
 Satu transaksi yang sama tercatat lebih dari sekali. Dua transaksi berbeda yang kebetulan
-sama isinya bukan duplikat.
+sama isinya bukan duplikat. Dicek di tiga lapis, semuanya di `scripts/duplikat.py` dan dengan
+satu arti "sama" untuk satu nilai: **Lapis 1** No Resi sama persis (tidak bisa dilewati);
+**Lapis 2** field `match_fields` di `budget.json` sama (bisa dilewati hanya setelah pengguna
+menegaskan itu transaksi baru); **Audit** baris tersimpan yang sama di semua kolom selain No Resi
+(laporan saja, tidak ada yang dihapus).
 _Avoid_: dobel, kembar
 
 **Asal**:
