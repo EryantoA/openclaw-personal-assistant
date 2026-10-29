@@ -47,6 +47,7 @@ from typing import Callable, Optional
 sys.path.insert(0, str(Path(__file__).parent))
 import buku_kas  # noqa: E402
 import duplikat  # noqa: E402
+import kewajiban  # noqa: E402
 import resi  # noqa: E402
 import validasi  # noqa: E402
 from validasi import Tolak, kunci_berkas  # noqa: E402
@@ -193,11 +194,10 @@ def _peringatan_bills(path: Path, lama: list, baru: list) -> list:
     """Peringatan yang tidak memblokir: Kewajiban tertaut dan bulan yang sudah dilaporkan."""
     hasil = []
     if lama and not baru:
-        nomor = (lama[0].get("no_resi") or "").strip()
-        for e in _muat_json(path.with_name("kewajiban.json"), {}).get("kewajiban", []):
-            if nomor and (e.get("lunas_resi") or "").strip() == nomor:
-                hasil.append(f"⚠️ Kewajiban {e.get('nama') or e.get('id')} ({e.get('id')}) tertaut ke "
-                             f"Transaksi ini dan akan kembali belum lunas.")
+        daftar = kewajiban.muat(path.with_name("kewajiban.json"))
+        for e in kewajiban.tertaut(daftar, lama[0].get("no_resi")):
+            hasil.append(f"⚠️ Kewajiban {e.get('nama') or e.get('id')} ({e.get('id')}) tertaut ke "
+                         f"Transaksi ini dan akan kembali belum lunas.")
     dilaporkan = _muat_json(path.with_name("laporan-bulanan.json"), {}).get("bulan", {})
     for bulan in _bulan_berubah(lama, baru):
         if bulan in dilaporkan:
