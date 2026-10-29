@@ -35,24 +35,20 @@ DASAR = [
 
 
 class AturanHitung(unittest.TestCase):
-    def test_opening_balance_ikut_saldo_tapi_bukan_pemasukan(self):
-        arus = lb.arus_per_bulan(DASAR)
-        self.assertEqual(arus["2026-03"]["pemasukan"], 0)
-        self.assertEqual(lb.saldo_akhir(arus, "2026-03"), 20_500_000)
+    """Saldo Awal, Transfer, Saldo kumulatif, tipe kosong: diuji di tests/test_buku_kas.py."""
 
-    def test_transfer_dilewati(self):
-        arus = lb.arus_per_bulan(DASAR)
-        self.assertEqual(arus["2026-08"]["pengeluaran"], 500_000)
+    def test_saldo_akhir_per_hari_terakhir_bulan(self):
+        self.assertEqual(lb.saldo_akhir(DASAR, "2026-07"), 20_500_000 - 100_000 + 5_000_000)
+        self.assertEqual(lb.saldo_akhir(DASAR, "2026-08"), 25_400_000 + 5_000_000 - 500_000)
+
+    def test_jumlah_transaksi_tanpa_transfer_dan_saldo_awal(self):
         self.assertEqual(lb.jumlah_transaksi(DASAR, "2026-08"), 3)
+        self.assertEqual(lb.jumlah_transaksi(DASAR, "2026-03"), 0)
 
-    def test_saldo_kumulatif(self):
-        arus = lb.arus_per_bulan(DASAR)
-        self.assertEqual(lb.saldo_akhir(arus, "2026-07"), 20_500_000 - 100_000 + 5_000_000)
-        self.assertEqual(lb.saldo_akhir(arus, "2026-08"), 25_400_000 + 5_000_000 - 500_000)
-
-    def test_tanpa_tipe_dianggap_pengeluaran(self):
-        arus = lb.arus_per_bulan([{"tanggal": "2026-08-01", "kategori": "food", "jumlah": "50"}])
-        self.assertEqual(arus["2026-08"]["pengeluaran"], 50)
+    def test_baris_tak_terhitung_diperingatkan(self):
+        self.assertIn("1 transaksi tidak terhitung", lb.susun("2026-08", DASAR, {}, {"bulan": {}}, []))
+        bersih = [r for r in DASAR if r["tanggal"]]
+        self.assertNotIn("tidak terhitung", lb.susun("2026-08", bersih, {}, {"bulan": {}}, []))
 
     def test_bulan_sebelum_melewati_tahun(self):
         self.assertEqual(lb.bulan_sebelum("2027-01"), "2026-12")
@@ -60,27 +56,27 @@ class AturanHitung(unittest.TestCase):
 
 class AturanKoreksi(unittest.TestCase):
     def test_koreksi_hanya_di_bulan_asal(self):
-        simpanan = lb.simpanan_baru({"bulan": {}}, "2026-07", lb.arus_per_bulan(DASAR))
-        simpanan = lb.simpanan_baru(simpanan, "2026-08", lb.arus_per_bulan(DASAR))
+        simpanan = lb.simpanan_baru({"bulan": {}}, "2026-07", DASAR)
+        simpanan = lb.simpanan_baru(simpanan, "2026-08", DASAR)
         # Pencocokan bank menemukan pengeluaran Juli yang terlewat.
         kini = DASAR + [baris("2026-07-20", "pengeluaran", "other", 350_000)]
-        koreksi = lb.cari_koreksi(lb.arus_per_bulan(kini), simpanan, "2026-09")
+        koreksi = lb.cari_koreksi(kini, simpanan, "2026-09")
         self.assertEqual([k["bulan"] for k in koreksi], ["2026-07"])  # bukan Agustus juga
         self.assertEqual(koreksi[0]["pengeluaran"], 350_000)
 
     def test_koreksi_disebut_sekali(self):
-        simpanan = lb.simpanan_baru({"bulan": {}}, "2026-07", lb.arus_per_bulan(DASAR))
-        kini = lb.arus_per_bulan(DASAR + [baris("2026-07-20", "pengeluaran", "other", 350_000)])
+        simpanan = lb.simpanan_baru({"bulan": {}}, "2026-07", DASAR)
+        kini = DASAR + [baris("2026-07-20", "pengeluaran", "other", 350_000)]
         simpanan = lb.simpanan_baru(simpanan, "2026-08", kini)
         self.assertEqual(lb.cari_koreksi(kini, simpanan, "2026-09"), [])
 
     def test_bulan_yang_sedang_dilaporkan_bukan_koreksi(self):
-        simpanan = lb.simpanan_baru({"bulan": {}}, "2026-08", lb.arus_per_bulan(DASAR))
-        kini = lb.arus_per_bulan(DASAR + [baris("2026-08-30", "pengeluaran", "food", 1)])
+        simpanan = lb.simpanan_baru({"bulan": {}}, "2026-08", DASAR)
+        kini = DASAR + [baris("2026-08-30", "pengeluaran", "food", 1)]
         self.assertEqual(lb.cari_koreksi(kini, simpanan, "2026-08"), [])
 
     def test_koreksi_tampil_di_pesan(self):
-        simpanan = lb.simpanan_baru({"bulan": {}}, "2026-07", lb.arus_per_bulan(DASAR))
+        simpanan = lb.simpanan_baru({"bulan": {}}, "2026-07", DASAR)
         kini = DASAR + [baris("2026-07-20", "pengeluaran", "other", 350_000)]
         pesan = lb.susun("2026-08", kini, {}, simpanan, [])
         self.assertIn("Koreksi Juli 2026: pengeluaran naik Rp 350.000", pesan)

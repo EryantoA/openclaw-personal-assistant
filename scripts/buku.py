@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).parent))
+import buku_kas  # noqa: E402
 import resi  # noqa: E402
 import validasi  # noqa: E402
 from validasi import Tolak, kunci_berkas  # noqa: E402
@@ -143,7 +144,7 @@ def rp(n) -> str:
 
 
 def total(rows: list) -> int:
-    return sum(int(resi.norm_total(r.get("jumlah")) or 0) for r in rows)
+    return sum(buku_kas.jumlah(r) for r in rows)
 
 
 def tampil_nilai(kolom: str, nilai) -> str:
@@ -175,16 +176,15 @@ def _muat_json(path: Path, bawaan):
         return bawaan
 
 
-def _arus(rows: list) -> dict:
-    """{bulan: [pemasukan, pengeluaran]}; transfer tidak ikut (CONTEXT.md → Saldo, Koreksi)."""
-    hasil = {}
-    for r in rows:
-        bulan = (r.get("tanggal") or "")[:7]
-        tipe = (r.get("tipe") or "pengeluaran").strip().lower()
-        if not bulan or tipe == "transfer":
-            continue
-        h = hasil.setdefault(bulan, [0, 0])
-        h[0 if tipe == "pemasukan" else 1] += int(resi.norm_total(r.get("jumlah")) or 0)
+def _bulan_berubah(lama: list, baru: list) -> list:
+    """Bulan yang Pemasukan/Pengeluarannya berubah — persis angka yang dibandingkan Koreksi
+    di Laporan Bulanan (buku_kas.arus_kas_bulan)."""
+    bulan = {t.strftime("%Y-%m") for r in lama + baru if (t := buku_kas.tanggal(r)) is not None}
+    hasil = []
+    for b in sorted(bulan):
+        a, c = buku_kas.arus_kas_bulan(lama, b), buku_kas.arus_kas_bulan(baru, b)
+        if (a["pemasukan"], a["pengeluaran"]) != (c["pemasukan"], c["pengeluaran"]):
+            hasil.append(b)
     return hasil
 
 
@@ -197,10 +197,9 @@ def _peringatan_bills(path: Path, lama: list, baru: list) -> list:
             if nomor and (e.get("lunas_resi") or "").strip() == nomor:
                 hasil.append(f"⚠️ Kewajiban {e.get('nama') or e.get('id')} ({e.get('id')}) tertaut ke "
                              f"Transaksi ini dan akan kembali belum lunas.")
-    sebelum, sesudah = _arus(lama), _arus(baru)
     dilaporkan = _muat_json(path.with_name("laporan-bulanan.json"), {}).get("bulan", {})
-    for bulan in sorted(set(sebelum) | set(sesudah)):
-        if bulan in dilaporkan and sebelum.get(bulan, [0, 0]) != sesudah.get(bulan, [0, 0]):
+    for bulan in _bulan_berubah(lama, baru):
+        if bulan in dilaporkan:
             hasil.append(f"⚠️ Bulan {bulan} sudah dilaporkan; perubahan ini akan muncul sebagai "
                          f"Koreksi di Laporan Bulanan berikutnya.")
     return hasil

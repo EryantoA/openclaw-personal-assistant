@@ -13,10 +13,13 @@ pada tanggal cutover. Selisih dilaporkan terbuka, tidak pernah diserap diam-diam
 (ADR-0010).
 """
 import argparse
-import csv
 import json
 import sys
+from datetime import date, timedelta
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import buku_kas  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 BILLS = ROOT / "data" / "bills.csv"
@@ -28,30 +31,10 @@ def rupiah(n):
     return f"Rp {n:,.0f}".replace(",", ".")
 
 
-def jumlah(row):
-    try:
-        return float(row.get("jumlah") or 0)
-    except (ValueError, TypeError):
-        return 0.0
-
-
 def muat():
-    rows = list(csv.DictReader(BILLS.open(encoding="utf-8", newline="")))
+    rows = buku_kas.muat(BILLS)
     cfg = json.loads(AKUN.read_text(encoding="utf-8"))
     return rows, cfg
-
-
-def saldo_global(rows, sampai=None):
-    """Saldo kumulatif hingga `sampai` (eksklusif). Transfer tidak pernah ikut."""
-    s = 0.0
-    for r in rows:
-        if sampai and r.get("tanggal", "") >= sampai:
-            continue
-        tipe = (r.get("tipe") or "pengeluaran").strip().lower()
-        if tipe == "transfer":
-            continue
-        s += jumlah(r) if tipe == "pemasukan" else -jumlah(r)
-    return s
 
 
 def aktif(cfg):
@@ -69,7 +52,7 @@ def periksa(rows, cfg):
         return False, pesan
 
     cutover = cfg["cutover"]
-    nyata = saldo_global(rows, sampai=cutover)
+    nyata = buku_kas.saldo(rows, per=date.fromisoformat(cutover) - timedelta(days=1))
     tercatat = float(cfg["saldo_global_saat_cutover"])
     total = sum(float(a["saldo_awal"]) for a in cfg["akun"])
 
@@ -97,23 +80,25 @@ def saldo_per_akun(rows, cfg):
 
     saldo = {a["id"]: float(a["saldo_awal"]) for a in cfg["akun"]}
     tanpa_akun = 0
+    mulai = date.fromisoformat(cutover)
     for r in rows:
-        if r.get("tanggal", "") < cutover:
+        tgl, tipe = buku_kas.tanggal(r), buku_kas.arah(r)
+        if tgl is None or tipe is None or tgl < mulai:  # tak terhitung: dilaporkan main()
             continue
-        tipe = (r.get("tipe") or "pengeluaran").strip().lower()
         a = alias.get((r.get("akun") or "").strip().lower())
+        jumlah = buku_kas.jumlah(r)
         if tipe == "transfer":
             tuj = alias.get((r.get("akun_tujuan") or "").strip().lower())
             if a and tuj:
-                saldo[a] -= jumlah(r)
-                saldo[tuj] += jumlah(r)
+                saldo[a] -= jumlah
+                saldo[tuj] += jumlah
             else:
                 tanpa_akun += 1
             continue
         if not a:
             tanpa_akun += 1
             continue
-        saldo[a] += jumlah(r) if tipe == "pemasukan" else -jumlah(r)
+        saldo[a] += jumlah if tipe == "pemasukan" else -jumlah
     return saldo, nama, tanpa_akun
 
 
@@ -135,13 +120,17 @@ def main():
         print(f"  {nama[i]:14s} {rupiah(s):>18s}")
     print(f"  {'TOTAL':14s} {rupiah(sum(saldo.values())):>18s}")
 
-    glob = saldo_global(rows)
+    glob = buku_kas.saldo(rows, per=date.max)
     if abs(glob - sum(saldo.values())) > 0.5:
         print(f"\n⚠️ Total akun tidak sama dengan Saldo global ({rupiah(glob)}). "
               f"Selisih {rupiah(sum(saldo.values()) - glob)}.")
     if tanpa:
         print(f"\n⚠️ {tanpa} transaksi sejak cutover belum menyebut akun — "
               f"tidak masuk hitungan mana pun. Lengkapi kolom `akun`-nya.")
+    tak = buku_kas.tak_terhitung(rows)
+    if tak:
+        print(f"\n⚠️ {len(tak)} transaksi tidak terhitung di saldo mana pun "
+              f"(tanggal tidak sah / tipe tidak dikenal).")
     return 0
 
 

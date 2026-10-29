@@ -20,7 +20,6 @@ Usage:
   python3 scripts/check-bills.py --mode all --kirim   # cron cek_budget_malam: kirim HANYA kalau ada isi
 """
 
-import csv
 import json
 import os
 import sys
@@ -33,6 +32,8 @@ from typing import Optional, List, Dict
 
 # ── Paths ────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR.resolve()))
+import buku_kas  # noqa: E402
 PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
 BILLS_CSV = DATA_DIR / "bills.csv"
@@ -56,18 +57,9 @@ def load_budget() -> Dict:
 
 
 def load_bills() -> List[Dict]:
-    """Load data dari bills.csv."""
-    if not BILLS_CSV.exists():
-        return []
-    rows = []
-    try:
-        with open(BILLS_CSV, encoding="utf-8", newline="") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                rows.append(row)
-    except Exception:
-        pass
-    return rows
+    """Baris bills.csv lewat buku_kas: kosong kalau belum ada, gagal jelas kalau rusak —
+    cek malam yang diam karena file rusak terbaca kosong lebih buruk daripada cron error."""
+    return buku_kas.muat(BILLS_CSV)
 
 
 def load_list(path: Path, key: str) -> List[Dict]:
@@ -110,21 +102,17 @@ def check_budget(today: Optional[date] = None) -> str:
     today = today or date.today()
     bulan_ini = today.strftime("%Y-%m")
 
-    total_bulan = 0.0
+    total_bulan = 0
     for row in bills:
-        tanggal_str = row.get("tanggal", "")
-        if not tanggal_str.startswith(bulan_ini):
+        tgl = buku_kas.tanggal(row)
+        if tgl is None or tgl.strftime("%Y-%m") != bulan_ini:
             continue
         # Budget hanya menghitung pengeluaran; pemasukan (income) dan transfer
         # antar akun sendiri diabaikan. Transfer bukan belanja — memindahkan uang
         # dari Bank ke Kas tidak boleh memakan jatah budget bulan itu.
-        # Data lama tanpa kolom `tipe` dianggap pengeluaran.
-        if (row.get("tipe") or "pengeluaran").strip().lower() != "pengeluaran":
+        if buku_kas.arah(row) != "pengeluaran":
             continue
-        try:
-            total_bulan += float(row.get("jumlah", 0))
-        except (ValueError, TypeError):
-            pass
+        total_bulan += buku_kas.jumlah(row)
 
     persen = (total_bulan / budget_bulanan) * 100
 
@@ -244,7 +232,8 @@ def perkiraan_absen(tahun: int, bulan: int, today: Optional[date] = None) -> Lis
     toleransi_persen = float(budget_data.get("perkiraan_toleransi_persen", 10))
 
     kunci = f"{tahun:04d}-{bulan:02d}"
-    rows = [r for r in load_bills() if (r.get("tanggal") or "").startswith(kunci)]
+    rows = [r for r in load_bills()
+            if (t := buku_kas.tanggal(r)) is not None and t.strftime("%Y-%m") == kunci]
 
     absen = []
     for e in entries:
@@ -276,16 +265,13 @@ def perkiraan_absen(tahun: int, bulan: int, today: Optional[date] = None) -> Lis
 
         ketemu = False
         for r in rows:
-            if (r.get("tipe") or "pengeluaran").strip().lower() != tipe_dicari:
+            if buku_kas.arah(r) != tipe_dicari:
                 continue
             if (r.get("kategori") or "").strip().lower() != kategori:
                 continue
-            try:
-                if abs(float(r.get("jumlah", 0)) - nominal) <= batas:
-                    ketemu = True
-                    break
-            except (ValueError, TypeError):
-                continue
+            if abs(buku_kas.jumlah(r) - nominal) <= batas:
+                ketemu = True
+                break
 
         if not ketemu:
             absen.append(e)
