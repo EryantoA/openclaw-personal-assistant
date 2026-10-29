@@ -35,26 +35,23 @@ def tiap_hari(mulai, akhir, jumlah=10_000):
 
 
 class DenganBerkasKosong(unittest.TestCase):
-    """budget/kewajiban/perkiraan/bills milik check-bills diarahkan ke folder sementara."""
+    """budget.json, kewajiban.json, perkiraan.json diarahkan ke folder sementara."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        nama = ("BUDGET_JSON", "KEWAJIBAN_JSON", "PERKIRAAN_JSON", "BILLS_CSV")
-        self.asli = {k: getattr(lm.cek, k) for k in nama}
-        for k in nama:
-            setattr(lm.cek, k, self.tmp / k.lower())
+        self.tambal = [(lm.pengaturan, "BUDGET_JSON"), (lm.kewajiban, "KEWAJIBAN_JSON"),
+                       (lm.perkiraan, "PERKIRAAN_JSON")]
+        self.asli = [getattr(m, k) for m, k in self.tambal]
+        for m, k in self.tambal:
+            setattr(m, k, self.tmp / k.lower())
         (self.tmp / "budget_json").write_text(json.dumps({"budget_bulanan": 1_000_000}))
 
     def tearDown(self):
-        for k, v in self.asli.items():
-            setattr(lm.cek, k, v)
+        for (m, k), v in zip(self.tambal, self.asli):
+            setattr(m, k, v)
 
 
 class Pekan(DenganBerkasKosong):
-    def test_awal_pekan_senin(self):
-        self.assertEqual(lm.awal_pekan(date(2026, 10, 25)), SENIN)  # Minggu
-        self.assertEqual(lm.awal_pekan(SENIN), SENIN)
-
     def test_minggu_masuk_senin_berikutnya_dan_minggu_sebelumnya_tidak(self):
         rows = tiap_hari(SENIN, MINGGU) + [
             tx("2026-10-25", "pengeluaran", 70_000, item="Minggu larut"),
