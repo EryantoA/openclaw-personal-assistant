@@ -54,6 +54,7 @@ class Bulan(unittest.TestCase):
 
     def test_rentang_bulan(self):
         self.assertEqual(periode.rentang_bulan("2026-09"), (date(2026, 9, 1), date(2026, 9, 30)))
+        self.assertEqual(periode.rentang_bulan("2026-02"), (date(2026, 2, 1), date(2026, 2, 28)))
         with self.assertRaises(ValueError):
             periode.rentang_bulan("2026-13")
 
