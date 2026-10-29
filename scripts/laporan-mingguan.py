@@ -8,7 +8,10 @@ Cron menjalankannya Senin 07:00 dengan --kirim; permintaan lewat chat menjalanka
 
 Aturan hitung sengaja dipinjam, bukan ditulis ulang:
   - Arah, jumlah, Saldo → buku_kas (transfer tak ikut, Saldo Awal ikut Saldo, bukan Pemasukan)
-  - Perkiraan       → check-bills.perkiraan_absen (sama dengan Laporan Bulanan, ADR 0012)
+  - Pekan, bulan    → periode (satu definisi Pekan untuk semua laporan)
+  - Perkiraan       → perkiraan.absen (sama dengan Laporan Bulanan dan cek malam, ADR 0012)
+  - Kewajiban       → kewajiban.belum_lunas (lunas = lunas_resi menunjuk baris yang ada)
+  - Budget          → pengaturan (data/budget.json)
   - Tujuan          → pengirim.tujuan_baku (nomor pemilik dari config)
   - Kirim           → pengirim.kirim (3 percobaan, jeda 60 dtk — kirim WA gagal acak ±23%)
 
@@ -22,8 +25,6 @@ Usage:
 """
 
 import argparse
-import calendar
-import importlib.util
 import sys
 from collections import defaultdict
 from datetime import date, timedelta
@@ -31,19 +32,13 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
+import akun  # noqa: E402
 import buku_kas  # noqa: E402
-
-
-def _muat_modul(nama, file):
-    spec = importlib.util.spec_from_file_location(nama, SCRIPTS / file)
-    modul = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modul)
-    return modul
-
-
-akun = _muat_modul("akun", "akun.py")
-cek = _muat_modul("check_bills", "check-bills.py")
-pengirim = _muat_modul("pengirim", "pengirim.py")
+import kewajiban  # noqa: E402
+import pengaturan  # noqa: E402
+import pengirim  # noqa: E402
+import periode  # noqa: E402
+import perkiraan  # noqa: E402
 
 rupiah = akun.rupiah
 jumlah = buku_kas.jumlah
@@ -62,10 +57,6 @@ HARI_KOSONG_MIN = 2  # berturut-turut, dalam satu Pekan (ADR 0013)
 
 def tgl(d):
     return f"{d.day} {BULAN[d.month]}"
-
-
-def awal_pekan(d):
-    return d - timedelta(days=d.weekday())
 
 
 def di_antara(rows, mulai, akhir):
@@ -127,22 +118,12 @@ def bagian_terbesar(keluar, n=3):
     return baris
 
 
-def bulan_dalam(mulai, akhir):
-    """(tahun, bulan) yang disentuh rentang ini, urut."""
-    hasil, d = [], mulai
-    while d <= akhir:
-        if (d.year, d.month) not in hasil:
-            hasil.append((d.year, d.month))
-        d += timedelta(days=1)
-    return hasil
-
-
 def bagian_budget(rows, mulai, akhir, pekan_tutup):
     """Budget tiap bulan yang disentuh Pekan. Bulan yang berakhir di dalam Pekan = (tutup)."""
-    anggaran = float(cek.load_budget().get("budget_bulanan", 0) or 0)
+    anggaran = float(pengaturan.muat().get("budget_bulanan", 0) or 0)
     baris = []
-    for th, bl in bulan_dalam(mulai, akhir):
-        akhir_bulan = date(th, bl, calendar.monthrange(th, bl)[1])
+    for th, bl in periode.bulan_dalam(mulai, akhir):
+        akhir_bulan = periode.akhir_bulan(f"{th:04d}-{bl:02d}")
         tutup = akhir_bulan <= akhir and (pekan_tutup or akhir_bulan < akhir)
         batas = min(akhir, akhir_bulan)
         pakai = total(pengeluaran(di_antara(rows, date(th, bl, 1), batas)))
@@ -155,36 +136,31 @@ def bagian_budget(rows, mulai, akhir, pekan_tutup):
 
 
 def bagian_kewajiban(rows):
-    resi_ada = {(r.get("no_resi") or "").strip() for r in rows} - {""}
     baris = []
-    for e in cek.load_list(cek.KEWAJIBAN_JSON, "kewajiban"):
-        resi = (e.get("lunas_resi") or "").strip()
-        if resi and resi in resi_ada:
-            continue
-        jt = cek.parse_tanggal(e.get("jatuh_tempo", ""))
-        nama = e.get("nama") or e.get("id") or "(tanpa nama)"
-        try:
-            nominal = rupiah(float(e.get("nominal", 0)))
-        except (ValueError, TypeError):
-            nominal = "Rp ?"
-        baris.append(f"• {nama} — {nominal}, jatuh tempo {tgl(jt) if jt else '?'}")
+    for e, _ in kewajiban.belum_lunas(kewajiban.muat(), rows):
+        jt = kewajiban.jatuh_tempo(e)
+        n = kewajiban.nominal(e)
+        nominal = "Rp ?" if n is None else rupiah(n)
+        baris.append(f"• {kewajiban.nama(e)} — {nominal}, jatuh tempo {tgl(jt) if jt else '?'}")
     if not baris:
         return ["🧾 Kewajiban belum lunas: tidak ada"]
     return ["🧾 Kewajiban belum lunas:", *baris]
 
 
-def bagian_perkiraan(mulai, akhir, pekan_tutup):
+def bagian_perkiraan(rows, mulai, akhir, pekan_tutup):
     """Tiap bulan yang disentuh Pekan. Bulan tutup: yang absen = tidak muncul.
     Bulan berjalan: yang absen = belum muncul (≈tgl), atau belum waktunya kalau tanggalnya
     masih sesudah akhir Pekan."""
-    semua = [e for e in cek.load_list(cek.PERKIRAAN_JSON, "perkiraan") if e.get("aktif", True)]
+    semua = perkiraan.muat()
     if not semua:
         return []
+    atur = pengaturan.muat()
     baris = []
-    for th, bl in bulan_dalam(mulai, akhir):
-        akhir_bulan = date(th, bl, calendar.monthrange(th, bl)[1])
+    for th, bl in periode.bulan_dalam(mulai, akhir):
+        akhir_bulan = periode.akhir_bulan(f"{th:04d}-{bl:02d}")
         tutup = akhir_bulan <= akhir and (pekan_tutup or akhir_bulan < akhir)
-        absen_nama = {(e.get("id") or e.get("nama")) for e in cek.perkiraan_absen(th, bl, None)}
+        absen_nama = {(e.get("id") or e.get("nama"))
+                      for e in perkiraan.absen(semua, rows, th, bl, None, atur)}
         item = []
         for e in semua:
             nama = e.get("nama") or e.get("id") or "(tanpa nama)"
@@ -230,11 +206,11 @@ def susun(rows, mulai, akhir, pekan_tutup):
     keluar_lalu = pengeluaran(di_antara(rows, mulai - timedelta(days=7), mulai - timedelta(days=1)))
 
     judul = "📊 LAPORAN MINGGUAN" if pekan_tutup else "📊 LAPORAN MINGGUAN — Pekan berjalan"
-    periode = f"Pekan: Senin {tgl(mulai)} – Minggu {tgl(minggu)} {minggu.year}"
+    rentang = f"Pekan: Senin {tgl(mulai)} – Minggu {tgl(minggu)} {minggu.year}"
     if not pekan_tutup:
-        periode += f" (sampai {HARI[akhir.weekday()]} {tgl(akhir)})"
+        rentang += f" (sampai {HARI[akhir.weekday()]} {tgl(akhir)})"
 
-    baris = [judul, periode, ""]
+    baris = [judul, rentang, ""]
 
     for deret in hari_kosong(rows, mulai, akhir):
         nama = ", ".join(f"{HARI[d.weekday()]} {d.day}" for d in deret)
@@ -257,9 +233,7 @@ def susun(rows, mulai, akhir, pekan_tutup):
     ]
     baris += bagian_budget(rows, mulai, akhir, pekan_tutup)
     baris += [""] + bagian_kewajiban(rows)
-    perkiraan = bagian_perkiraan(mulai, akhir, pekan_tutup)
-    if perkiraan:
-        baris += perkiraan
+    baris += bagian_perkiraan(rows, mulai, akhir, pekan_tutup)
     return "\n".join(baris)
 
 
@@ -273,15 +247,11 @@ def main():
     a = ap.parse_args()
 
     hari_ini = date.fromisoformat(a.hari_ini) if a.hari_ini else date.today()
-    if a.berjalan:
-        mulai, akhir, tutup = awal_pekan(hari_ini), hari_ini, False
-    else:
-        acuan = date.fromisoformat(a.pekan) if a.pekan else hari_ini - timedelta(days=7)
-        mulai = awal_pekan(acuan)
-        akhir = mulai + timedelta(days=6)
-        if akhir >= hari_ini:
-            ap.error(f"Pekan {mulai}–{akhir} belum tutup; pakai --berjalan")
-        tutup = True
+    acuan = date.fromisoformat(a.pekan) if a.pekan else None
+    try:
+        mulai, akhir, tutup = periode.pilih_pekan(hari_ini, acuan, a.berjalan)
+    except ValueError as e:
+        ap.error(str(e))
 
     rows = buku_kas.muat()
     laporan = susun(rows, mulai, akhir, tutup)

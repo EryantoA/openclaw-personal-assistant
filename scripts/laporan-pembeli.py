@@ -15,42 +15,22 @@ Usage:
 """
 
 import argparse
-import calendar
-import importlib.util
 import sys
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
+import akun  # noqa: E402
 import buku_kas  # noqa: E402
+import periode  # noqa: E402
+import resi  # noqa: E402
 
-
-def _muat_modul(nama, file):
-    spec = importlib.util.spec_from_file_location(nama, SCRIPTS / file)
-    modul = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modul)
-    return modul
-
-
-akun = _muat_modul("akun", "akun.py")
-resi = _muat_modul("resi", "resi.py")
-_mingguan = _muat_modul("laporan_mingguan", "laporan-mingguan.py")  # satu definisi Pekan
 rupiah = akun.rupiah
 
 BULAN = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 TANPA_NAMA = "Tanpa nama"
-
-
-def rentang_pekan(d):
-    mulai = _mingguan.awal_pekan(d)
-    return mulai, mulai + timedelta(days=6)
-
-
-def rentang_bulan(bulan):
-    t = datetime.strptime(bulan, "%Y-%m")
-    return date(t.year, t.month, 1), date(t.year, t.month, calendar.monthrange(t.year, t.month)[1])
 
 
 def susun(rows, mulai, akhir, judul, peta=None):
@@ -97,7 +77,7 @@ def main(argv=None):
     hari_ini = date.fromisoformat(a.hari_ini) if a.hari_ini else date.today()
     if a.bulan:
         try:
-            mulai, akhir = rentang_bulan(a.bulan)
+            mulai, akhir = periode.rentang_bulan(a.bulan)
         except ValueError:
             ap.error(f"--bulan tidak valid: {a.bulan}")
         if mulai > hari_ini:
@@ -107,14 +87,11 @@ def main(argv=None):
             akhir = hari_ini
             judul += f" (s.d. {_tgl(hari_ini)})"
     else:
-        if a.berjalan:
-            mulai, _ = rentang_pekan(hari_ini)
-            akhir = hari_ini
-        else:
-            acuan = date.fromisoformat(a.pekan) if a.pekan else hari_ini - timedelta(days=7)
-            mulai, akhir = rentang_pekan(acuan)
-            if akhir >= hari_ini:
-                ap.error(f"Pekan {mulai}–{akhir} belum tutup; pakai --berjalan")
+        acuan = date.fromisoformat(a.pekan) if a.pekan else None
+        try:
+            mulai, akhir, _ = periode.pilih_pekan(hari_ini, acuan, a.berjalan)
+        except ValueError as e:
+            ap.error(str(e))
         judul = f"Pekan {_tgl(mulai)}–{_tgl(akhir)} {akhir.year}"
 
     print(susun(buku_kas.muat(), mulai, akhir, judul))

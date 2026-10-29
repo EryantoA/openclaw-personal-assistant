@@ -17,7 +17,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import calendar
 import sys
 from collections import defaultdict
 from datetime import date, datetime, timedelta
@@ -30,6 +29,7 @@ from openpyxl.utils import get_column_letter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buku_kas  # noqa: E402
 import duplikat  # noqa: E402
+import periode  # noqa: E402
 
 # ── Paths ────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
@@ -96,11 +96,6 @@ def cleanup_old_exports(backup_dir: Path, days: int = RETENSI_HARI) -> int:
 def load_bills() -> list[dict]:
     """Baris bills.csv lewat buku_kas: kosong kalau belum ada, gagal jelas kalau rusak."""
     return buku_kas.muat(BILLS_CSV)
-
-
-def akhir_bulan(bulan: str) -> date:
-    t, b = map(int, bulan.split("-"))
-    return date(t, b, calendar.monthrange(t, b)[1])
 
 
 def format_rupiah(amount: float) -> str:
@@ -307,7 +302,7 @@ def build_workbook(bills: list[dict]) -> tuple[Workbook, dict]:
     for bulan in sorted(by_month):
         rows = by_month[bulan]
         arus = buku_kas.arus_kas_bulan(bills, bulan)
-        akhir = akhir_bulan(bulan)
+        akhir = periode.akhir_bulan(bulan)
         saldo_masuk = buku_kas.saldo(bills, per=akhir.replace(day=1) - timedelta(days=1))
         saldo_keluar = buku_kas.saldo(bills, per=akhir)
         write_month_sheet(wb, bulan, rows, arus, saldo_masuk, saldo_keluar)

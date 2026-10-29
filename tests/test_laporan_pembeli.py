@@ -87,14 +87,6 @@ class Alias(unittest.TestCase):
         self.assertNotIn("Tanpa nama", teks)
 
 
-class Rentang(unittest.TestCase):
-    def test_pekan_senin_sampai_minggu(self):
-        self.assertEqual(lp.rentang_pekan(date(2026, 10, 15)), (date(2026, 10, 12), date(2026, 10, 18)))
-
-    def test_bulan_kalender(self):
-        self.assertEqual(lp.rentang_bulan("2026-02"), (date(2026, 2, 1), date(2026, 2, 28)))
-
-
 class Penjaga(unittest.TestCase):
     def test_pekan_belum_tutup_ditolak(self):
         with self.assertRaises(SystemExit):

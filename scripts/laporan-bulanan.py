@@ -18,8 +18,6 @@ Aturan hitung (Transfer, Saldo Awal, baris tanpa tanggal/tipe tak dikenal) ada d
 scripts/buku_kas.py, satu untuk semua laporan.
 """
 import argparse
-import calendar
-import importlib.util
 import json
 import sys
 from datetime import date, datetime
@@ -27,12 +25,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buku_kas  # noqa: E402
+import pengaturan  # noqa: E402
 import pengirim  # noqa: E402
+import periode  # noqa: E402
+import perkiraan  # noqa: E402
 
 AKAR = Path(__file__).resolve().parent.parent
 DATA = AKAR / "data"
 BILLS = DATA / "bills.csv"
-BUDGET = DATA / "budget.json"
 SIMPANAN = DATA / "laporan-bulanan.json"
 
 KATEGORI_TERATAS = 5
@@ -57,14 +57,9 @@ def di_bulan(r, bulan):
     return tgl is not None and tgl.strftime("%Y-%m") == bulan
 
 
-def akhir_bulan(bulan):
-    t, b = map(int, bulan.split("-"))
-    return date(t, b, calendar.monthrange(t, b)[1])
-
-
 def saldo_akhir(baris, bulan):
     """Saldo per akhir `bulan`."""
-    return buku_kas.saldo(baris, per=akhir_bulan(bulan))
+    return buku_kas.saldo(baris, per=periode.akhir_bulan(bulan))
 
 
 def per_kategori(baris, bulan):
@@ -79,11 +74,6 @@ def per_kategori(baris, bulan):
 def jumlah_transaksi(baris, bulan):
     return sum(1 for r in baris if di_bulan(r, bulan)
                and buku_kas.arah(r) in ("pemasukan", "pengeluaran") and not buku_kas.saldo_awal(r))
-
-
-def bulan_sebelum(bulan):
-    t, b = map(int, bulan.split("-"))
-    return f"{t - 1}-12" if b == 1 else f"{t}-{b - 1:02d}"
 
 
 def cari_koreksi(baris, simpanan, bulan_laporan):
@@ -112,11 +102,8 @@ def perkiraan_absen(bulan, today=None):
     Perkiraan yang tanggalnya belum lewat toleransi tidak ikut disebut — gaji tanggal 26 belum
     bisa dibilang "tidak masuk" pada tanggal 21.
     """
-    spec = importlib.util.spec_from_file_location("check_bills", AKAR / "scripts" / "check-bills.py")
-    cb = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(cb)
     t, b = map(int, bulan.split("-"))
-    return cb.perkiraan_absen(t, b, today)
+    return perkiraan.absen(perkiraan.muat(), muat_baris(), t, b, today, pengaturan.muat())
 
 
 # ── Menyusun ──────────────────────────────────────────────────────────────
@@ -132,7 +119,7 @@ def nama_bulan(bulan):
 def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
     h = buku_kas.arus_kas_bulan(baris, bulan)
     arus_kas = h["pemasukan"] - h["pengeluaran"]
-    lalu = bulan_sebelum(bulan)
+    lalu = periode.bulan_sebelum(bulan)
     nb, nl = nama_bulan(bulan), NAMA_BULAN[int(lalu[5:]) - 1]
 
     judul = f"📊 *LAPORAN BULANAN — {nb}*"
@@ -228,7 +215,7 @@ def main(argv=None):
         hari_ini = date.fromisoformat(a.hari_ini) if a.hari_ini else date.today()
     except ValueError:
         ap.error(f"--hari-ini tidak valid: {a.hari_ini}")
-    bulan = a.bulan or bulan_sebelum(hari_ini.strftime("%Y-%m"))
+    bulan = a.bulan or periode.bulan_sebelum(hari_ini.strftime("%Y-%m"))
     try:
         datetime.strptime(bulan, "%Y-%m")
     except ValueError:
@@ -239,7 +226,7 @@ def main(argv=None):
 
     baris = muat_baris()
     simpanan = muat_json(SIMPANAN, {"bulan": {}})
-    pesan = susun(bulan, baris, muat_json(BUDGET, {}), simpanan,
+    pesan = susun(bulan, baris, pengaturan.muat(), simpanan,
                   perkiraan_absen(bulan, hari_ini if berjalan else None),
                   hari_ini if berjalan else None)
     print(pesan)
