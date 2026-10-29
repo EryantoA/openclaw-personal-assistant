@@ -46,6 +46,7 @@ from typing import Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).parent))
 import buku_kas  # noqa: E402
+import duplikat  # noqa: E402
 import resi  # noqa: E402
 import validasi  # noqa: E402
 from validasi import Tolak, kunci_berkas  # noqa: E402
@@ -228,7 +229,7 @@ def skema_bills() -> Skema:
         terkunci=frozenset({"no_resi", "channel"}),
         tingkat_transaksi=frozenset({"tanggal", "waktu", "tipe", "pencatat", "akun", "akun_tujuan"}),
         cek_baris=_cek_bills,
-        cek_duplikat=lambda baru, lain: validasi.cek_duplikat_lapis2(baru, lain, saran_paksa=False),
+        cek_duplikat=lambda baru, lain: duplikat.cek(baru, lain, saran_paksa=False, lapis_1=False),
         terlindung=_terlindung_bills, format_cari=_format_cari_bills, peringatan=_peringatan_bills,
         kolom_kata=("item",))
 

@@ -19,20 +19,18 @@ Mode:
       LAPIS 1: cek apakah no_resi persis sudah ada di bills.csv.
       Ada -> print "DUPLICATE ..." (exit 1). Tidak -> print "OK ..." (exit 0).
 
-  --check-dup --tanggal <tgl> --waktu <jam> --total <angka> [--item .. --kategori .. --catatan .. --pencatat ..]
-      LAPIS 2: cek duplikat berbasis aturan multi-field yang dikonfigurasi di
-      data/budget.json -> duplicate_check.match_fields. Semua field yang
-      dikonfigurasi harus cocok baru dianggap duplikat.
-      Duplikat -> print "DUPLICATE ..." (exit 1). Tidak -> print "OK ..." (exit 0).
-
   --find-dup
-      Laporkan baris DUPLIKAT di bills.csv (isi identik, semua kolom sama kecuali no_resi).
+      Laporkan baris DUPLIKAT di bills.csv (isi identik, semua kolom sama kecuali no_resi),
+      dengan aturan "sama" yang sama seperti saat mencatat (scripts/duplikat.py).
       Ada -> print daftar grup duplikat (exit 1). Bersih -> "OK tidak ada duplikat" (exit 0).
 
   --backfill
       Isi no_resi (TRX-<tanggal baris>-XXXX unik) untuk baris lama yang belum punya.
       Menulis ulang bills.csv dengan header lengkap, membuat cadangan bills.csv.bak.
       Idempotent: baris yang sudah punya no_resi tidak diubah.
+
+Lapis 2 (aturan multi-field di budget.json) dicek otomatis oleh catat.py dan buku.py lewat
+scripts/duplikat.py; tidak ada perintah terpisah.
 
 Exit code: 0 = OK / tidak duplikat, 1 = DUPLICATE ditemukan, 2 = error argumen.
 """
@@ -266,67 +264,11 @@ def do_check(no_resi: str) -> int:
     return 0
 
 
-def do_check_dup(args) -> int:
-    cfg = load_duplicate_config()
-    if not cfg.get("aktif", True):
-        print("OK duplicate_check nonaktif")
-        return 0
-
-    fields = cfg["match_fields"]
-    # Kumpulkan nilai kandidat dari argumen (--total dipetakan ke kolom jumlah)
-    candidate = {
-        "tanggal": args.tanggal,
-        "waktu": args.waktu,
-        "jumlah": args.total,
-        "item": args.item,
-        "kategori": args.kategori,
-        "catatan": args.catatan,
-        "pencatat": args.pencatat,
-        "akun": args.akun,
-        "akun_tujuan": args.akun_tujuan,
-    }
-
-    missing = [f for f in fields if candidate.get(f) in (None, "")]
-    if missing:
-        print(
-            f"ERROR: field wajib untuk aturan duplikat belum diisi: {', '.join(missing)} "
-            f"(match_fields={fields})",
-            file=sys.stderr,
-        )
-        return 2
-
-    cand_norm = {f: norm_field(f, candidate.get(f)) for f in fields}
-
-    for row in load_bills():
-        if all(norm_field(f, row.get(f)) == cand_norm[f] for f in fields):
-            print(f"DUPLICATE {row_summary(row)} | cocok pada: {', '.join(fields)}")
-            return 1
-
-    print(f"OK tidak ada duplikat (cek: {', '.join(fields)})")
-    return 0
-
-
-# Kolom penentu "duplikat": semua kolom data KECUALI no_resi (lihat export-excel.py).
-DUP_KEY_COLUMNS = [c for c in COLUMNS if c != "no_resi"]
-
-
-def _dup_value(col: str, value) -> str:
-    return norm_total(value) if col == "jumlah" else str(value or "").strip()
-
-
 def do_find_dup() -> int:
     """Laporkan baris yang isinya identik (semua kolom sama kecuali no_resi)."""
-    bills = load_bills()
-    groups: dict[tuple, list[dict]] = {}
-    order: list[tuple] = []
-    for row in bills:
-        key = tuple(_dup_value(col, row.get(col)) for col in DUP_KEY_COLUMNS)
-        if key not in groups:
-            groups[key] = []
-            order.append(key)
-        groups[key].append(row)
+    import duplikat  # di dalam fungsi: duplikat meng-import resi, jangan melingkar
 
-    dup = [groups[k] for k in order if len(groups[k]) > 1]
+    dup = duplikat.kelompok(load_bills())
     if not dup:
         print("OK tidak ada duplikat.")
         return 0
@@ -399,8 +341,6 @@ def main() -> int:
     parser.add_argument("--gen", action="store_true", help="Generate no resi otomatis (chat)")
     parser.add_argument("--fingerprint", action="store_true", help="Hitung no resi struk (STRUK-<hash8>)")
     parser.add_argument("--check", metavar="NO_RESI", help="Cek no_resi sama persis (Lapis 1)")
-    parser.add_argument("--check-dup", action="store_true", dest="check_dup",
-                        help="Cek duplikat multi-field configurable (Lapis 2)")
     parser.add_argument("--find-dup", action="store_true", dest="find_dup",
                         help="Laporkan baris duplikat di bills.csv (isi identik kecuali no_resi)")
     parser.add_argument("--backfill", action="store_true", help="Isi no_resi baris lama")
@@ -409,14 +349,6 @@ def main() -> int:
     parser.add_argument("--merchant")
     parser.add_argument("--date")
     parser.add_argument("--total")
-    parser.add_argument("--tanggal")
-    parser.add_argument("--waktu")
-    parser.add_argument("--item")
-    parser.add_argument("--kategori")
-    parser.add_argument("--catatan")
-    parser.add_argument("--pencatat")
-    parser.add_argument("--akun")
-    parser.add_argument("--akun-tujuan", dest="akun_tujuan")
 
     args = parser.parse_args()
 
@@ -426,8 +358,6 @@ def main() -> int:
         return do_fingerprint(args)
     if args.check is not None:
         return do_check(args.check)
-    if args.check_dup:
-        return do_check_dup(args)
     if args.find_dup:
         return do_find_dup()
     if args.backfill:

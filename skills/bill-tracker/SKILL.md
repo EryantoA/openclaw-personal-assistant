@@ -884,7 +884,7 @@ pergantian bulan menampilkan Budget dan Perkiraan kedua bulan (bulan lama bertan
 ## Aturan Penting
 
 1. **Selalu konfirmasi** setiap pencatatan sebelum menyimpan jika ada keraguan
-2. **Jangan duplikat** — SELALU jalankan cek duplikat 2 lapis (`resi.py --check` + `--check-dup`) sebelum menyimpan. Jika duplikat → tolak & beri tahu, jangan catat ulang (lihat bagian "Cek Duplikat Sebelum Menyimpan")
+2. **Jangan duplikat** — `catat.py` memeriksa duplikat 2 lapis sendiri sebelum menyimpan. Jika keluarannya `DUPLICATE` → tolak & beri tahu, jangan catat ulang (lihat bagian "Cek Duplikat")
 3. **Gunakan bahasa Indonesia** yang ramah dan natural
 4. **Format angka** selalu dengan titik pemisah ribuan: `Rp 75.000`
 5. **Tanggal** selalu gunakan tanggal hari ini kecuali struk menunjukkan tanggal berbeda

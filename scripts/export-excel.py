@@ -29,6 +29,7 @@ from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buku_kas  # noqa: E402
+import duplikat  # noqa: E402
 
 # ── Paths ────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
@@ -264,37 +265,6 @@ def write_summary_sheet(
     autofit(ws)
 
 
-# Kolom penentu "duplikat": semua kolom data KECUALI no_resi.
-# Dengan begitu, item-item berbeda dalam satu struk (yang berbagi no_resi sama) TIDAK
-# salah-ditandai duplikat, tapi transaksi yang tercatat dua kali tetap tertangkap
-# walau no_resi-nya berbeda.
-DUP_KEY_COLUMNS = [c for c in COLUMNS if c != "no_resi"]
-
-
-def find_duplicates(bills: list[dict]) -> list[list[dict]]:
-    """Cari grup baris yang isinya identik (semua kolom sama kecuali no_resi).
-
-    Return daftar grup (tiap grup = list baris, >1 baris). Bersifat laporan saja —
-    tidak ada baris yang dibuang. Urutan grup mengikuti kemunculan pertama.
-    """
-    groups: dict[tuple, list[dict]] = {}
-    order: list[tuple] = []
-    for row in bills:
-        key = tuple(norm_dup_value(col, row.get(col)) for col in DUP_KEY_COLUMNS)
-        if key not in groups:
-            groups[key] = []
-            order.append(key)
-        groups[key].append(row)
-    return [groups[k] for k in order if len(groups[k]) > 1]
-
-
-def norm_dup_value(col: str, value) -> str:
-    """Normalisasi nilai untuk pembandingan duplikat (jumlah dibandingkan sbagai angka)."""
-    if col == "jumlah":
-        return str(buku_kas.jumlah({"jumlah": value}))
-    return str(value or "").strip()
-
-
 def write_duplicate_sheet(wb: Workbook, groups: list[list[dict]]) -> None:
     """Tulis sheet 'Duplikat' berisi baris kembar (non-destruktif). index=1 (setelah Ringkasan)."""
     ws = wb.create_sheet(title="Duplikat", index=1)
@@ -353,7 +323,7 @@ def build_workbook(bills: list[dict]) -> tuple[Workbook, dict]:
 
     # Laporan duplikat (non-destruktif): semua baris tetap ada di sheet bulan,
     # sheet "Duplikat" hanya menyorot baris kembar bila ada.
-    dup_groups = find_duplicates(bills)
+    dup_groups = duplikat.kelompok(bills)
     if dup_groups:
         write_duplicate_sheet(wb, dup_groups)
 

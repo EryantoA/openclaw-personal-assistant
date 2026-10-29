@@ -97,25 +97,6 @@ def cek_baris(b: dict, sah: set[str], awalan: str = "", ubah: set | None = None)
     }
 
 
-def cek_duplikat_lapis2(baris: list[dict], ada: list[dict], paksa: bool = False,
-                        saran_paksa: bool = True) -> str | None:
-    """Pesan DUPLICATE bila salah satu baris cocok (match_fields budget.json) dengan baris di
-    `ada`, None bila lolos. `ada` tidak boleh memuat baris Transaksi yang sama."""
-    cfg = resi.load_duplicate_config()
-    if paksa or not cfg.get("aktif", True):
-        return None
-    fields = cfg["match_fields"]
-    for b in baris:
-        kunci = {f: resi.norm_field(f, b.get(f)) for f in fields}
-        for row in ada:
-            if all(resi.norm_field(f, row.get(f)) == kunci[f] for f in fields):
-                saran = ("; ulangi dengan --paksa hanya bila pengguna menegaskan ini transaksi baru"
-                         if saran_paksa else "")
-                return (f"DUPLICATE {resi.row_summary(row)} | cocok pada: {', '.join(fields)} "
-                        f"(aksi={cfg.get('aksi', 'tolak')}{saran})")
-    return None
-
-
 @contextlib.contextmanager
 def kunci_berkas(path: Path):
     """Kunci eksklusif untuk satu CSV, lewat berkas `<nama>.lock` di sampingnya.
