@@ -23,7 +23,8 @@ Hanya bersama keputusan memindahkan jalur berkas ke module pemilik berkasnya (`b
 bersama validasi, Duplikat, dan `check-bills.py`), dengan fixture tes yang ikut ditulis ulang.
 Usulan memecah `resi.py` tanpa itu jangan diajukan ulang.
 
-Catatan yang sudah diketahui: `bills.csv` punya dua konstanta jalur (`buku_kas.BILLS`,
-`resi.BILLS_CSV`) dan `budget.json` dibaca dari tiga tempat (`resi.BUDGET_JSON`,
-`check-bills.BUDGET_JSON`, `validasi.py`). Itu pekerjaan yang sama dengan di atas, bukan perbaikan
+Catatan yang sudah diketahui (29 Okt 2026): `bills.csv` punya tujuh konstanta jalur (`buku_kas`,
+`resi`, `akun`, `laporan-bulanan`, `check-bills`, `export-excel`, `periksa-kesehatan` — yang
+terakhir sengaja, ADR-0011) dan `budget.json` tiga (`resi`, dipakai juga `validasi` dan `duplikat`;
+`check-bills`; `laporan-bulanan`). Itu pekerjaan yang sama dengan di atas, bukan perbaikan
 terpisah.
