@@ -43,8 +43,9 @@ from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+import duplikat  # noqa: E402
 import resi  # noqa: E402
-from validasi import Tolak, cek_baris, cek_duplikat_lapis2, kategori_sah, kunci_berkas  # noqa: E402
+from validasi import Tolak, cek_baris, kategori_sah, kunci_berkas  # noqa: E402
 
 KUNCI_TX = {"tanggal", "tipe", "channel", "pencatat", "items", "waktu", "no_resi", "catatan",
             "akun", "akun_tujuan"}
@@ -90,17 +91,6 @@ def susun_baris(tx: dict, sekarang: datetime) -> list[dict]:
     return baris
 
 
-def cek_duplikat(baris: list[dict], ada: list[dict], paksa: bool) -> str | None:
-    """Pesan DUPLICATE bila tertolak, None bila lolos."""
-    resi_baru = baris[0]["no_resi"]
-    for row in ada:
-        if (row.get("no_resi") or "").strip() == resi_baru:
-            return (f"DUPLICATE no_resi {resi_baru} sudah ada: {resi.row_summary(row)} "
-                    f"(Lapis 1 — tidak bisa dipaksa; struk yang sama sudah tercatat)")
-
-    return cek_duplikat_lapis2(baris, ada, paksa)
-
-
 def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime | None = None) -> tuple[int, str]:
     try:
         baris = susun_baris(tx, sekarang or datetime.now())
@@ -119,7 +109,7 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
             for b in baris:
                 b["no_resi"] = resi_baru
 
-        pesan = cek_duplikat(baris, ada, paksa)
+        pesan = duplikat.cek(baris, ada, paksa)
         if pesan:
             return 1, pesan
         if uji:
