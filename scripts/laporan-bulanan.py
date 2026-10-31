@@ -24,6 +24,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import budget as hitung_budget  # noqa: E402
 import buku_kas  # noqa: E402
 import pengaturan  # noqa: E402
 import pengirim  # noqa: E402
@@ -113,10 +114,9 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
            f"{'💚' if arus_kas >= 0 else '🔴'} Arus Kas Bulanan: {rp(arus_kas)}",
            f"🏦 Saldo Bersama akhir {NAMA_BULAN[int(bulan[5:]) - 1]}: {rp(saldo_akhir(baris, bulan))}"]
 
-    batas = float(budget.get("budget_bulanan") or 0)
-    if batas > 0:
-        out += ["", f"💰 Budget: {rp(h['pengeluaran'])} dari {rp(batas)} "
-                    f"({h['pengeluaran'] / batas * 100:.0f}%)"]
+    if float(budget.get("budget_bulanan") or 0) > 0:
+        pakai = hitung_budget.pemakaian(baris, *periode.rentang_bulan(bulan), budget)
+        out += [""] + hitung_budget.baris_laporan(pakai)
 
     kini = h["per_kategori"]
     dulu = buku_kas.ringkas(baris, *periode.rentang_bulan(lalu))["per_kategori"]

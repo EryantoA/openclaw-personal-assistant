@@ -2,6 +2,10 @@
 
 Sisa budget dan cek otomatis setelah catat dijawab skrip — lihat *Peta pesan* di `AGENTS.md`.
 
+Budget = batas belanja **rutin** yang kami tetapkan sendiri, bukan uang yang dimiliki dan tidak mengikuti
+pemasukan. Transaksi sebesar `pengeluaran_besar_mulai` atau lebih (Pengeluaran Besar) tidak dihitung ke
+Budget dan tampil terpisah sebagai "Di luar budget" (ADR-0024). Jangan menyebut "sisa uang" untuk Budget.
+
 Angka budget dan ambang alert selalu dibaca dari `data/budget.json`, jangan dari ingatan atau
 contoh di bawah (cuma ilustrasi format).
 

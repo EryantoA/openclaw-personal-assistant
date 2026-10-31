@@ -32,6 +32,7 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import akun  # noqa: E402
+import budget as hitung_budget  # noqa: E402
 import buku_kas  # noqa: E402
 import kewajiban  # noqa: E402
 import pengaturan  # noqa: E402
@@ -108,18 +109,23 @@ def bagian_terbesar(keluar, n=3):
 
 def bagian_budget(rows, mulai, akhir, pekan_tutup):
     """Budget tiap bulan yang disentuh Pekan. Bulan yang berakhir di dalam Pekan = (tutup)."""
-    anggaran = float(pengaturan.muat().get("budget_bulanan", 0) or 0)
+    atur = pengaturan.muat()
+    anggaran = float(atur.get("budget_bulanan", 0) or 0)
     baris = []
     for th, bl in periode.bulan_dalam(mulai, akhir):
         akhir_bulan = periode.akhir_bulan(f"{th:04d}-{bl:02d}")
         tutup = akhir_bulan <= akhir and (pekan_tutup or akhir_bulan < akhir)
         batas = min(akhir, akhir_bulan)
-        pakai = buku_kas.ringkas(rows, date(th, bl, 1), batas)["pengeluaran"]
+        pemakaian = hitung_budget.pemakaian(rows, date(th, bl, 1), batas, atur)
+        pakai = pemakaian["rutin"]
         label = f"Budget {BULAN[bl]}{' (tutup)' if tutup else ''}"
         if anggaran > 0:
             baris.append(f"📅 {label}: {rupiah(pakai)} dari {rupiah(anggaran)} ({pakai / anggaran * 100:.0f}%)")
         else:
             baris.append(f"📅 {label}: {rupiah(pakai)} (budget belum diset)")
+        if pemakaian["besar"]:
+            baris.append(f"📦 Di luar budget: {rupiah(pemakaian['besar'])} "
+                         f"({pemakaian['transaksi_besar']} transaksi ≥ {rupiah(pemakaian['ambang'])})")
     return baris
 
 

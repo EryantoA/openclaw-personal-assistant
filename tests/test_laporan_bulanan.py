@@ -71,6 +71,22 @@ class IstilahKeluarga(unittest.TestCase):
         self.assertNotIn("Saldo akhir", pesan)
 
 
+class BudgetRutin(unittest.TestCase):
+    ATUR = {"budget_bulanan": 8_000_000, "pengeluaran_besar_mulai": 1_000_000}
+
+    def test_pengeluaran_besar_dipisah_dari_budget(self):
+        rows = [baris("2026-08-03", "pengeluaran", "food", 300_000),
+                dict(baris("2026-08-10", "pengeluaran", "transport", 4_000_000), no_resi="STRUK-BESAR")]
+        pesan = lb.susun("2026-08", rows, self.ATUR, {"bulan": {}}, [])
+        self.assertIn("💰 Budget: Rp 300.000 dari Rp 8.000.000 (4%)", pesan)
+        self.assertIn("📦 Di luar budget: Rp 4.000.000 (1 transaksi ≥ Rp 1.000.000)", pesan)
+        self.assertIn("Pengeluaran: Rp 4.300.000", pesan)  # laporan tetap menampilkan seluruh Pengeluaran
+
+    def test_tanpa_budget_tidak_ada_baris_budget(self):
+        pesan = lb.susun("2026-08", DASAR, {}, {"bulan": {}}, [])
+        self.assertNotIn("Budget", pesan)
+
+
 class AturanKoreksi(unittest.TestCase):
     def test_koreksi_hanya_di_bulan_asal(self):
         simpanan = lb.simpanan_baru({"bulan": {}}, "2026-07", DASAR)

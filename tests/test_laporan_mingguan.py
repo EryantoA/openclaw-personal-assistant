@@ -126,6 +126,15 @@ class LintasBulan(DenganBerkasKosong):
         self.assertIn("📅 Budget Okt: Rp 40.000 dari Rp 1.000.000 (4%)", pesan)
         self.assertIn("Pekan: Senin 28 Sep – Minggu 4 Okt 2026", pesan)
 
+    def test_pengeluaran_besar_tidak_dihitung_ke_budget_tapi_tampil(self):
+        mulai, akhir = date(2026, 10, 19), date(2026, 10, 25)
+        rows = tiap_hari(mulai, akhir) + [dict(tx("2026-10-21", "pengeluaran", 4_000_000, "transport"),
+                                               no_resi="STRUK-BESAR")]
+        pesan = lm.susun(rows, mulai, akhir, True)
+        self.assertIn("📅 Budget Okt: Rp 70.000 dari Rp 1.000.000 (7%)", pesan)  # 7 hari x 10.000, tanpa yang besar
+        self.assertIn("📦 Di luar budget: Rp 4.000.000 (1 transaksi ≥ Rp 1.000.000)", pesan)
+        self.assertNotIn("📦 Di luar budget", lm.susun(tiap_hari(mulai, akhir), mulai, akhir, True))
+
 
 if __name__ == "__main__":
     unittest.main()
