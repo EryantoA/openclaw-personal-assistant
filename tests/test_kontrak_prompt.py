@@ -149,6 +149,26 @@ class KontrakUbahHapus(unittest.TestCase):
         self.assertIn("data/*.lock", ignore)
 
 
+class SkillTidakBertentangan(unittest.TestCase):
+    """SKILL.md tidak boleh memuat aturan yang berlawanan dengan AGENTS.md / ADR."""
+
+    def test_contoh_kategori_selalu_slug_sah(self):
+        # ADR-0002: kategori slug Inggris huruf kecil. Contoh berkapital/Indonesia hanya
+        # boleh muncul sebagai larangan ("Jangan pernah menulis kategori ... seperti").
+        for salah in ("`Gaji`", "`Penjualan`", "`Lainnya`", "kategori Investasi", "`Donasi`"):
+            self.assertNotIn(salah, SKILL)
+
+    def test_daftar_kategori_tidak_dicetak_ulang_di_skill(self):
+        # kategori_custom di budget.json satu-satunya acuan; daftar keras di SKILL.md basi sendiri.
+        self.assertNotIn("Daftar Kategori (23)", SKILL)
+        self.assertIn("<semua slug dari kategori_custom", SKILL)
+
+    def test_pratinjau_tanpa_syarat_keraguan(self):
+        # ADR-0016: semua pencatatan lewat Pratinjau, bukan hanya saat ragu.
+        self.assertNotIn("jika ada keraguan", SKILL)
+        self.assertIn("**Selalu Pratinjau** setiap pencatatan, tanpa kecuali", SKILL)
+
+
 class Dokumen(unittest.TestCase):
     def test_adr_dan_glosarium(self):
         self.assertTrue(list((AKAR / "docs" / "adr").glob("0016-*.md")))

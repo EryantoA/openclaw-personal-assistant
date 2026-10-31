@@ -55,7 +55,7 @@ income freelance 750rb
 ```
 
 Untuk transaksi seperti ini, simpan baris dengan **`tipe=pemasukan`**. Gunakan kategori yang
-masuk akal (mis. `Gaji`, `Bonus`, `Penjualan`, atau `Lainnya`). Pemasukan **tidak** dihitung
+masuk akal dari bagian **Kategori** di bawah (mis. `salary`, `bonus`, `consulting`, atau `other`). Pemasukan **tidak** dihitung
 sebagai pengeluaran dan **tidak** mengurangi budget.
 
 Konfirmasinya memakai kerangka bersama di bagian **Pesan Konfirmasi** — bedanya hanya baris
@@ -717,42 +717,44 @@ Kalau menambah entri: `id` (`PRK-<urut>`), `nama`, `arah` (`masuk`/`keluar`), `k
 
 ### Tambah Kategori
 Trigger: `tambah kategori [nama]`, `buat kategori [nama]`, `kategori baru [nama]`
-Contoh: `tambah kategori Investasi`, `buat kategori Donasi`
+Contoh: `tambah kategori investment`, `buat kategori home_repair`
 
 Langkah:
 1. Baca `data/budget.json`
-2. Cek apakah kategori sudah ada (case-insensitive)
-3. Jika belum ada, tambahkan ke `kategori_custom` array
-4. Simpan kembali
+2. Ubah nama dari pengguna ke slug Inggris huruf kecil `snake_case` (`Investasi` → `investment`);
+   kategori tidak pernah Bahasa Indonesia atau berhuruf kapital. Sebut slug yang dipakai.
+3. Cek apakah slug sudah ada
+4. Jika belum ada, tambahkan ke `kategori_custom` array
+5. Simpan kembali
 
 Response (sukses):
 ```
 ✅ Kategori berhasil ditambahkan!
 
-🏷️ Kategori baru: Investasi
-📋 Total kategori custom: 2
+🏷️ Kategori baru: investment
+📋 Total kategori: <jumlah isi kategori_custom>
 
-Sekarang kamu bisa mencatat: "nabung saham 500rb" → otomatis masuk Investasi
+Sekarang kamu bisa mencatat: "nabung saham 500rb" → otomatis masuk investment
 ```
 
 Response (sudah ada):
 ```
-⚠️ Kategori "Investasi" sudah ada!
+⚠️ Kategori "investment" sudah ada!
 ```
 
 ### Hapus Kategori
 Trigger: `hapus kategori [nama]`, `delete kategori [nama]`
-Contoh: `hapus kategori Investasi`
+Contoh: `hapus kategori investment`
 
 Langkah:
 1. Baca `data/budget.json`
-2. Hapus dari `kategori_custom` array
+2. Hapus slug-nya dari `kategori_custom` array (nama dari pengguna diubah ke slug seperti di atas)
 3. Simpan kembali
 4. Konfirmasi — ingatkan bahwa transaksi lama tetap tersimpan dengan kategori lama
 
 Response:
 ```
-🗑️ Kategori "Investasi" berhasil dihapus.
+🗑️ Kategori "investment" berhasil dihapus.
 
 ℹ️ Transaksi yang sudah dicatat dengan kategori ini tidak berubah.
 ```
@@ -762,13 +764,9 @@ Trigger: `daftar kategori`, `kategori apa saja`, `list kategori`
 
 Response:
 ```
-📋 Daftar Kategori (23)
+📋 Daftar Kategori (<jumlah isi kategori_custom>)
 
-  food · groceries · transport · health · utilities
-  salary · bonus · consulting · clothing · shopping
-  subscription · communication · personal_care · beauty
-  insurance · education · entertainment · event
-  donation · jewelry · pet · other · opening_balance
+  <semua slug dari kategori_custom, dipisah " · ", apa adanya>
 
 💡 Tambah: tambah kategori [nama]
 💡 Hapus: hapus kategori [nama]
@@ -883,7 +881,7 @@ pergantian bulan menampilkan Budget dan Perkiraan kedua bulan (bulan lama bertan
 
 ## Aturan Penting
 
-1. **Selalu konfirmasi** setiap pencatatan sebelum menyimpan jika ada keraguan
+1. **Selalu Pratinjau** setiap pencatatan, tanpa kecuali, sebelum menyimpan (ADR-0016; kerangkanya di `AGENTS.md`)
 2. **Jangan duplikat** — `catat.py` memeriksa duplikat 2 lapis sendiri sebelum menyimpan. Jika keluarannya `DUPLICATE` → tolak & beri tahu, jangan catat ulang (lihat bagian "Cek Duplikat")
 3. **Gunakan bahasa Indonesia** yang ramah dan natural
 4. **Format angka** selalu dengan titik pemisah ribuan: `Rp 75.000`
