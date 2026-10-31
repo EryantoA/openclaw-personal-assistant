@@ -408,6 +408,32 @@ Cek data dobel di seluruh catatan kapan saja (isi identik, semua kolom sama kecu
 python3 scripts/resi.py --find-dup
 ```
 
+### 🗂️ Sinkron dua arah ke Google Sheets
+
+`bills.csv` tetap satu-satunya Buku Kas; Google Sheets adalah cermin yang bisa dilihat dan diedit dari HP
+(ADR-0021, spec #20). Edit sel dan baris baru di worksheet **Buku Kas** masuk ke CSV lewat jalan tulis yang
+sama dengan bot (validasi, cek Duplikat, cadangan, Jejak Perubahan); menghapus Transaksi tetap hanya lewat bot.
+
+Persiapan sekali (butuh tindakan di akun Google-mu):
+1. Buat proyek di Google Cloud, aktifkan **Google Sheets API**, buat **akun layanan**, unduh kunci JSON ke
+   `data/google-service-account.json` (sudah di `.gitignore`).
+2. Buat spreadsheet **privat** kosong, bagikan (Editor) ke email akun layanan dan anggota keluarga yang dipilih.
+   Jangan pernah "siapa saja yang memiliki tautan".
+3. Pasang dependensi untuk interpreter yang dipakai cron:
+   ```bash
+   /usr/bin/python3 -m pip install --user google-auth requests
+   ```
+4. `cp data/sheets.json.example data/sheets.json` lalu isi `spreadsheet_id`.
+
+Lalu:
+```bash
+python3 scripts/sinkron-sheets.py --uji            # lapor saja, tidak menulis apa pun
+python3 scripts/sinkron-sheets.py --inisialisasi   # sekali: isi Sheet dari bills.csv (CSV menang)
+python3 scripts/sinkron-sheets.py                  # sinkron biasa
+```
+Kode keluar: `0` selesai, `1` ditolak (mis. Sheet berisi data tapi belum pernah disinkronkan), `2` gagal.
+Sheets **bukan cadangan** — salah hapus ikut tersinkron; cadangan CSV harian tetap yang utama.
+
 ### 📊 Backup & Export Excel per bulan
 
 Backup harian (atau `bash scripts/backup.sh` manual) menghasilkan file di `data/backups/`:

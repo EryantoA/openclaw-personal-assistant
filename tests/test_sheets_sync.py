@@ -976,5 +976,42 @@ class KetahananSinkron(Dasar):
         self.assertEqual(list(jurnal.values()), [r["no_resi"] for r in self.baca_csv() if r["item"] == "Parkir"])
 
 
+class TeksLaporan(unittest.TestCase):
+    def test_laporan_kosong_menyatakan_sheet_sudah_sama(self):
+        self.assertEqual(sheets_sync.teks_laporan(sheets_sync.Laporan()),
+                         "Sinkron Sheets selesai.\nSheet sudah sama dengan Buku Kas.")
+
+    def test_laporan_memuat_semua_bagian_dengan_alasan_dan_tanda_uji(self):
+        laporan = sheets_sync.Laporan(
+            didorong=7, diterima=[("TRX-1", 1, ["jumlah", "item"])], ditambah=["TRX-20260905-0001"],
+            ditolak=[("TRX-2", 1, "konflik: baris ini juga berubah di Buku Kas"), ("", 1, "kategori salah")],
+            dipulihkan=[("STRUK-9", 2)], tak_terhitung=[("TRX-9", "tanggal tidak sah: 'rusak'")],
+            peringatan=["⚠️ Bulan 2026-07 sudah dilaporkan"])
+
+        teks = sheets_sync.teks_laporan(laporan, uji=True)
+
+        self.assertEqual(teks.splitlines(), [
+            "Sinkron Sheets (uji: tidak ada yang ditulis).",
+            "Didorong ke Sheet: 7 baris.",
+            "Masuk dari Sheet (1):",
+            "- TRX-1 Item 1: jumlah, item",
+            "Transaksi baru dari Sheet (1): TRX-20260905-0001",
+            "Ditolak (2):",
+            "- TRX-2 Item 1: konflik: baris ini juga berubah di Buku Kas",
+            "- (tanpa No Resi) Item 1: kategori salah",
+            "Dipulihkan ke Sheet (1):",
+            "- STRUK-9 Item 2",
+            "Tak terhitung (1):",
+            "- TRX-9: tanggal tidak sah: 'rusak'",
+            "⚠️ Bulan 2026-07 sudah dilaporkan",
+        ])
+
+    def test_sinkron_yang_dilewati_dan_yang_terpotong_edit_pengguna_dinyatakan_jelas(self):
+        self.assertIn("dilewati", sheets_sync.teks_laporan(sheets_sync.Laporan(dilewati=True)))
+        teks = sheets_sync.teks_laporan(sheets_sync.Laporan(berubah_saat_sinkron=True))
+        self.assertIn("diedit saat sinkron", teks)
+        self.assertIn("berikutnya", teks)
+
+
 if __name__ == "__main__":
     unittest.main()

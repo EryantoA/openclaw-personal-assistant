@@ -453,3 +453,31 @@ def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisa
                          {"buku_kas": target[SHEET_BUKU], "ringkasan": target[SHEET_RINGKASAN]})
         jurnal.kosongkan()
     return laporan
+
+
+def teks_laporan(laporan: Laporan, uji: bool = False) -> str:
+    """Laporan sinkron untuk dibaca pemilik (CLI/cron); tersusun dari angka, tanpa model."""
+    if laporan.dilewati:
+        return "Sinkron Sheets dilewati: sinkron lain masih berjalan."
+
+    def daftar(judul, isi):
+        return [f"{judul} ({len(isi)}):"] + [f"- {b}" for b in isi] if isi else []
+
+    def resi_(no_resi):
+        return no_resi or "(tanpa No Resi)"
+
+    baris = ["Sinkron Sheets (uji: tidak ada yang ditulis)." if uji else "Sinkron Sheets selesai."]
+    if laporan.berubah_saat_sinkron:
+        baris.append("⚠️ Sheet diedit saat sinkron berjalan; tidak ada yang ditulis ke Sheet. "
+                     "Edit itu diproses pada sinkron berikutnya.")
+    elif laporan.didorong:
+        baris.append(f"Didorong ke Sheet: {laporan.didorong} baris.")
+    else:
+        baris.append("Sheet sudah sama dengan Buku Kas.")
+    baris += daftar("Masuk dari Sheet", [f"{resi_(r)} Item {i}: {', '.join(k)}" for r, i, k in laporan.diterima])
+    if laporan.ditambah:
+        baris.append(f"Transaksi baru dari Sheet ({len(laporan.ditambah)}): {', '.join(laporan.ditambah)}")
+    baris += daftar("Ditolak", [f"{resi_(r)} Item {i}: {a}" for r, i, a in laporan.ditolak])
+    baris += daftar("Dipulihkan ke Sheet", [f"{resi_(r)} Item {i}" for r, i in laporan.dipulihkan])
+    baris += daftar("Tak terhitung", [f"{resi_(r)}: {a}" for r, a in laporan.tak_terhitung])
+    return "\n".join(baris + laporan.peringatan)
