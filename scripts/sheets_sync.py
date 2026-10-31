@@ -1,4 +1,4 @@
-"""Sinkron Buku Kas ke Google Sheets (spec #20). Tiket ini: arah keluar saja (CSV → Sheets).
+"""Sinkron Buku Kas ke Google Sheets (spec #20). Saat ini baru arah keluar (CSV → Sheets).
 
 Buku Kas tetap satu-satunya sumber (ADR-0005). Sheets adalah tabel salinan: worksheet "Buku Kas"
 (12 kolom persis bills.csv) dan "Ringkasan" (Arus Kas Bulan & Saldo per bulan, dihitung buku_kas,
@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -37,6 +37,8 @@ class SinkronDitolak(Exception):
 @dataclass
 class Laporan:
     didorong: int = 0  # baris Transaksi yang ditulis ke Sheet pada sinkron ini
+    # (no_resi, alasan) baris yang tampil di "Buku Kas" tetapi tidak ikut Ringkasan — tidak pernah hilang diam-diam
+    tak_terhitung: list = field(default_factory=list)
 
 
 def grid_buku(rows: list[dict]) -> list[list]:
@@ -69,8 +71,15 @@ def grid_ringkasan(rows: list[dict]) -> list[list]:
 
 
 def _norm(grid: list[list]) -> list[list[str]]:
-    """Sel dibandingkan sebagai teks: Sheets mengembalikan angka dan teks tanpa pembeda tegas."""
-    return [[str(c) for c in baris] for baris in grid]
+    """Sel dibandingkan sebagai teks (Sheets tidak membedakan angka dan teks dengan tegas), dan
+    sel kosong di ujung kanan tiap baris diabaikan karena Sheets memangkasnya saat dibaca."""
+    hasil = []
+    for baris in grid:
+        sel = [str(c) for c in baris]
+        while sel and sel[-1] == "":
+            sel.pop()
+        hasil.append(sel)
+    return hasil
 
 
 def _simpan_snapshot(path: Path, isi: dict) -> None:
@@ -96,9 +105,12 @@ def sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool = False,
         raise SinkronDitolak(
             f"Worksheet '{SHEET_BUKU}' sudah berisi data tetapi belum pernah disinkronkan dari sini. "
             "Jalankan dengan inisialisasi untuk menimpanya dari bills.csv.")
+    if not Path(bills_path).exists():
+        raise SinkronDitolak(f"{bills_path} tidak ada; Sheet tidak ditimpa dengan tabel kosong.")
     rows = buku_kas.muat(bills_path)
     target = {SHEET_BUKU: grid_buku(rows), SHEET_RINGKASAN: grid_ringkasan(rows)}
-    laporan = Laporan()
+    laporan = Laporan(tak_terhitung=[(r.get("no_resi") or "", alasan)
+                                     for r, alasan in buku_kas.tak_terhitung(rows)])
     for nama, grid in target.items():
         if _norm(klien.baca(nama)) == _norm(grid):
             continue

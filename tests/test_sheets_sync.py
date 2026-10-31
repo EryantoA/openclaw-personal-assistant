@@ -154,6 +154,7 @@ class SinkronBerulang(Dasar):
 
         isi = json.loads(self.snapshot.read_text())
         self.assertEqual(isi["buku_kas"], self.klien.sheets["Buku Kas"])
+        self.assertEqual(isi["ringkasan"], self.klien.sheets["Ringkasan"])
 
 
 class ModeUjiDanInisialisasi(Dasar):
@@ -196,7 +197,7 @@ class ModeUjiDanInisialisasi(Dasar):
 
         self.assertEqual(len(self.klien.sheets["Buku Kas"]), 1 + 6)
 
-    def test_sheet_berisi_data_dengan_snapshot_boleh_disinkron(self):
+    def test_sheet_berisi_data_dengan_snapshot_tidak_ditolak(self):
         self.tulis_csv(DASAR)
         self.sinkron()
         self.klien.sheets["Buku Kas"][1][3] = "Diubah di Sheet"
@@ -205,6 +206,49 @@ class ModeUjiDanInisialisasi(Dasar):
         self.sinkron()
 
         self.assertEqual(len(self.klien.sheets["Buku Kas"]), 1 + 7)
+
+
+class KetahananBacaan(Dasar):
+    def test_sel_kosong_di_ujung_kanan_yang_dipangkas_sheets_tidak_memicu_tulis_ulang(self):
+        self.tulis_csv(DASAR + [tx("2026-09-01", "pengeluaran", 9_000, item="Baris lama tanpa resi")])
+        self.sinkron()
+        # Google menghapus sel kosong di ujung kanan tiap baris saat dibaca.
+        for nama, grid in self.klien.sheets.items():
+            for baris in grid:
+                while baris and baris[-1] == "":
+                    baris.pop()
+        self.assertEqual(len(self.klien.sheets["Buku Kas"][-1]), 8)  # prasyarat: benar-benar terpangkas
+        self.klien.tulisan.clear()
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.klien.tulisan, [])
+        self.assertEqual(laporan.didorong, 0)
+
+    def test_csv_hilang_menolak_dan_tidak_menimpa_sheet(self):
+        self.tulis_csv(DASAR)
+        self.sinkron()
+        self.bills.unlink()
+        self.klien.tulisan.clear()
+
+        with self.assertRaises(sheets_sync.SinkronDitolak):
+            self.sinkron()
+
+        self.assertEqual(self.klien.tulisan, [])
+        self.assertEqual(len(self.klien.sheets["Buku Kas"]), 1 + 6)
+
+    def test_baris_tak_terhitung_tampil_di_sheet_dan_dilaporkan_beserta_alasannya(self):
+        self.tulis_csv(DASAR + [tx("rusak", "pengeluaran", 1_000, no_resi="TRX-9"),
+                                tx("2026-09-01", "ngawur", 2_000, no_resi="TRX-10")])
+
+        laporan = self.sinkron()
+
+        self.assertEqual(len(self.klien.sheets["Buku Kas"]), 1 + 8)
+        self.assertEqual(laporan.tak_terhitung, [
+            ("TRX-9", "tanggal tidak sah: 'rusak'"),
+            ("TRX-10", "tipe tidak dikenal: 'ngawur'"),
+        ])
+        self.assertNotIn("2026-09", [b[0] for b in self.klien.sheets["Ringkasan"]])
 
 
 if __name__ == "__main__":
