@@ -47,7 +47,11 @@ membuat pencatatan lewat WhatsApp bergantung pada internet dan Google. Maka Shee
 - **Batas yang diketahui:** jurnal anti-ganda berbasis isi baris, jadi baris baru yang diedit
   di antara dua ronde setelah kegagalan bisa menjadi dua Transaksi; edit multi-Item yang butuh dua
   permintaan dan gagal separuh jalan hanya dilaporkan, tidak diselesaikan; Sheets API tidak punya
-  penguncian per sel, jadi celah beberapa detik antara baca-ulang dan tulis tetap ada.
+  penguncian per sel, jadi celah beberapa detik antara baca-ulang dan tulis tetap ada;
+  perlindungan Google (`warningOnly`) untuk kolom terkunci dan "Ringkasan" belum dipasang —
+  penolakan di skrip yang menegakkannya; format kolom TEXT hanya dipasang ulang saat ada tulis;
+  cron dan penjaga kesehatan belum mendaftarkan sinkron ini (tiket #27); belum dijalankan terhadap
+  Google sungguhan (butuh akun layanan dan spreadsheet pemilik).
 - **Dependensi baru** (`google-auth`, `requests`) harus terpasang untuk interpreter yang dipakai
   cron (`/usr/bin/python3`, 3.9). Tanpa itu sinkron gagal dengan kode 2 dan pesan yang jelas —
   jangan mengulang pelajaran export Excel yang mati diam 29 Jul–21 Sep 2026.

@@ -31,6 +31,12 @@ CONFIG = AKAR / "data" / "sheets.json"
 SNAPSHOT = AKAR / "data" / "sheets-snapshot.json"
 
 
+def _samar(teks: str, config: dict) -> str:
+    """ID spreadsheet ikut di URL pesan error jaringan; jangan sampai masuk log cron."""
+    id_ = str(config.get("spreadsheet_id") or "")
+    return teks.replace(id_, "<id>") if id_ else teks
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Sinkron Buku Kas ↔ Google Sheets")
     p.add_argument("--uji", action="store_true", help="lapor saja, tidak menulis apa pun")
@@ -41,22 +47,24 @@ def main(argv=None) -> int:
     try:
         config = json.loads(CONFIG.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
-        print(f"GAGAL membaca {CONFIG}: {e}\nSalin data/sheets.json.example ke data/sheets.json lalu isi.")
+        print(f"GAGAL membaca {CONFIG}: {e}\nSalin data/sheets.json.example ke data/sheets.json lalu isi.",
+              file=sys.stderr)
         return 2
+    K, buku = sheets_sync.KOLOM, sheets_sync.SHEET_BUKU
     try:
         klien = sheets_google.dari_konfigurasi(
-            config, AKAR, {sheets_sync.SHEET_BUKU: {sheets_sync.KOLOM.index("jumlah")}})
+            config, AKAR, {buku: {K.index("jumlah")}}, {buku: {K.index("tanggal")}}, {buku: {K.index("waktu")}})
     except (RuntimeError, KeyError, OSError, ValueError) as e:
-        print(f"GAGAL menyiapkan klien Google: {e}")
+        print(f"GAGAL menyiapkan klien Google: {_samar(str(e), config)}", file=sys.stderr)
         return 2
 
     try:
         laporan = sheets_sync.sinkron(resi.BILLS_CSV, klien, SNAPSHOT, uji=a.uji, inisialisasi=a.inisialisasi)
     except sheets_sync.SinkronDitolak as e:
-        print(f"DITOLAK: {e}")
+        print(f"DITOLAK: {e}", file=sys.stderr)
         return 1
     except Exception as e:  # noqa: BLE001  jaringan, API, disk: apa pun yang menggagalkan sinkron
-        print(f"GAGAL: {type(e).__name__}: {e}")
+        print(f"GAGAL: {type(e).__name__}: {_samar(str(e), config)}", file=sys.stderr)
         return 2
     print(sheets_sync.teks_laporan(laporan, uji=a.uji))
     return 0

@@ -1013,5 +1013,62 @@ class TeksLaporan(unittest.TestCase):
         self.assertIn("berikutnya", teks)
 
 
+class HeaderWorksheet(Dasar):
+    def setUp(self):
+        super().setUp()
+        self.tulis_csv(DASAR)
+        self.sinkron()
+        self.csv_awal = self.bills.read_bytes()
+        self.klien.tulisan.clear()
+
+    def test_header_yang_diubah_pengguna_ditolak_tanpa_menyentuh_apa_pun(self):
+        buku = self.klien.sheets["Buku Kas"]
+        kasus = {
+            "nama kolom diganti": lambda: buku[0].__setitem__(4, "Nominal"),
+            "kolom header ditambah": lambda: buku[0].append("Catatan saya"),
+            "dua kolom bertukar": lambda: (buku[0].__setitem__(8, "akun_tujuan"),
+                                           buku[0].__setitem__(9, "akun")),
+        }
+        for nama, ubah in kasus.items():
+            with self.subTest(nama):
+                ubah()
+                self.ubah_sheet("TRX-1", "jumlah", 120_000)  # edit yang tak boleh sempat masuk
+
+                with self.assertRaises(sheets_sync.SinkronDitolak) as ctx:
+                    self.sinkron()
+
+                self.assertIn("header", str(ctx.exception))
+                self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+                self.assertEqual(self.klien.tulisan, [])
+                buku[0][:] = HEADER  # pengguna memperbaikinya
+                self.ubah_sheet("TRX-1", "jumlah", 100_000)
+
+    def test_header_diperbaiki_lalu_sinkron_berjalan_lagi(self):
+        buku = self.klien.sheets["Buku Kas"]
+        buku[0][4] = "Nominal"
+        with self.assertRaises(sheets_sync.SinkronDitolak):
+            self.sinkron()
+        buku[0][4] = "jumlah"
+
+        laporan = self.sinkron()
+
+        self.assertEqual((laporan.ditolak, laporan.diterima), ([], []))
+
+    def test_worksheet_yang_dikosongkan_atau_dihapus_dipulihkan_bukan_dianggap_header_rusak(self):
+        self.klien.sheets["Buku Kas"] = []
+
+        laporan = self.sinkron()
+
+        self.assertEqual(len(self.klien.sheets["Buku Kas"]), 1 + 6)
+        self.assertEqual(len(laporan.dipulihkan), 6)
+
+    def test_inisialisasi_memperbaiki_header_yang_rusak(self):
+        self.klien.sheets["Buku Kas"][0][4] = "Nominal"
+
+        self.sinkron(inisialisasi=True)
+
+        self.assertEqual(self.klien.sheets["Buku Kas"][0], HEADER)
+
+
 if __name__ == "__main__":
     unittest.main()

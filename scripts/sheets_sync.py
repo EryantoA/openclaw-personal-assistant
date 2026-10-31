@@ -423,6 +423,13 @@ def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisa
         raise SinkronDitolak(f"sinkron dua arah hanya untuk resi.BILLS_CSV ({resi.BILLS_CSV}), "
                              f"bukan {bills_path}")
     saat_ini = {nama: klien.baca(nama) for nama in (SHEET_BUKU, SHEET_RINGKASAN)}
+    awal = _norm(saat_ini[SHEET_BUKU])[:1]
+    if snapshot is not None and awal and awal != [KOLOM]:
+        # Kolom bergeser/bertukar berarti isi sel tidak bisa dipetakan; jangan menebak, jangan menimpa.
+        raise SinkronDitolak(
+            f"Header worksheet '{SHEET_BUKU}' berubah dari yang diharapkan ({', '.join(KOLOM)}). "
+            "Kembalikan header-nya (tidak ada yang diproses atau ditimpa), atau jalankan dengan "
+            "inisialisasi untuk menimpa Sheet dari bills.csv.")
     if snapshot is None and not inisialisasi and _berisi_data(saat_ini[SHEET_BUKU]):
         raise SinkronDitolak(
             f"Worksheet '{SHEET_BUKU}' sudah berisi data tetapi belum pernah disinkronkan dari sini. "

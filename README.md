@@ -415,8 +415,9 @@ python3 scripts/resi.py --find-dup
 sama dengan bot (validasi, cek Duplikat, cadangan, Jejak Perubahan); menghapus Transaksi tetap hanya lewat bot.
 
 Persiapan sekali (butuh tindakan di akun Google-mu):
-1. Buat proyek di Google Cloud, aktifkan **Google Sheets API**, buat **akun layanan**, unduh kunci JSON ke
-   `data/google-service-account.json` (sudah di `.gitignore`).
+1. Buat proyek di Google Cloud, aktifkan **Google Sheets API**, buat **akun layanan**, unduh kunci JSON dan
+   **simpan dengan nama persis** `data/google-service-account.json` (nama itu yang ada di `.gitignore`;
+   nama bawaan unduhan Google tidak terlindungi).
 2. Buat spreadsheet **privat** kosong, bagikan (Editor) ke email akun layanan dan anggota keluarga yang dipilih.
    Jangan pernah "siapa saja yang memiliki tautan".
 3. Pasang dependensi untuk interpreter yang dipakai cron:

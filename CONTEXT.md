@@ -168,6 +168,19 @@ perubahan — bulan yang Pemasukan atau Pengeluarannya berubah — bukan pada bu
 sesudahnya yang Saldo akhirnya ikut bergeser karena Saldo kumulatif.
 _Avoid_: revisi, ralat, penyesuaian
 
+### Sinkron Google Sheets
+
+**Cermin**:
+Salinan Buku Kas di Google Sheets, disinkronkan dua arah (ADR-0021). Bukan Buku Kas dan bukan
+cadangan: bila keduanya berselisih, Buku Kas menang, dan menghapus Transaksi tetap hanya lewat bot.
+_Avoid_: sheet utama, database Sheets
+
+**Snapshot Sinkron**:
+Isi Cermin yang terakhir disepakati dengan Buku Kas (`data/sheets-snapshot.json`, tidak masuk git).
+Dasar diff tiga arah: dibandingkan dengan Cermin sekarang dan Buku Kas sekarang untuk tahu siapa yang
+mengubah apa. Bukan Transaksi dan tidak ikut hitungan apa pun.
+_Avoid_: cache, backup Sheets
+
 ### Waktu
 
 **Pekan**:

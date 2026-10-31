@@ -1,6 +1,7 @@
 # Spec: Sinkron dua arah Buku Kas ↔ Google Sheets
 
-Status: siap dikerjakan. Turunan dari [ADR-0004](../adr/0004-data-transaksi-tidak-masuk-git.md),
+Status: siap dikerjakan; keputusannya dicatat di [ADR-0021](../adr/0021-sheets-cermin-dua-arah-csv-tetap-sumber.md).
+Turunan dari [ADR-0004](../adr/0004-data-transaksi-tidak-masuk-git.md),
 [ADR-0005](../adr/0005-bill-tracker-sebagai-sistem-resmi.md),
 [ADR-0011](../adr/0011-penjaga-kesehatan-tidak-boleh-butuh-model.md),
 [ADR-0018](../adr/0018-ubah-hapus-lewat-skrip-copy-lalu-ganti.md), dan spec

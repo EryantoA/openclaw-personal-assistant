@@ -1,5 +1,7 @@
 # Ubah dan hapus data CSV lewat skrip: Pratinjau, salin dulu, ganti sekaligus
 
+> **Diperluas oleh** [0021](0021-sheets-cermin-dua-arah-csv-tetap-sumber.md): untuk perubahan yang datang dari Google Sheets, laporan sinkron menggantikan ubah/hapus percakapan.
+
 > **Memperluas** [0005](0005-bill-tracker-sebagai-sistem-resmi.md) dan
 > [0016](0016-pratinjau-sebelum-simpan-untuk-semua-pencatatan.md): Pratinjau kini berlaku juga
 > untuk mengubah dan menghapus transaksi yang sudah tercatat, bukan hanya mencatat.

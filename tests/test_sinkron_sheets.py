@@ -60,10 +60,11 @@ class CLI(unittest.TestCase):
         self.addCleanup(p.stop)
 
     def jalan(self, *argv):
-        keluar = io.StringIO()
-        with contextlib.redirect_stdout(keluar):
+        keluar, galat = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(keluar), contextlib.redirect_stderr(galat):
             kode = cli.main(list(argv))
-        return kode, keluar.getvalue()
+        self.stderr = galat.getvalue()
+        return kode, keluar.getvalue() + galat.getvalue()
 
     def tulis_config(self):
         self.config.write_text(json.dumps({"spreadsheet_id": "X", "kunci_akun_layanan": "k.json"}))
@@ -123,6 +124,42 @@ class CLI(unittest.TestCase):
         self.assertEqual(kode, 2)
         self.assertIn("GAGAL", teks)
         self.assertIn("ConnectionError", teks)
+        self.assertIn("GAGAL", self.stderr)  # kegagalan ke stderr, supaya pembungkus cron menangkapnya
+
+    def test_ditolak_dicetak_ke_stderr(self):
+        self.tulis_config()
+        self.klien.sheets["Buku Kas"] = [sheets_sync.KOLOM, ["2026-01-01"] + [""] * 11]
+
+        self.jalan()
+
+        self.assertIn("DITOLAK", self.stderr)
+
+    def test_id_spreadsheet_disamarkan_dari_pesan_kegagalan(self):
+        id_ = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
+        self.config.write_text(json.dumps({"spreadsheet_id": id_, "kunci_akun_layanan": "k.json"}))
+        self.klien.baca = mock.Mock(side_effect=ConnectionError(f"https://sheets.googleapis.com/v4/spreadsheets/{id_}/values"))
+
+        kode, teks = self.jalan()
+
+        self.assertEqual(kode, 2)
+        self.assertNotIn(id_, teks)
+        self.assertIn("<id>", teks)
+
+    def test_klien_dibuat_dengan_kolom_angka_tanggal_dan_waktu(self):
+        self.tulis_config()
+        panggilan = {}
+
+        def pabrik(config, akar, kolom_angka=None, kolom_tanggal=None, kolom_waktu=None):
+            panggilan.update(angka=kolom_angka, tanggal=kolom_tanggal, waktu=kolom_waktu)
+            return self.klien
+
+        with mock.patch.object(sheets_google, "dari_konfigurasi", pabrik):
+            self.jalan("--uji")
+
+        K = sheets_sync.KOLOM
+        self.assertEqual(panggilan, {"angka": {"Buku Kas": {K.index("jumlah")}},
+                                     "tanggal": {"Buku Kas": {K.index("tanggal")}},
+                                     "waktu": {"Buku Kas": {K.index("waktu")}}})
 
 
 if __name__ == "__main__":
