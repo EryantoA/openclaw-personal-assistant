@@ -636,6 +636,21 @@ class BarisBaruDariSheets(Dasar):
         self.assertEqual(self.bills.read_bytes(), self.csv_awal)
         self.assertEqual(len(laporan.ditolak), 1)
         self.assertEqual(laporan.ditambah, [])
+        self.assertIn("Gaji kedua", laporan.ditolak[0][2])  # isi baris ikut dilaporkan
+        self.assertIn("Duplikat", laporan.ditolak[0][2])
+
+    def test_path_buku_kas_yang_bukan_resi_bills_csv_ditolak_sebelum_ada_yang_ditulis(self):
+        self.ubah_sheet("TRX-1", "jumlah", 120_000)  # edit valid yang tidak boleh sempat tertulis
+        self.tambah(item="Parkir")
+        lain = self.dir / "lain.csv"
+        lain.write_bytes(self.bills.read_bytes())
+
+        with self.assertRaises(sheets_sync.SinkronDitolak):
+            sheets_sync.sinkron(lain, self.klien, self.snapshot)
+
+        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+        self.assertEqual(lain.read_bytes(), self.csv_awal)
+        self.assertEqual(self.klien.tulisan, [])
 
     def test_baris_baru_tidak_sah_ditolak_dengan_alasan_dan_isinya_dan_hilang_dari_sheet(self):
         kasus = [dict(kategori="kategori-asing"), dict(jumlah="banyak"), dict(jumlah=88_500.5),

@@ -1,5 +1,5 @@
 """Sinkron Buku Kas ke Google Sheets (spec #20). Dua arah: perubahan di Sheets masuk ke CSV
-lewat jalan tulis resmi (buku.py), lalu CSV disalin kembali ke Sheets.
+lewat jalan tulis resmi (buku.py untuk ubah, catat.py untuk baris baru), lalu CSV disalin kembali ke Sheets.
 
 Buku Kas tetap satu-satunya sumber (ADR-0005). Sheets adalah tabel salinan: worksheet "Buku Kas"
 (12 kolom persis bills.csv) dan "Ringkasan" (Arus Kas Bulan & Saldo per bulan, dihitung buku_kas,
@@ -104,7 +104,7 @@ def _simpan_snapshot(path: Path, isi: dict) -> None:
 
 # ── Arah masuk: Sheets → CSV ──────────────────────────────────────────────
 OLEH = "sheets"  # Sheets tidak memberi tahu siapa pengubahnya; Jejak Perubahan mencatat asalnya saja
-CHANNEL = "sheets"  # Asal baris yang dibuat dari Sheets
+ASAL = "sheets"  # Asal baris yang dibuat dari Sheets (nilai kolom `channel`)
 TINGKAT_TRANSAKSI = ("tanggal", "tipe", "pencatat", "waktu", "akun", "akun_tujuan")
 _JUMLAH_SAH = re.compile(r"(?:Rp\s*)?(?:\d+|\d{1,3}(?:[.,]\d{3})+)")
 _I_RESI = KOLOM.index("no_resi")
@@ -213,16 +213,13 @@ def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, uji: bool, lapo
         if len({b[KOLOM.index(k)] for b in baris}) > 1:
             return _gagal_baru(laporan, no_resi, baris,
                                f"kolom `{k}` harus sama untuk semua baris Transaksi {no_resi}")
-    for b in baris:
+    for b in baris:  # validasi.cek_baris membaca "88500.5" sebagai 885005, jadi desimal dicegat di sini
         jumlah = b[KOLOM.index("jumlah")]
         if not _JUMLAH_SAH.fullmatch(jumlah.strip()):
             return _gagal_baru(laporan, no_resi, baris, f"jumlah harus bilangan bulat rupiah, dapat {jumlah!r}")
-    if Path(bills_path).resolve() != Path(resi.BILLS_CSV).resolve():
-        raise SinkronDitolak("catat.catat menulis ke resi.BILLS_CSV; bills_path berbeda, baris baru "
-                             "tidak dibuat supaya tidak salah berkas")
     pertama = baris[0]
     tx = {k: pertama[KOLOM.index(k)] for k in TINGKAT_TRANSAKSI}
-    tx["channel"] = CHANNEL
+    tx["channel"] = ASAL
     if no_resi:
         tx["no_resi"] = no_resi
     tx["items"] = [{k: b[KOLOM.index(k)] for k in ("kategori", "item", "jumlah", "catatan")} for b in baris]
@@ -279,9 +276,9 @@ def _terapkan_masuk(bills_path: Path, klien, snapshot: dict, uji: bool, laporan:
                 elif i < len(c) and ("lama", id_, i) not in dijelaskan:
                     laporan.dipulihkan.append((no_resi, i + 1))
             if sisa:
-                laporan.ditolak.append((no_resi, 1, "baris ditambah atau dihapus pada Transaksi yang "
-                                        "sudah ada tidak didukung dari Sheets; edit pada Transaksi "
-                                        "ini tidak diterapkan"))
+                _gagal_baru(laporan, no_resi, sisa, "baris ditambah, dihapus, atau diubah bersamaan pada "
+                            "Transaksi yang sudah ada tidak didukung dari Sheets (No Resi yang sama "
+                            "dianggap Duplikat); tidak diterapkan")
             continue
         if sorted(s) == sorted(d):
             continue  # hanya diurutkan ulang
@@ -319,6 +316,11 @@ def sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool = False,
         raise SinkronDitolak(f"{bills_path} tidak ada; Sheet tidak ditimpa dengan tabel kosong.")
     laporan = Laporan()
     if not inisialisasi and snapshot_path.exists():
+        # catat.catat tidak menerima path dan selalu menulis ke resi.BILLS_CSV; tolak di awal,
+        # sebelum satu edit pun sempat masuk, bila bills_path berbeda.
+        if Path(bills_path).resolve() != Path(resi.BILLS_CSV).resolve():
+            raise SinkronDitolak(f"sinkron dua arah hanya untuk resi.BILLS_CSV ({resi.BILLS_CSV}), "
+                                 f"bukan {bills_path}")
         _terapkan_masuk(bills_path, klien, json.loads(snapshot_path.read_text(encoding="utf-8")),
                         uji, laporan)
     rows = buku_kas.muat(bills_path)
