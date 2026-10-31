@@ -21,7 +21,7 @@ def b(tanggal, tipe, jumlah, kategori="food"):
 
 
 ROWS = [
-    b("2026-10-05", "pengeluaran", 1_500_000),
+    b("2026-10-05", "pengeluaran", 850_000),
     b("2026-10-20", "pengeluaran", 350_000),
     b("2026-10-21", "pemasukan", 9_000_000, "salary"),        # bukan pengeluaran
     b("2026-10-22", "transfer", 2_000_000, "transfer"),       # bukan pengeluaran
@@ -30,44 +30,29 @@ ROWS = [
 
 
 def jalankan(fungsi, budget, rows=ROWS):
-    with mock.patch.object(cb.pengaturan, "muat", return_value={"budget_bulanan": budget, "alert_persen": 80}), \
+    atur = {"budget_bulanan": budget, "alert_persen": 80, "pengeluaran_besar_mulai": 1_000_000}
+    with mock.patch.object(cb.pengaturan, "muat", return_value=atur), \
             mock.patch.object(cb, "load_bills", return_value=rows):
         return fungsi(HARI)
 
 
 class StatusBudget(unittest.TestCase):
-    def test_selalu_menjawab_walau_di_bawah_ambang(self):
-        teks = jalankan(cb.status_budget, 7_000_000)
-        self.assertIn("💰 Status Budget Bulan Ini", teks)
-        self.assertIn("Rp 7.000.000", teks)
-        self.assertIn("Rp 1.850.000 (26%)", teks)
-        self.assertIn("Rp 5.150.000", teks)
-        self.assertEqual(jalankan(cb.check_budget, 7_000_000), "")  # cek malam tetap diam
+    """check-bills hanya meneruskan ke budget.pesan; aturan hitung dan bunyinya diuji di test_budget.py."""
 
-    def test_pemasukan_transfer_dan_bulan_lain_tidak_dihitung(self):
+    def test_selalu_menjawab_walau_di_bawah_ambang_tapi_cek_malam_tetap_diam(self):
         teks = jalankan(cb.status_budget, 7_000_000)
-        self.assertNotIn("9.000.000", teks)
-        self.assertNotIn("2.000.000", teks)
-        self.assertNotIn("999.999", teks)
+        self.assertIn("💰 Status Budget — Oktober 2026", teks)
+        self.assertIn("Rp 1.200.000 (17%)", teks)
+        self.assertEqual(jalankan(cb.check_budget, 7_000_000), "")
 
     def test_budget_belum_diset(self):
-        teks = jalankan(cb.status_budget, 0)
-        self.assertIn("Budget belum diset", teks)
-        self.assertNotIn("Terpakai", teks)
-
-    def test_melebihi_budget_ditandai_minus(self):
-        teks = jalankan(cb.status_budget, 1_000_000)
-        self.assertIn("(185%)", teks)
-        self.assertIn("MINUS", teks)
-
-    def test_penutup_menyebut_dihitung_skrip(self):
-        self.assertIn("Dihitung scripts/check-bills.py, tanpa model", jalankan(cb.status_budget, 7_000_000))
+        self.assertIn("Budget belum diset", jalankan(cb.status_budget, 0))
 
 
-class CekBudgetTetapSama(unittest.TestCase):
+class CekBudget(unittest.TestCase):
     def test_peringatan_di_atas_ambang(self):
-        teks = jalankan(cb.check_budget, 2_000_000)  # 1.850.000 = 92%
-        self.assertIn("PERINGATAN BUDGET", teks)
+        teks = jalankan(cb.check_budget, 1_300_000)  # 1.200.000 = 92%
+        self.assertIn("Mendekati batas Budget", teks)
         self.assertIn("92%", teks)
 
     def test_diam_bila_budget_belum_diset(self):

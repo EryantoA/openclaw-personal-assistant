@@ -166,6 +166,35 @@ class Ringkas(unittest.TestCase):
                          {k: h[k] for k in ("pemasukan", "pengeluaran", "saldo_awal")})
 
 
+class PengeluaranBesar(unittest.TestCase):
+    """Transaksi Pengeluaran yang jumlah seluruh Item-nya >= ambang (dasar Budget, ADR-0024)."""
+
+    @staticmethod
+    def b(tanggal, jumlah, resi, kategori="food", tipe="pengeluaran"):
+        r = tx(tanggal, tipe, jumlah, kategori)
+        r["no_resi"] = resi
+        return r
+
+    def besar(self, rows, ambang=1_000_000):
+        return buku_kas.pengeluaran_besar(rows, date(2026, 10, 1), date(2026, 10, 31), ambang)
+
+    def test_yang_dinilai_jumlah_seluruh_item_satu_transaksi_bukan_per_baris(self):
+        h = self.besar([self.b("2026-10-05", 600_000, "A", "food"), self.b("2026-10-05", 600_000, "A", "groceries"),
+                        self.b("2026-10-06", 900_000, "B")])
+        self.assertEqual((h["jumlah"], h["transaksi"]), (1_200_000, 1))
+        self.assertEqual(h["per_kategori"], {"food": 600_000, "groceries": 600_000})
+
+    def test_tepat_di_ambang_termasuk_besar(self):
+        self.assertEqual(self.besar([self.b("2026-10-05", 1_000_000, "A")])["transaksi"], 1)
+        self.assertEqual(self.besar([self.b("2026-10-05", 999_999, "A")])["transaksi"], 0)
+
+    def test_pemasukan_transfer_dan_di_luar_rentang_tidak_ikut(self):
+        h = self.besar([self.b("2026-10-05", 5_000_000, "P", "salary", "pemasukan"),
+                        self.b("2026-10-05", 5_000_000, "T", "transfer", "transfer"),
+                        self.b("2026-09-30", 5_000_000, "X"), self.b("2026-11-01", 5_000_000, "Y")])
+        self.assertEqual((h["jumlah"], h["transaksi"], h["per_kategori"]), (0, 0, {}))
+
+
 class TakTerhitung(unittest.TestCase):
     def test_baris_bermasalah_dilaporkan_dengan_alasan(self):
         tanpa_tgl = tx("", "pengeluaran", 1)

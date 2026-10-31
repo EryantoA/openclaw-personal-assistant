@@ -32,10 +32,10 @@ from typing import Optional, List, Dict
 # ── Paths ────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR.resolve()))
+import budget  # noqa: E402
 import buku_kas  # noqa: E402
 import kewajiban  # noqa: E402
 import pengaturan  # noqa: E402
-import periode  # noqa: E402
 import perkiraan  # noqa: E402
 PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
@@ -62,86 +62,15 @@ def parse_tanggal(value: str) -> Optional[date]:
 
 
 # ── Mode: Cek Budget ─────────────────────────────────────────
-def _pengeluaran_bulan(today: date) -> float:
-    """Total pengeluaran bulan `today`. Pemasukan dan Transfer tidak ikut: memindahkan uang dari
-    Bank ke Kas tidak boleh memakan jatah budget bulan itu (aturan ada di buku_kas.ringkas)."""
-    return buku_kas.ringkas(load_bills(), *periode.rentang_bulan(today.strftime("%Y-%m")))["pengeluaran"]
-
-
-def _bar(persen: float) -> str:
-    """Progress bar 20 karakter."""
-    bar_filled = min(20, int(persen / 5))
-    return "█" * bar_filled + "░" * (20 - bar_filled)
-
-
+# Perhitungan dan bunyi pesan ada di scripts/budget.py (ADR-0024); di sini hanya meneruskan.
 def status_budget(today: Optional[date] = None) -> str:
-    """Sisa budget bulan ini sesuai permintaan: selalu menjawab, tidak menunggu ambang alert.
-
-    Dipakai bot untuk "sisa budget" supaya angkanya tidak dihitung model; check_budget tetap
-    diam di bawah ambang supaya cron malam tidak berisik.
-    """
-    budget_bulanan = pengaturan.muat().get("budget_bulanan", 0)
-    if budget_bulanan <= 0:
-        return ("⚠️ Budget belum diset!\n"
-                "Ketik: set budget [nominal]\n"
-                "Contoh: set budget 3 juta")
-    today = today or date.today()
-    total_bulan = _pengeluaran_bulan(today)
-    persen = (total_bulan / budget_bulanan) * 100
-    sisa = budget_bulanan - total_bulan
-    return "\n".join([
-        "💰 Status Budget Bulan Ini",
-        "",
-        f"📊 Budget:    {format_rupiah(budget_bulanan)}",
-        f"💸 Terpakai:  {format_rupiah(total_bulan)} ({persen:.0f}%)",
-        f"{'💚' if sisa > 0 else '🔴'} Sisa:      {format_rupiah(abs(sisa))}{'  (MINUS!)' if sisa < 0 else ''}",
-        "",
-        f"{_bar(persen)}  {persen:.0f}%",
-        "",
-        "_Dihitung scripts/check-bills.py, tanpa model_",
-    ])
+    """Sisa budget sesuai permintaan: selalu menjawab, tidak menunggu ambang alert."""
+    return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=True)
 
 
 def check_budget(today: Optional[date] = None) -> str:
-    """Cek total pengeluaran bulan ini vs budget."""
-    budget_data = pengaturan.muat()
-    budget_bulanan = budget_data.get("budget_bulanan", 0)
-    alert_persen = budget_data.get("alert_persen", 80)
-
-    if budget_bulanan <= 0:
-        return ""  # Budget belum diset, tidak perlu alert
-
-    today = today or date.today()
-    total_bulan = _pengeluaran_bulan(today)
-
-    persen = (total_bulan / budget_bulanan) * 100
-
-    if persen < alert_persen:
-        return ""  # Belum mencapai threshold, tidak perlu alert
-
-    sisa = budget_bulanan - total_bulan
-    bulan_label = today.strftime("%B %Y")
-    bar = _bar(persen)
-
-    if persen >= 100:
-        status = "🚨 BUDGET HABIS!"
-        pesan = f"Pengeluaran sudah melebihi budget bulan {bulan_label}!"
-    else:
-        status = "⚠️ PERINGATAN BUDGET!"
-        pesan = f"Pengeluaran bulan {bulan_label} sudah mencapai {persen:.0f}% dari budget"
-
-    lines = [
-        status,
-        pesan,
-        "",
-        f"📊 Budget:    {format_rupiah(budget_bulanan)}",
-        f"💸 Terpakai:  {format_rupiah(total_bulan)} ({persen:.0f}%)",
-        f"{'💚' if sisa > 0 else '🔴'} Sisa:      {format_rupiah(abs(sisa))}{'  (MINUS!)' if sisa < 0 else ''}",
-        "",
-        f"{bar}  {persen:.0f}%",
-    ]
-
-    return "\n".join(lines)
+    """Peringatan bila rutin sudah mencapai alert_persen; "" bila tidak, supaya cron malam diam."""
+    return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=False)
 
 
 # ── Mode: Cek Kewajiban ──────────────────────────────────────

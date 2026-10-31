@@ -85,11 +85,21 @@ uang yang berpindah saat itu.
 _Avoid_: modal awal, opening balance, saldo pembuka
 
 **Budget**:
-Batas pengeluaran yang ditetapkan untuk satu bulan. Hanya membatasi pengeluaran; pemasukan
-tidak dihitung terhadapnya.
+Batas belanja **rutin** yang kami tetapkan sendiri untuk satu bulan. Bukan uang yang dimiliki dan
+tidak mengikuti pemasukan (yang naik-turun); kecukupan uang dijawab Arus Kas Bulanan. Hanya
+Pengeluaran rutin yang dihitung terhadapnya: Pengeluaran Besar tidak ikut (ADR-0024).
+_Avoid_: sisa uang, saldo budget
+
+**Pengeluaran Besar**:
+Satu Transaksi Pengeluaran yang jumlah seluruh Item-nya mencapai ambang (`pengeluaran_besar_mulai`
+di Pengaturan, Rp 1.000.000). Tidak dihitung ke Budget, tapi selalu tampil terpisah sebagai
+"Di luar budget" supaya tidak hilang dari pandangan. Tetap Pengeluaran biasa untuk Arus Kas Bulanan
+dan Saldo Bersama.
+_Avoid_: pengeluaran besar-besaran, one-off
 
 **Pengaturan**:
-Isi `data/budget.json`: Budget, kategori yang sah, aturan Duplikat Lapis 2, toleransi Perkiraan,
+Isi `data/budget.json`: Budget, ambang Pengeluaran Besar, kategori yang sah, aturan Duplikat Lapis 2,
+toleransi Perkiraan,
 dan kapan Kewajiban diingatkan. Budget hanya salah satu isinya, jadi berkasnya tidak disebut
 "budget". Dibaca lewat `scripts/pengaturan.py`; kategori dan aturan Duplikat masih lewat
 `resi.BUDGET_JSON` (ADR-0020).
