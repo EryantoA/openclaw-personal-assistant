@@ -185,8 +185,6 @@ jalankan ulang perintah yang sama dengan `python3 scripts/catat.py --paksa`. Lap
 tidak pernah dipaksa — minta pengguna memeriksa struknya. Jangan menyebut `--paksa` atau nama
 skrip kepada pengguna; itu urusanmu, bukan mereka.
 
-`python3 scripts/resi.py --check "<no_resi>"` tetap bisa dipakai untuk menjawab "resi ini sudah
-dicatat belum?" tanpa mencatat apa pun.
 
 > Aturan Lapis 2 dibaca dari `data/budget.json` → `duplicate_check.match_fields`. Kalau pengguna ingin
 > mengubah kriteria (mis. tambah `item`), arahkan mengedit blok itu. Jika `aksi` di config = `warning`
@@ -282,7 +280,7 @@ Trigger: `laporan hari ini`, `laporan minggu ini` / `minggu lalu` / `pekan ini` 
 `weekly report`, `laporan bulan ini`, `laporan bulan lalu`, `laporan bulanan`, `monthly report`,
 `laporan bulan <nama bulan>`, `pengeluaran per orang`, `per pembeli`
 
-**Jangan hitung sendiri.** Jalankan skrip dari tabel *Laporan* di `AGENTS.md` dan salin
+**Jangan hitung sendiri.** Jalankan skrip dari *Peta pesan* di `AGENTS.md` dan salin
 keluarannya utuh — angkanya identik dengan laporan otomatis. Yang hanya dicatat di sini:
 
 - Bulan yang **sedang berjalan** angkanya setengah jalan; itu bukan "Laporan Bulanan", nama itu
@@ -296,37 +294,15 @@ keluarannya utuh — angkanya identik dengan laporan otomatis. Yang hanya dicata
 - Pengeluaran per pembeli (`laporan-pembeli.py`) hanya menghitung pengeluaran; baris tanpa
   pencatat tampil "Tanpa nama".
 
-### 🔍 Cari Transaksi
-Trigger: `cari [keyword]`, `history [kategori]`
-Contoh: `cari listrik`, `history makanan bulan ini`
-Dijalankan lewat `scripts/buku.py cari`; bentuk hasil (Tanggal, Pembeli, Jam, resi per hasil) didefinisikan **hanya di `AGENTS.md`** (bagian *Mencari transaksi*).
+### 🔍 Cari, cek resi, cek duplikat, ubah/hapus
+Perintah dan alurnya ada di *Peta pesan* di `AGENTS.md` (bagian *Mencari transaksi* dan *Mengubah
+dan menghapus*) — di sini hanya yang tidak ada di sana:
 
-### 🧾 Cek Resi (sudah dicatat atau belum)
-Trigger: `cek resi [no]`, `resi [no]`, `sudah dicatat [no]`
-Langkah: jalankan via tool shell (Bash):
-```bash
-python3 scripts/resi.py --check "<no_resi>"
-```
-Jika output `DUPLICATE ...` → transaksi **sudah** tercatat, tampilkan detail barisnya.
-Jika `OK ...` → **belum** tercatat.
-
-### 🔁 Cek Duplikat (data dobel di seluruh catatan)
-Trigger: `cek duplikat`, `duplikat`, `ada data dobel?`, `cek data dobel`
-Langkah: jalankan via tool shell (Bash):
-```bash
-python3 scripts/resi.py --find-dup
-```
-Definisi duplikat: baris yang **isinya identik** (semua kolom sama kecuali `no_resi`). Item-item dalam satu
-struk **tidak** dianggap dobel.
-- Output `DUPLICATE N baris dalam M grup: ...` → laporkan ke pengguna daftar grupnya, sarankan cek/hapus manual (jangan hapus otomatis).
-- Output `OK tidak ada duplikat` → beri tahu datanya bersih.
-
-### 🗑️ Hapus / Ubah Transaksi
-Trigger: `hapus terakhir`, `hapus transaksi ...`, `ubah ...`, `koreksi ...`, `salah catat`
-Lewat `scripts/buku.py hapus|ubah` dengan Pratinjau dulu — alur dan kerangkanya didefinisikan
-**hanya di `AGENTS.md`** (bagian *Mengubah dan menghapus*). "Hapus terakhir" menghapus Transaksi
-terakhir yang dicatat pengirim (semua Item-nya), bukan baris terakhir berkas. Kata `batal` saja
-adalah jawaban untuk Pratinjau yang sedang menunggu, bukan perintah hapus.
+- **Duplikat** (`resi.py --find-dup`) = baris yang **isinya identik** di semua kolom selain
+  `no_resi`. Item-item dalam satu struk **tidak** dianggap dobel.
+- "Hapus terakhir" menghapus Transaksi terakhir yang dicatat pengirim (semua Item-nya), bukan
+  baris terakhir berkas. Kata `batal` saja adalah jawaban untuk Pratinjau yang menunggu, bukan
+  perintah hapus.
 
 ---
 

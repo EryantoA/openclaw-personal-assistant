@@ -1,6 +1,6 @@
 # Budget: set budget dan alert
 
-Sisa budget dan cek otomatis setelah catat dijawab skrip — lihat `AGENTS.md` (tabel *Laporan*).
+Sisa budget dan cek otomatis setelah catat dijawab skrip — lihat *Peta pesan* di `AGENTS.md`.
 
 Angka budget dan ambang alert selalu dibaca dari `data/budget.json`, jangan dari ingatan atau
 contoh di bawah (cuma ilustrasi format).

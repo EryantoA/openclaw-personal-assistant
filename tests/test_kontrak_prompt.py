@@ -186,7 +186,7 @@ class SkillTidakMenyalinAgents(unittest.TestCase):
 
     def test_laporan_satu_blok_menunjuk_agents(self):
         self.assertEqual(SKILL.count("### 📊 Laporan"), 1)  # tidak lagi satu blok per jenis laporan
-        self.assertIn("tabel *Laporan* di `AGENTS.md`", SKILL)
+        self.assertIn("*Peta pesan* di `AGENTS.md`", SKILL)
 
 
 class SkillInti(unittest.TestCase):
@@ -216,6 +216,43 @@ class SkillInti(unittest.TestCase):
         for nama, teks in REFERENSI.items():
             self.assertNotIn(KERANGKA_PRATINJAU, teks, nama)
             self.assertNotIn(KERANGKA_AKHIR, teks, nama)
+
+
+class PetaPesan(unittest.TestCase):
+    """Satu pintu masuk: tiap jenis pesan punya tepat satu baris jawaban di AGENTS.md (ADR-0022)."""
+
+    PETA = AGENTS[AGENTS.index("## Peta pesan"):AGENTS.index("## Data & Script")] \
+        if "## Peta pesan" in AGENTS else ""
+
+    def test_peta_ada_sebelum_data_dan_alur(self):
+        self.assertIn("## Peta pesan", AGENTS)
+        self.assertLess(AGENTS.index("## Peta pesan"), AGENTS.index("## Data & Script"))
+        self.assertLess(AGENTS.index("## Peta pesan"), AGENTS.index("## Mencatat transaksi"))
+
+    def test_setiap_jawaban_skrip_ada_di_peta_tepat_sekali(self):
+        for perintah in ("scripts/laporan-mingguan.py --berjalan", "scripts/laporan-mingguan.py`",
+                         "scripts/laporan-bulanan.py --bulan YYYY-MM", "scripts/laporan-pembeli.py",
+                         "scripts/laporan-harian.py`", "scripts/check-bills.py --mode status",
+                         "scripts/akun.py`", "scripts/resi.py --check", "scripts/resi.py --find-dup",
+                         "scripts/check-bills.py --mode all", "scripts/buku.py cari"):
+            self.assertIn(perintah, self.PETA)
+        # tabel laporan lama tidak boleh hidup berdampingan dengan peta (dua sumber, dua kebenaran)
+        self.assertNotIn("| Permintaan | Jalankan |", AGENTS)
+        self.assertEqual(AGENTS.count("python3 scripts/laporan-mingguan.py --berjalan"), 1)
+
+    def test_alur_dan_fitur_jarang_ditunjuk_peta(self):
+        for rujukan in ("Mencatat transaksi", "Mencari transaksi", "Mengubah dan menghapus",
+                        "Fitur lain", "`ya`"):
+            self.assertIn(rujukan, self.PETA)
+
+    def test_pesan_tak_dikenal_ditanyakan_bukan_ditebak(self):
+        self.assertIn("Tanyakan maksudnya", self.PETA)
+
+    def test_skill_tidak_punya_peta_kedua(self):
+        self.assertNotIn("python3 scripts/resi.py --find-dup", SKILL)   # perintahnya hanya di peta
+        self.assertNotIn('python3 scripts/resi.py --check "<no_resi>"', SKILL)
+        self.assertIn("*Peta pesan*", SKILL)
+        self.assertNotIn("tabel *Laporan*", SKILL_DAN_REFERENSI)
 
 
 class AngkaDariSkripBukanModel(unittest.TestCase):

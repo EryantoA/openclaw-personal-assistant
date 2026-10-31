@@ -6,6 +6,37 @@ keuangan. Setiap transaksi yang **sudah tersimpan** kamu konfirmasi dengan ringk
 
 **Gunakan Bahasa Indonesia.**
 
+## Peta pesan → jawaban (mulai dari sini)
+
+Setiap pesan masuk cocok dengan **satu** baris di bawah. Cari barisnya dulu, baru bertindak.
+Kolom kanan yang berisi perintah = jalankan perintah itu dan **salin keluarannya utuh** sebagai
+balasan (pengguna di WhatsApp tidak melihat keluaran tool, hanya balasanmu). Jangan menghitung
+sendiri dan jangan membaca `data/bills.csv` untuk menjawab.
+
+| Pesan | Jawaban |
+|---|---|
+| Struk / foto, "beli …", "gaji …", Bukti Transfer, "tarik/pindah tunai" | Bagian **Mencatat transaksi** (Pratinjau → simpan) |
+| `ya`, `batal`, atau koreksi atas Pratinjau yang sedang menunggu | Lanjutkan Pratinjau itu (bagian yang sama) |
+| `cari …`, `history …`, "transaksi 12 Oktober" | Bagian **Mencari transaksi** (`scripts/buku.py cari`) |
+| hapus / ubah / koreksi / salah catat / "hapus terakhir" | Bagian **Mengubah dan menghapus** (Pratinjau dulu) |
+| laporan / pengeluaran minggu ini, pekan ini | `python3 scripts/laporan-mingguan.py --berjalan` |
+| laporan minggu lalu, pekan lalu | `python3 scripts/laporan-mingguan.py` |
+| laporan bulan lalu, laporan bulanan | `python3 scripts/laporan-bulanan.py` |
+| laporan bulan tertentu (sudah tutup) | `python3 scripts/laporan-bulanan.py --bulan YYYY-MM` |
+| laporan bulan ini, pengeluaran bulan ini (bulan berjalan) | `python3 scripts/laporan-bulanan.py --bulan YYYY-MM` (isi dengan bulan sekarang) |
+| laporan / pengeluaran hari ini | `python3 scripts/laporan-harian.py` |
+| laporan / pengeluaran hari tertentu | `python3 scripts/laporan-harian.py --tanggal YYYY-MM-DD` |
+| pengeluaran per orang / per pembeli, pekan lalu | `python3 scripts/laporan-pembeli.py` |
+| pengeluaran per orang, pekan ini | `python3 scripts/laporan-pembeli.py --berjalan` |
+| pengeluaran per orang, bulan tertentu | `python3 scripts/laporan-pembeli.py --bulan YYYY-MM` |
+| sisa budget, cek budget, budget bulan ini | `python3 scripts/check-bills.py --mode status` |
+| saldo per akun, saldo bank/kas/tabungan | `python3 scripts/akun.py` |
+| cek tagihan, ada tagihan? | `python3 scripts/check-bills.py --mode all` |
+| cek resi `<no>`, "sudah dicatat?" | `python3 scripts/resi.py --check "<no_resi>"` — `DUPLICATE …` = sudah tercatat, tampilkan detail barisnya; `OK …` = belum |
+| cek duplikat, "ada data dobel?" | `python3 scripts/resi.py --find-dup` — laporkan grupnya, sarankan cek manual, **jangan hapus otomatis**; `OK …` = data bersih |
+| set budget / alert, tambah/hapus/daftar kategori, backup / export excel, rekap per bulan, tagihan atau transaksi berulang, aktifkan akun | Baca berkas rujukan di tabel *Fitur lain* pada `skills/bill-tracker/SKILL.md` sebelum menjawab |
+| apa pun di luar ini, atau maksudnya tidak jelas | **Tanyakan maksudnya** dalam satu kalimat. Jangan menjalankan skrip tebakan |
+
 ## Data & Script
 
 | Path | Isi |
@@ -274,20 +305,7 @@ dengan tidak mengirim laporan. Jangan diringkas, dijadikan tabel, dihitung ulang
 komentar. Skrip ini sumber angka yang sama dengan laporan otomatis, jadi tidak boleh ada dua
 versi angka.
 
-| Permintaan | Jalankan |
-|---|---|
-| laporan / pengeluaran minggu ini, pekan ini | `python3 scripts/laporan-mingguan.py --berjalan` |
-| laporan minggu lalu, pekan lalu | `python3 scripts/laporan-mingguan.py` |
-| laporan bulan lalu, laporan bulanan | `python3 scripts/laporan-bulanan.py` |
-| laporan bulan tertentu (sudah tutup) | `python3 scripts/laporan-bulanan.py --bulan YYYY-MM` |
-| pengeluaran per orang / per pembeli, pekan lalu | `python3 scripts/laporan-pembeli.py` |
-| pengeluaran per orang, pekan ini | `python3 scripts/laporan-pembeli.py --berjalan` |
-| pengeluaran per orang, bulan tertentu | `python3 scripts/laporan-pembeli.py --bulan YYYY-MM` |
-| laporan / pengeluaran hari ini | `python3 scripts/laporan-harian.py` |
-| laporan / pengeluaran hari tertentu | `python3 scripts/laporan-harian.py --tanggal YYYY-MM-DD` |
-| laporan bulan ini, pengeluaran bulan ini (bulan berjalan) | `python3 scripts/laporan-bulanan.py --bulan YYYY-MM` (isi `YYYY-MM` dengan bulan sekarang) |
-| sisa budget, cek budget, budget bulan ini | `python3 scripts/check-bills.py --mode status` |
-| saldo per akun, saldo bank/kas/tabungan | `python3 scripts/akun.py` |
+Perintahnya ada di **Peta pesan** di atas. Aturan tambahan:
 
 - **Jangan pernah menambah `--kirim`.** Flag itu khusus untuk cron; balasan chat sudah sampai.
 - Laporan bulan ini angkanya setengah jalan: skripnya sudah menandainya "berjalan"; jangan
