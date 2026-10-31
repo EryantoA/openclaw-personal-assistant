@@ -10,6 +10,9 @@ from pathlib import Path
 AKAR = Path(__file__).resolve().parent.parent
 AGENTS = (AKAR / "AGENTS.md").read_text(encoding="utf-8")
 SKILL = (AKAR / "skills" / "bill-tracker" / "SKILL.md").read_text(encoding="utf-8")
+REFERENSI = {p.name: p.read_text(encoding="utf-8")
+             for p in sorted((AKAR / "skills" / "bill-tracker" / "references").glob("*.md"))}
+SKILL_DAN_REFERENSI = SKILL + "\n".join(REFERENSI.values())
 
 KERANGKA_AKHIR = "✅ Sudah dicatat!"
 KERANGKA_PRATINJAU = "🧾 Akan disimpan (belum dicatat)"
@@ -156,12 +159,12 @@ class SkillTidakBertentangan(unittest.TestCase):
         # ADR-0002: kategori slug Inggris huruf kecil. Contoh berkapital/Indonesia hanya
         # boleh muncul sebagai larangan ("Jangan pernah menulis kategori ... seperti").
         for salah in ("`Gaji`", "`Penjualan`", "`Lainnya`", "kategori Investasi", "`Donasi`"):
-            self.assertNotIn(salah, SKILL)
+            self.assertNotIn(salah, SKILL_DAN_REFERENSI)
 
-    def test_daftar_kategori_tidak_dicetak_ulang_di_skill(self):
-        # kategori_custom di budget.json satu-satunya acuan; daftar keras di SKILL.md basi sendiri.
-        self.assertNotIn("Daftar Kategori (23)", SKILL)
-        self.assertIn("<semua slug dari kategori_custom", SKILL)
+    def test_daftar_kategori_tidak_dicetak_ulang(self):
+        # kategori_custom di budget.json satu-satunya acuan; daftar keras basi sendiri.
+        self.assertNotIn("Daftar Kategori (23)", SKILL_DAN_REFERENSI)
+        self.assertIn("<semua slug dari kategori_custom", REFERENSI["kategori-custom.md"])
 
     def test_pratinjau_tanpa_syarat_keraguan(self):
         # ADR-0016: semua pencatatan lewat Pratinjau, bukan hanya saat ragu.
@@ -173,9 +176,9 @@ class SkillTidakMenyalinAgents(unittest.TestCase):
     """Bagian SKILL.md yang dipangkas karena menyalin AGENTS.md atau memancing angka karangan."""
 
     def test_contoh_balasan_berangka_tetap_tidak_ada(self):
-        self.assertNotIn("7 CSV + 7 Excel", SKILL)    # status backup harus dari isi folder
-        self.assertNotIn("Laporan Mingguan Otomatis", SKILL)  # bot tidak menyusunnya; skrip cron
-        self.assertNotIn("PENGELUARAN PER KATEGORI", SKILL)   # salinan keluaran skrip
+        self.assertNotIn("7 CSV + 7 Excel", SKILL_DAN_REFERENSI)    # status backup dari isi folder
+        self.assertNotIn("Laporan Mingguan Otomatis", SKILL_DAN_REFERENSI)  # skrip cron, bukan bot
+        self.assertNotIn("PENGELUARAN PER KATEGORI", SKILL_DAN_REFERENSI)   # salinan keluaran skrip
 
     def test_pencatat_adalah_nama_pengirim(self):
         self.assertNotIn("nomor HP atau username", SKILL)
@@ -184,6 +187,35 @@ class SkillTidakMenyalinAgents(unittest.TestCase):
     def test_laporan_satu_blok_menunjuk_agents(self):
         self.assertEqual(SKILL.count("### 📊 Laporan"), 1)  # tidak lagi satu blok per jenis laporan
         self.assertIn("tabel *Laporan* di `AGENTS.md`", SKILL)
+
+
+class SkillInti(unittest.TestCase):
+    """SKILL.md hanya memuat yang dipakai tiap pencatatan; fitur jarang ada di references/ (ADR-0021)."""
+
+    def test_setiap_referensi_ditunjuk_tabel_dan_ada(self):
+        self.assertTrue(REFERENSI, "folder references/ kosong")
+        for nama in REFERENSI:
+            self.assertIn("{baseDir}/references/" + nama, SKILL, f"{nama} tidak ditunjuk SKILL.md")
+        for nama in __import__("re").findall(r"\{baseDir\}/references/([\w.-]+\.md)", SKILL):
+            self.assertIn(nama, REFERENSI, f"SKILL.md menunjuk {nama} yang tidak ada")
+
+    def test_aturan_yang_berlaku_tiap_pencatatan_tetap_di_inti(self):
+        # Menautkan pembayaran tagihan terjadi di tengah pencatatan biasa; kalau hanya ada di
+        # referensi, bot tak punya alasan membukanya.
+        self.assertIn("Pembayaran tagihan ditautkan", SKILL)
+        self.assertIn("lunas_resi", SKILL)
+        self.assertIn("Transfer bukan belanja", SKILL)
+        self.assertIn("Jangan tebak akun", SKILL)
+        self.assertIn("kategori `transfer`", SKILL)
+
+    def test_inti_tidak_menggembung_lagi(self):
+        # Batas kasar, bukan target: melewatinya berarti ada fitur jarang yang masuk ke inti lagi.
+        self.assertLess(len(SKILL.splitlines()), 420)
+
+    def test_referensi_tidak_menyalin_alur_agents(self):
+        for nama, teks in REFERENSI.items():
+            self.assertNotIn(KERANGKA_PRATINJAU, teks, nama)
+            self.assertNotIn(KERANGKA_AKHIR, teks, nama)
 
 
 class AngkaDariSkripBukanModel(unittest.TestCase):

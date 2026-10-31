@@ -201,7 +201,9 @@ Untuk mengisi JSON dengan benar dan membaca data — bukan untuk menulis barisny
 
 - **`tipe`**: `pengeluaran` (default bila ragu; baris lama tanpa kolom ini dianggap begitu),
   `pemasukan`, atau `transfer` — pindah antar akun sendiri, **tidak pernah** ikut Pemasukan,
-  Pengeluaran, Arus Kas Bulan, Saldo, maupun budget (lihat Akun).
+  Pengeluaran, Arus Kas Bulan, Saldo, maupun budget. Catat dengan `akun` = asal, `akun_tujuan` =
+  tujuan, dan item berkategori `transfer` (di luar `kategori_custom`; `catat.py` menolak transfer
+  tanpa dua akun). Rincian di `{baseDir}/references/akun-transfer.md`.
 - **`channel`**: asal baris — `whatsapp`/`telegram` untuk pesan; impor massal memakai nama
   aplikasi sumbernya (mis. `keuangan-keluarga`), supaya mudah disaring.
 - **`item`**: apa yang dibeli, apa adanya. **Nama toko ikut di sini**, setelah tanda pisah —
@@ -294,51 +296,6 @@ keluarannya utuh — angkanya identik dengan laporan otomatis. Yang hanya dicata
 - Pengeluaran per pembeli (`laporan-pembeli.py`) hanya menghitung pengeluaran; baris tanpa
   pencatat tampil "Tanpa nama".
 
-### 📅 Laporan Per Bulan (dipisah, bukan digabung)
-Trigger: `laporan per bulan`, `rekap per bulan`, `breakdown bulanan`, `laporan semua bulan`
-
-Langkah:
-1. Baca `data/bills.csv`
-2. Kelompokkan transaksi per bulan berdasarkan kolom `tanggal` → kunci `YYYY-MM`
-3. Untuk **tiap bulan** (urut kronologis), hitung total `pemasukan`, total `pengeluaran`, dan
-   **Arus Kas Bulan** (= pemasukan − pengeluaran bulan itu saja). **Baris `tipe=transfer`
-   dilewati seluruhnya** — uangnya hanya berpindah antar akun sendiri, tidak masuk dan tidak
-   keluar dari kas keluarga
-4. Hitung **Saldo** secara **kumulatif**: saldo bulan lalu + arus kas bulan ini. Saldo dibawa
-   terus antar bulan — ia sisa kas, bukan selisih bulanan. Baris berkategori `opening_balance`
-   (Rp 20.500.000, Mar 2026) **ikut** ke Saldo tapi **tidak** ke Total Pemasukan maupun Arus Kas
-   Bulan — kalau ikut, laporan akan mengklaim ada Rp 20,5 juta uang masuk yang tidak pernah ada
-5. Tampilkan **terpisah per bulan** — jangan digabung jadi satu total
-6. Kalau fitur akun sudah aktif (`data/akun.json` terisi) dan pengguna memintanya, tambahkan saldo per akun dari `python3 scripts/akun.py` — **selalu disertai keterangan bahwa angka itu berlaku sejak tanggal cutover**, bukan untuk seluruh riwayat
-
-Response format:
-```
-📅 REKAP PER BULAN
-
-▸ Januari 2025
-  📥 Pemasukan:   Rp 5.000.000
-  📤 Pengeluaran: Rp 2.850.000
-  💚 Arus Kas:    Rp 2.150.000  (12 transaksi)
-  🏦 Saldo:       Rp 2.150.000
-
-▸ Februari 2025
-  📥 Pemasukan:   Rp 5.000.000
-  📤 Pengeluaran: Rp 6.200.000
-  🔴 Arus Kas:    -Rp 1.200.000  (18 transaksi)
-  🏦 Saldo:       Rp 950.000
-
-─────────────────────────
-Saldo terakhir (akhir Februari 2025): Rp 950.000
-```
-
-> ⚠️ **Jangan tukar dua istilah ini.** `Arus Kas Bulan` berdiri sendiri per bulan; `Saldo`
-> selalu kumulatif dan dibawa antar bulan. Menjumlahkan kolom `Saldo` antar bulan tidak
-> bermakna — saldo keseluruhan = saldo bulan terakhir, bukan penjumlahan.
-
-> 💡 Untuk versi Excel per-bulan (satu sheet tiap bulan), lihat bagian **Fitur Backup** → `export excel`.
-
-
-
 ### 🔍 Cari Transaksi
 Trigger: `cari [keyword]`, `history [kategori]`
 Contoh: `cari listrik`, `history makanan bulan ini`
@@ -373,267 +330,19 @@ adalah jawaban untuk Pratinjau yang sedang menunggu, bukan perintah hapus.
 
 ---
 
-## 💰 Fitur Budget
-
-Angka budget dan ambang alert selalu dibaca dari `data/budget.json`, jangan dari ingatan atau
-contoh di bawah (cuma ilustrasi format).
-
-### Set Budget Bulanan
-Trigger: `set budget [nominal]`, `atur budget [nominal]`
-Contoh: `set budget 3 juta`, `set budget 2500000`, `atur budget 1.5jt`
-
-Langkah:
-1. Baca `data/budget.json`
-2. Update field `budget_bulanan` dengan nominal yang diparse
-3. Simpan kembali ke `data/budget.json`
-4. Konfirmasi ke pengguna
-
-Response:
-```
-💰 Budget bulanan berhasil diset!
-
-📊 Budget: Rp 3.000.000/bulan
-🔔 Alert akan dikirim saat pengeluaran mencapai 80%
-```
-
-### Cek Sisa Budget
-Trigger: `sisa budget`, `budget`, `cek budget`, `budget bulan ini`
-
-Jalankan `python3 scripts/check-bills.py --mode status` dan salin keluarannya utuh. Skrip yang
-membaca `budget.json` dan `bills.csv` (hanya `tipe=pengeluaran`) dan menghitung sisa serta
-persentasenya — jangan dihitung sendiri. Budget belum diset pun dijawab skrip.
-
-### Cek Budget Otomatis (setiap catat transaksi)
-Setelah `catat.py` membalas `OK tersimpan`, jalankan `python3 scripts/check-bills.py --mode budget`.
-Skrip itu diam (`✅ Semua lancar!`) di bawah `alert_persen` dan mencetak peringatan di atasnya;
-salin utuh di bawah kerangka konfirmasi bila ada. Jangan menghitung persentasenya sendiri.
-Alur lengkapnya di `AGENTS.md` (bagian *Bentuk balasan setelah `OK tersimpan`*).
-
-### Set Alert Threshold
-Trigger: `set alert [persen]%`, `alert budget [persen]`
-Contoh: `set alert 75%`, `alert budget 90`
-
-Update field `alert_persen` di `data/budget.json`.
-
----
-
-## 🧾 Kewajiban (tagihan yang belum dibayar)
-
-**Kewajiban** = tagihan pascabayar yang **sudah datang tapi belum dibayar** — WiFi bulanan, PLN
-pascabayar, cicilan. Disimpan di `data/kewajiban.json`.
-
-> ⚠️ Pembelian **prabayar** bukan Kewajiban. Pulsa, paket data, gas Elpiji, top-up e-wallet —
-> uangnya keluar di detik yang sama, jadi itu langsung Transaksi biasa di `bills.csv`.
-> Kalau ragu: adakah jeda antara "tagihannya datang" dan "uangnya keluar"? Kalau tidak ada,
-> bukan Kewajiban.
-
-### Membuat Kewajiban
-Trigger: pengguna menyebut tagihan yang datang & belum dibayar — `tagihan wifi 233rb jatuh tempo
-tanggal 20`, `tagihan listrik datang 340.000 bayar sebelum 25`.
-
-Langkah:
-1. Baca `data/kewajiban.json`
-2. Tambahkan entri: `id` (`KWJ-<urut>`), `nama`, `kategori` (slug dari `budget.json`), `nominal`,
-   `jatuh_tempo` (`YYYY-MM-DD`), `dibuat` (hari ini), `lunas_resi: null`
-3. Tulis ulang seluruh file (baca dulu, jangan append)
-
-```
-🧾 Tagihan dicatat (belum dibayar)
-
-📄 WiFi — Rp 233.000
-📅 Jatuh tempo: 20 Agu 2026
-🔔 Saya ingatkan tgl 18 dan 20.
-```
-
-### Menautkan saat dibayar — WAJIB
-Kalau pengguna mencatat pembayaran atas tagihan yang ada di `kewajiban.json`
-(mis. `bayar wifi 233rb`):
-
-1. Catat baris `bills.csv` **seperti biasa** lewat `scripts/catat.py`
-2. **Lalu** buka `data/kewajiban.json`, isi `lunas_resi` entri itu dengan `no_resi` baris tadi
-
-> ⚠️ **Tautkan, jangan menandai.** Tidak ada field status di file itu — jangan pernah menambah
-> `"status": "lunas"` atau sejenisnya. Lunas dihitung ulang dari `lunas_resi`, dan tautan yang
-> menunjuk baris tidak ada akan diperlakukan **belum** lunas.
-
-Kalau lupa menautkan, pengingatnya berhenti sendiri 5 hari setelah jatuh tempo — tagihannya jadi
-tidak diketahui, bukan lunas.
-
-### Cek Tagihan
-Trigger: `cek tagihan`, `tagihan apa saja`, `ada tagihan?`
-
-```bash
-python3 scripts/check-bills.py --mode all
-```
-
----
-
-## 🏦 Akun & Transfer
-
-**Akun** = tempat uangnya berada: `Kas`, `Bank Utama`, `Tabungan`. Daftar resminya di
-`data/akun.json`. Ini **berbeda dari cara bayar** — `Livin' by Mandiri`, `GoPay`, `Shopee
-Pay` adalah cara bayar dan tetap ditulis di `catatan`. Orang bisa bayar pakai GoPay yang
-saldonya ditarik dari Bank Utama: akunnya `Bank Utama`, cara bayarnya GoPay.
-
-### ⚠️ Batas cutover — sebut ini setiap kali melaporkan saldo per akun
-
-Saldo per akun **hanya berlaku sejak tanggal `cutover`** di `data/akun.json`. Transaksi
-sebelum tanggal itu tidak menyebut akun sama sekali dan **tidak boleh ditebak** — sebelum
-cutover, hanya **Saldo global** yang bermakna (ADR-0010).
-
-Jangan pernah menyajikan saldo per akun seolah berlaku untuk seluruh riwayat.
-
-### Status sekarang
-
-Jalankan `python3 scripts/akun.py` untuk melihat saldo per akun. Kalau `saldo_awal` di
-`data/akun.json` masih `null`, **fiturnya belum aktif** dan skripnya akan bilang begitu.
-Jangan mengarang angkanya — hanya pemilik data yang tahu berapa isi tiap akun.
-
-### Mengaktifkan (sekali saja, saat cutover)
-
-Kalau pengguna minta mengaktifkan akun, tuntun begini:
-
-1. Tanyakan saldo tiap akun **pada tanggal cutover**.
-2. Isi `saldo_awal` tiap akun dan `saldo_global_saat_cutover` di `data/akun.json`.
-3. Jalankan `python3 scripts/akun.py --cek`. **Jumlah semua `saldo_awal` harus sama
-   dengan Saldo global pada tanggal cutover.** Kalau tidak sama, laporkan selisihnya
-   apa adanya dan tanyakan mana yang keliru — **jangan pernah menyerap selisih itu**
-   ke salah satu akun supaya angkanya "pas".
-4. Tambahkan `"akun"` ke `duplicate_check.match_fields` di `data/budget.json`
-   (keterangannya sudah ada di file itu). **Baru pada langkah ini**, tidak sebelumnya.
-5. Sejak saat itu, setiap transaksi baru **wajib** menyebut akun. Kalau pengguna tidak
-   menyebutkannya, tanyakan — jangan menebak.
-
-### Mencatat transfer
-
-Memindahkan uang antar akun sendiri bukan pemasukan dan bukan pengeluaran.
-
-```
-tarik tunai 500rb dari bank
-pindah 2 juta ke tabungan
-```
-
-Catat lewat `catat.py` dengan `"tipe": "transfer"`, `"akun"` = asal, `"akun_tujuan"` = tujuan, dan
-item berkategori `transfer` (di luar `kategori_custom`; `catat.py` menolak transfer tanpa dua akun).
-
-```
-2026-09-02,transfer,transfer,Tarik tunai untuk belanja,500000,,whatsapp,Ayah,Bank Utama,Kas,09:00,TRX-20260902-0001
-```
-
-Transfer **tidak pernah** menyentuh Total Pemasukan, Total Pengeluaran, Arus Kas Bulan,
-Saldo global, maupun budget. Ia hanya menggeser saldo antar akun. Kalau setelah mencatat
-transfer angka Saldo global ikut berubah, itu **bug** — hentikan dan laporkan.
-
-Konfirmasinya memakai kerangka bersama di `AGENTS.md`; baris `Arah:` menyebut kedua sisinya
-(`🔁 Transfer (Bank Utama → Kas)`). Jangan menambah baris saldo: saldo akun hanya dari
-`python3 scripts/akun.py`, tidak pernah dihitung atau dikarang di balasan.
-
----
-
-## 🔮 Perkiraan (transaksi berulang yang diharapkan)
-
-**Perkiraan** = transaksi yang biasanya berulang tiap bulan — gaji akhir bulan, langganan yang
-ditarik tanggal 26. Disimpan di `data/perkiraan.json`. **Bukan** Transaksi: belum ada uang
-berpindah, jadi **tidak pernah** ikut menghitung Saldo, Arus Kas Bulan, maupun budget.
-
-Gunanya dua: bersiap untuk uang yang akan keluar, dan menyadari kalau yang seharusnya masuk
-ternyata tidak masuk.
-
-> ⚠️ **Jangan sunting `data/perkiraan.json` tanpa diminta eksplisit.** File ini dirawat manusia
-> dan jarang berubah. Kamu boleh membacanya kapan saja untuk menjawab pertanyaan; menambah atau
-> mengubah entri hanya kalau pengguna memintanya dengan jelas (mis. `catat langganan Netflix
-> 186rb tiap tanggal 5`).
-
-Kalau menambah entri: `id` (`PRK-<urut>`), `nama`, `arah` (`masuk`/`keluar`), `kategori`,
-`nominal`, `tanggal_biasanya` (1-31), `aktif: true`, `dasar` (bukti di data yang mendasarinya).
-
-> 💡 Kalau kategori & nominalnya berdekatan dengan Perkiraan lain (mis. dua gaji di `salary`
-> yang cuma beda 1%), tambahkan `toleransi_persen` yang lebih ketat pada keduanya — kalau tidak,
-> yang satu akan menutupi absennya yang lain.
-
----
-
-## 🏷️ Fitur Kategori Custom
-
-### Tambah Kategori
-Trigger: `tambah kategori [nama]`, `buat kategori [nama]`, `kategori baru [nama]`
-Contoh: `tambah kategori investment`, `buat kategori home_repair`
-
-Langkah:
-1. Baca `data/budget.json`
-2. Ubah nama dari pengguna ke slug Inggris huruf kecil `snake_case` (`Investasi` → `investment`);
-   kategori tidak pernah Bahasa Indonesia atau berhuruf kapital. Sebut slug yang dipakai.
-3. Cek apakah slug sudah ada
-4. Jika belum ada, tambahkan ke `kategori_custom` array
-5. Simpan kembali
-
-Response (sukses):
-```
-✅ Kategori berhasil ditambahkan!
-
-🏷️ Kategori baru: investment
-📋 Total kategori: <jumlah isi kategori_custom>
-
-Sekarang kamu bisa mencatat: "nabung saham 500rb" → otomatis masuk investment
-```
-
-Response (sudah ada):
-```
-⚠️ Kategori "investment" sudah ada!
-```
-
-### Hapus Kategori
-Trigger: `hapus kategori [nama]`, `delete kategori [nama]`
-Contoh: `hapus kategori investment`
-
-Langkah:
-1. Baca `data/budget.json`
-2. Hapus slug-nya dari `kategori_custom` array (nama dari pengguna diubah ke slug seperti di atas)
-3. Simpan kembali
-4. Konfirmasi — ingatkan bahwa transaksi lama tetap tersimpan dengan kategori lama
-
-Response:
-```
-🗑️ Kategori "investment" berhasil dihapus.
-
-ℹ️ Transaksi yang sudah dicatat dengan kategori ini tidak berubah.
-```
-
-### Lihat Semua Kategori
-Trigger: `daftar kategori`, `kategori apa saja`, `list kategori`
-
-Response:
-```
-📋 Daftar Kategori (<jumlah isi kategori_custom>)
-
-  <semua slug dari kategori_custom, dipisah " · ", apa adanya>
-
-💡 Tambah: tambah kategori [nama]
-💡 Hapus: hapus kategori [nama]
-```
-
----
-
-
-## 💾 Fitur Backup
-
-Backup otomatis tiap hari pukul 02:00 (`scripts/backup.sh`) ke `data/backups/`:
-`bills_YYYYMMDD.csv` (salinan mentah) dan `bills_export_YYYYMMDD_HHMMSS.xlsx` (Excel: sheet
-`Ringkasan` + satu sheet per bulan, plus sheet `Duplikat` bila ada baris kembar — hanya
-dilaporkan, tidak ada yang dihapus). Tiap export membuat file baru; yang lebih tua dari 30 hari
-dihapus otomatis.
-
-### Cek Status Backup
-Trigger: `backup`, `cek backup`, `status backup`
-
-List isi `data/backups/` (Bash) dan laporkan **apa adanya**: jumlah CSV dan Excel yang benar-benar
-ada dan file terbarunya (dari stempel di nama file). Jangan mengarang jumlah atau jam.
-
-### Backup Manual / Export Excel
-Trigger: `backup sekarang`, `backup manual`, `export excel`, `backup excel`
-
-Jalankan `bash scripts/backup.sh` (CSV **dan** Excel). Hanya Excel: `python3 scripts/export-excel.py`.
-Sebut nama file dari keluaran skrip, bukan dari ingatan.
+## Fitur lain — baca berkasnya dulu
+
+Fitur yang jarang dipakai ada di `{baseDir}/references/`. Saat pengguna meminta salah satunya,
+**baca berkasnya sebelum menjawab** — jangan menebak isinya.
+
+| Pengguna menyebut | Baca |
+|---|---|
+| `set budget`, `atur budget`, `set alert`, `alert budget` | `{baseDir}/references/budget.md` |
+| tagihan yang datang tapi belum dibayar, `cek tagihan`, transaksi berulang (gaji, langganan), **atau mencatat pembayaran tagihan** yang ada di `kewajiban.json` (mis. `bayar wifi 233rb`) | `{baseDir}/references/kewajiban-perkiraan.md` |
+| saldo per akun, mengaktifkan akun / cutover, transfer antar akun | `{baseDir}/references/akun-transfer.md` |
+| `tambah kategori`, `hapus kategori`, `daftar kategori` | `{baseDir}/references/kategori-custom.md` |
+| `backup`, `backup sekarang`, `export excel` | `{baseDir}/references/backup.md` |
+| `laporan per bulan`, `rekap per bulan`, `breakdown bulanan`, `laporan semua bulan` | `{baseDir}/references/laporan-per-bulan.md` |
 
 ---
 
@@ -650,3 +359,4 @@ Sebut nama file dari keluaran skrip, bukan dari ingatan.
 9. **Jangan pernah hapus data massal** — hapus hanya lewat `buku.py hapus` untuk tepat satu Transaksi atau satu Item setelah Pratinjau, bukan reset semua
 10. **Transfer bukan belanja** — `tipe=transfer` tidak pernah masuk Total Pemasukan, Total Pengeluaran, Arus Kas Bulan, Saldo global, maupun budget. Kalau Saldo global berubah setelah mencatat transfer, itu bug — hentikan dan laporkan
 11. **Jangan tebak akun** — baris sebelum tanggal cutover memang berkolom `akun` kosong dan itu benar. Sesudah cutover, kalau pengguna tidak menyebut akunnya, **tanyakan**. Saldo per akun selalu disajikan dengan menyebut batas cutover-nya (ADR-0010)
+12. **Pembayaran tagihan ditautkan** — mencatat pembayaran atas tagihan di `data/kewajiban.json` berarti `lunas_resi` entri itu diisi `no_resi` baris barunya, kalau tidak pengingatnya terus berbunyi. Baca `{baseDir}/references/kewajiban-perkiraan.md` sebelum menautkan
