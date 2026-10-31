@@ -41,9 +41,17 @@ class AturanHitung(unittest.TestCase):
         self.assertEqual(lb.saldo_akhir(DASAR, "2026-07"), 20_500_000 - 100_000 + 5_000_000)
         self.assertEqual(lb.saldo_akhir(DASAR, "2026-08"), 25_400_000 + 5_000_000 - 500_000)
 
-    def test_jumlah_transaksi_tanpa_transfer_dan_saldo_awal(self):
-        self.assertEqual(lb.jumlah_transaksi(DASAR, "2026-08"), 3)
-        self.assertEqual(lb.jumlah_transaksi(DASAR, "2026-03"), 0)
+    def test_hitungan_di_samping_pengeluaran_hanya_transaksi_pengeluaran(self):
+        # ADR-0023: Pemasukan (gaji 27 Agu) dan Transfer tidak ikut; 2 pengeluaran tanpa No Resi.
+        pesan = lb.susun("2026-08", DASAR, {}, {"bulan": {}}, [])
+        self.assertIn("Pengeluaran: Rp 500.000  (2 transaksi)", pesan)
+        self.assertIn("(0 transaksi)", lb.susun("2026-03", DASAR, {}, {"bulan": {}}, []))
+
+    def test_satu_struk_banyak_item_dihitung_satu_transaksi(self):
+        struk = [dict(baris("2026-08-03", "pengeluaran", "food", 300_000), no_resi="STRUK-1"),
+                 dict(baris("2026-08-03", "pengeluaran", "groceries", 200_000), no_resi="STRUK-1")]
+        pesan = lb.susun("2026-08", struk, {}, {"bulan": {}}, [])
+        self.assertIn("Pengeluaran: Rp 500.000  (1 transaksi)", pesan)
 
     def test_baris_tak_terhitung_diperingatkan(self):
         self.assertIn("1 transaksi tidak terhitung", lb.susun("2026-08", DASAR, {}, {"bulan": {}}, []))

@@ -26,7 +26,6 @@ Usage:
 
 import argparse
 import sys
-from collections import defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -68,20 +67,9 @@ def pengeluaran(rows):
     return [r for r in rows if buku_kas.arah(r) == "pengeluaran"]
 
 
-def pemasukan(rows):
-    return [r for r in rows if buku_kas.arah(r) == "pemasukan" and not buku_kas.saldo_awal(r)]
-
-
-def total(rows):
-    return sum(jumlah(r) for r in rows)
-
-
 # ── Bagian-bagian laporan ────────────────────────────────────────────────
-def bagian_kategori(keluar):
-    per = defaultdict(int)
-    for r in keluar:
-        per[(r.get("kategori") or "other").strip().lower()] += jumlah(r)
-    semua = total(keluar)
+def bagian_kategori(ringkasan):
+    per, semua = ringkasan["per_kategori"], ringkasan["pengeluaran"]
     urut = sorted(per.items(), key=lambda kv: -kv[1])
     lebar = max((len(k) for k, _ in urut), default=0)
     baris = ["💸 PENGELUARAN PER KATEGORI"]
@@ -93,9 +81,9 @@ def bagian_kategori(keluar):
     return baris
 
 
-def bagian_banding(keluar, keluar_lalu):
-    ini, lalu = total(keluar), total(keluar_lalu)
-    baris = [f"Total: {rupiah(ini)} · {len(keluar)} transaksi"]
+def bagian_banding(ringkasan, ringkasan_lalu):
+    ini, lalu = ringkasan["pengeluaran"], ringkasan_lalu["pengeluaran"]
+    baris = [f"Total: {rupiah(ini)} · {ringkasan['transaksi_pengeluaran']} transaksi"]
     selisih = ini - lalu
     tanda = "+" if selisih > 0 else "-" if selisih < 0 else "±"
     persen = f" ({tanda}{abs(selisih) / lalu * 100:.0f}%)" if lalu else ""
@@ -126,7 +114,7 @@ def bagian_budget(rows, mulai, akhir, pekan_tutup):
         akhir_bulan = periode.akhir_bulan(f"{th:04d}-{bl:02d}")
         tutup = akhir_bulan <= akhir and (pekan_tutup or akhir_bulan < akhir)
         batas = min(akhir, akhir_bulan)
-        pakai = total(pengeluaran(di_antara(rows, date(th, bl, 1), batas)))
+        pakai = buku_kas.ringkas(rows, date(th, bl, 1), batas)["pengeluaran"]
         label = f"Budget {BULAN[bl]}{' (tutup)' if tutup else ''}"
         if anggaran > 0:
             baris.append(f"📅 {label}: {rupiah(pakai)} dari {rupiah(anggaran)} ({pakai / anggaran * 100:.0f}%)")
@@ -203,7 +191,8 @@ def hari_kosong(rows, mulai, akhir):
 def susun(rows, mulai, akhir, pekan_tutup):
     minggu = mulai + timedelta(days=6)
     keluar = pengeluaran(di_antara(rows, mulai, akhir))
-    keluar_lalu = pengeluaran(di_antara(rows, mulai - timedelta(days=7), mulai - timedelta(days=1)))
+    ringkasan = buku_kas.ringkas(rows, mulai, akhir)
+    ringkasan_lalu = buku_kas.ringkas(rows, mulai - timedelta(days=7), mulai - timedelta(days=1))
 
     judul = "📊 LAPORAN MINGGUAN" if pekan_tutup else "📊 LAPORAN MINGGUAN — Pekan berjalan"
     rentang = f"Pekan: Senin {tgl(mulai)} – Minggu {tgl(minggu)} {minggu.year}"
@@ -221,14 +210,14 @@ def susun(rows, mulai, akhir, pekan_tutup):
         baris += [f"⚠️ {len(tak)} transaksi tidak terhitung (tanggal tidak sah / tipe tidak "
                   "dikenal) — periksa bills.csv", ""]
 
-    baris += bagian_kategori(keluar)
-    baris += bagian_banding(keluar, keluar_lalu)
+    baris += bagian_kategori(ringkasan)
+    baris += bagian_banding(ringkasan, ringkasan_lalu)
     baris += [""] + bagian_terbesar(keluar)
 
     saldo = buku_kas.saldo(rows, per=akhir)
     baris += [
         "",
-        f"💰 Pemasukan pekan ini: {rupiah(total(pemasukan(di_antara(rows, mulai, akhir))))}",
+        f"💰 Pemasukan pekan ini: {rupiah(ringkasan["pemasukan"])}",
         f"🏦 Saldo {'akhir Pekan' if pekan_tutup else 'per ' + tgl(akhir)}: {rupiah(saldo)}",
     ]
     baris += bagian_budget(rows, mulai, akhir, pekan_tutup)

@@ -35,6 +35,7 @@ sys.path.insert(0, str(SCRIPT_DIR.resolve()))
 import buku_kas  # noqa: E402
 import kewajiban  # noqa: E402
 import pengaturan  # noqa: E402
+import periode  # noqa: E402
 import perkiraan  # noqa: E402
 PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
@@ -62,20 +63,9 @@ def parse_tanggal(value: str) -> Optional[date]:
 
 # ── Mode: Cek Budget ─────────────────────────────────────────
 def _pengeluaran_bulan(today: date) -> float:
-    """Total pengeluaran bulan `today`."""
-    bulan_ini = today.strftime("%Y-%m")
-    total_bulan = 0
-    for row in load_bills():
-        tgl = buku_kas.tanggal(row)
-        if tgl is None or tgl.strftime("%Y-%m") != bulan_ini:
-            continue
-        # Budget hanya menghitung pengeluaran; pemasukan (income) dan transfer
-        # antar akun sendiri diabaikan. Transfer bukan belanja — memindahkan uang
-        # dari Bank ke Kas tidak boleh memakan jatah budget bulan itu.
-        if buku_kas.arah(row) != "pengeluaran":
-            continue
-        total_bulan += buku_kas.jumlah(row)
-    return total_bulan
+    """Total pengeluaran bulan `today`. Pemasukan dan Transfer tidak ikut: memindahkan uang dari
+    Bank ke Kas tidak boleh memakan jatah budget bulan itu (aturan ada di buku_kas.ringkas)."""
+    return buku_kas.ringkas(load_bills(), *periode.rentang_bulan(today.strftime("%Y-%m")))["pengeluaran"]
 
 
 def _bar(persen: float) -> str:

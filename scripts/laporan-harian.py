@@ -26,14 +26,8 @@ def rupiah(n):
 
 
 def susun(rows, hari):
-    per = {}
-    resi = set()
-    for i, r in enumerate(rows):
-        if buku_kas.arah(r) != "pengeluaran" or buku_kas.tanggal(r) != hari:
-            continue
-        k = (r.get("kategori") or "other").strip().lower() or "other"
-        per[k] = per.get(k, 0) + buku_kas.jumlah(r)
-        resi.add((r.get("no_resi") or "").strip() or f"baris-{i}")
+    h = buku_kas.ringkas(rows, hari, hari)
+    per = h["per_kategori"]
     baris = [f"📊 Pengeluaran Hari Ini — {hari.day} {BULAN[hari.month]} {hari.year}", ""]
     tak = buku_kas.tak_terhitung(rows)
     if tak:
@@ -45,8 +39,8 @@ def susun(rows, hari):
         lebar = max(len(k) for k in per) + 1
         for k, v in sorted(per.items(), key=lambda kv: (-kv[1], kv[0])):
             baris.append(f"{k + ':':<{lebar}} {rupiah(v)}")
-        baris += ["", f"Total: {rupiah(sum(per.values()))}", "",
-                  f"📝 {len(resi)} transaksi tercatat"]
+        baris += ["", f"Total: {rupiah(h['pengeluaran'])}", "",
+                  f"📝 {h['transaksi_pengeluaran']} transaksi tercatat"]
     baris += ["", "_Dihitung scripts/laporan-harian.py, tanpa model_"]
     return "\n".join(baris)
 
