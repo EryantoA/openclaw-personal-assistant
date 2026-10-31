@@ -52,28 +52,9 @@ def muat_json(path, bawaan):
         return bawaan
 
 
-def di_bulan(r, bulan):
-    tgl = buku_kas.tanggal(r)
-    return tgl is not None and tgl.strftime("%Y-%m") == bulan
-
-
 def saldo_akhir(baris, bulan):
     """Saldo per akhir `bulan`."""
     return buku_kas.saldo(baris, per=periode.akhir_bulan(bulan))
-
-
-def per_kategori(baris, bulan):
-    total = {}
-    for r in baris:
-        if di_bulan(r, bulan) and buku_kas.arah(r) == "pengeluaran":
-            k = (r.get("kategori") or "other").strip().lower() or "other"
-            total[k] = total.get(k, 0) + buku_kas.jumlah(r)
-    return total
-
-
-def jumlah_transaksi(baris, bulan):
-    return sum(1 for r in baris if di_bulan(r, bulan)
-               and buku_kas.arah(r) in ("pemasukan", "pengeluaran") and not buku_kas.saldo_awal(r))
 
 
 def cari_koreksi(baris, simpanan, bulan_laporan):
@@ -117,7 +98,7 @@ def nama_bulan(bulan):
 
 
 def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
-    h = buku_kas.arus_kas_bulan(baris, bulan)
+    h = buku_kas.ringkas(baris, *periode.rentang_bulan(bulan))
     arus_kas = h["pemasukan"] - h["pengeluaran"]
     lalu = periode.bulan_sebelum(bulan)
     nb, nl = nama_bulan(bulan), NAMA_BULAN[int(lalu[5:]) - 1]
@@ -128,16 +109,17 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
         judul += f" _(berjalan, per {berjalan_per.day} {NAMA_BULAN[berjalan_per.month - 1][:3]})_"
     out = [judul, "",
            f"📥 Pemasukan:   {rp(h['pemasukan'])}",
-           f"📤 Pengeluaran: {rp(h['pengeluaran'])}  ({jumlah_transaksi(baris, bulan)} transaksi)",
-           f"{'💚' if arus_kas >= 0 else '🔴'} Arus Kas Bulan: {rp(arus_kas)}",
-           f"🏦 Saldo akhir {NAMA_BULAN[int(bulan[5:]) - 1]}: {rp(saldo_akhir(baris, bulan))}"]
+           f"📤 Pengeluaran: {rp(h['pengeluaran'])}  ({h['transaksi_pengeluaran']} transaksi)",
+           f"{'💚' if arus_kas >= 0 else '🔴'} Arus Kas Bulanan: {rp(arus_kas)}",
+           f"🏦 Saldo Bersama akhir {NAMA_BULAN[int(bulan[5:]) - 1]}: {rp(saldo_akhir(baris, bulan))}"]
 
     batas = float(budget.get("budget_bulanan") or 0)
     if batas > 0:
         out += ["", f"💰 Budget: {rp(h['pengeluaran'])} dari {rp(batas)} "
                     f"({h['pengeluaran'] / batas * 100:.0f}%)"]
 
-    kini, dulu = per_kategori(baris, bulan), per_kategori(baris, lalu)
+    kini = h["per_kategori"]
+    dulu = buku_kas.ringkas(baris, *periode.rentang_bulan(lalu))["per_kategori"]
     if kini:
         out += ["", f"🏷️ {min(KATEGORI_TERATAS, len(kini))} kategori terbesar"]
         for k, v in sorted(kini.items(), key=lambda kv: -kv[1])[:KATEGORI_TERATAS]:
@@ -165,7 +147,7 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
             bagian.append(f"pemasukan {'naik' if k['pemasukan'] > 0 else 'turun'} "
                           f"{rp(abs(k['pemasukan']))}")
         out += ["", f"⚠️ Koreksi {nama_bulan(k['bulan'])}: {', '.join(bagian)} sejak dilaporkan. "
-                    f"Saldo akhir {NAMA_BULAN[int(k['bulan'][5:]) - 1]} sekarang "
+                    f"Saldo Bersama akhir {NAMA_BULAN[int(k['bulan'][5:]) - 1]} sekarang "
                     f"{rp(k['saldo_akhir'])}."]
 
     tak = buku_kas.tak_terhitung(baris)

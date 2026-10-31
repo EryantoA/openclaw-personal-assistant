@@ -8,12 +8,16 @@ aplikasi keuangan yang dipakai sebelumnya.
 ### Transaksi
 
 **Transaksi**:
-Satu pergerakan uang nyata, tercatat sebagai satu baris.
-_Avoid_: entri, record
+Satu pembayaran atau penerimaan uang nyata, ditandai satu No Resi. Satu struk belanja berisi
+banyak barang tetap satu Transaksi; tiap barangnya satu Item, yaitu satu baris di Buku Kas.
+Hitungan "N transaksi" di laporan selalu menghitung No Resi unik, bukan baris. Transfer dan Saldo
+Awal tidak dihitung (ADR-0023).
+_Avoid_: entri, record, baris (untuk seluruh Transaksi)
 
 **Buku Kas**:
-Seluruh Transaksi yang tercatat — `data/bills.csv`. Sumber tunggal Saldo dan Arus Kas Bulan;
-aturan membaca dan menghitungnya hidup di `scripts/buku_kas.py`. Kewajiban dan Perkiraan tidak
+Seluruh Transaksi yang tercatat — `data/bills.csv`, satu baris per Item. Sumber tunggal Saldo
+Bersama dan Arus Kas Bulanan; aturan membaca dan menghitungnya (termasuk jumlah Transaksi dan
+total per Kategori) hidup di `scripts/buku_kas.py`. Kewajiban dan Perkiraan tidak
 ada di dalamnya.
 _Avoid_: ledger, database, sheet
 
@@ -43,22 +47,37 @@ _Avoid_: utang, tanggungan, bill, tagihan terencana
 **Perkiraan**:
 Transaksi yang diharapkan berulang tiap bulan — gaji yang biasanya masuk akhir bulan,
 langganan yang biasanya ditarik tanggal 26. Bukan Transaksi: belum ada uang yang berpindah,
-jadi tidak pernah ikut menghitung Saldo maupun Arus Kas Bulan. Gunanya dua: menyiapkan diri
+jadi tidak pernah ikut menghitung Saldo Bersama maupun Arus Kas Bulanan. Gunanya dua: menyiapkan diri
 untuk uang yang akan keluar, dan menyadari kalau yang seharusnya masuk ternyata tidak masuk.
 _Avoid_: rencana, budget, langganan, recurring
 
 ### Uang
 
-**Saldo**:
-Seluruh uang keluarga di semua tempat — tunai, rekening, maupun tabungan — digabung jadi satu
-angka. Selalu kumulatif, dibawa terus dari bulan ke bulan. **Bukan** uang tunai yang bisa
-dipegang. Pemindahan antar tempat (menabung, setor ke rekening) tidak dicatat sebagai
-transaksi dan karenanya tidak mengubah Saldo.
-_Avoid_: sisa, selisih, balance, uang tunai
+**Saldo Bersama**:
+Seluruh uang keluarga di semua Akun — Dompet, Rekening, maupun Simpanan, milik kami berdua —
+digabung jadi satu angka. Selalu kumulatif, dibawa terus dari bulan ke bulan. **Bukan** uang tunai
+yang bisa dipegang. Memindahkan uang antar Akun (menabung, setor ke rekening) tidak dicatat sebagai
+Transaksi dan karenanya tidak mengubah Saldo Bersama. Saldo Bersama = jumlah semua Saldo Akun.
+Di kode dan ADR lama disebut `saldo` / "Saldo".
+_Avoid_: sisa, selisih, balance, uang tunai, saldo bulanan
 
-**Arus Kas Bulan**:
-Pemasukan dikurangi pengeluaran dalam satu bulan, berdiri sendiri tanpa membawa bulan lalu.
+**Arus Kas Bulanan**:
+Pemasukan dikurangi pengeluaran dalam satu bulan, berdiri sendiri tanpa membawa bulan lalu; bulan
+berikutnya mulai dari nol lagi. Di kode dan ADR lama disebut `arus_kas_bulan` / "Arus Kas Bulan".
 _Avoid_: saldo bulanan, saldo bulan ini, net
+
+**Akun**:
+Satu tempat uang disimpan. Tiga jenis dalam keluarga kami: **Dompet**, **Rekening** (bank), dan
+**Simpanan**, masing-masing milik saya dan istri, jadi enam Akun (mis. Dompet Saya, Rekening
+Istri). Nama Akun diisi di `data/akun.json`; sebelum fitur diaktifkan di sana masih nama bawaan
+`Kas`, `Bank Utama`, `Tabungan`. `Kas` sebagai Akun artinya uang tunai, bukan Buku Kas.
+Berbeda dari cara bayar (GoPay, Livin' by Mandiri), yang tempatnya di Catatan.
+_Avoid_: tempat, kantong
+
+**Saldo Akun**:
+Uang di satu Akun, dihitung sejak tanggal cutover (ADR-0010). Sebelum cutover hanya Saldo Bersama
+yang bermakna. Fiturnya belum aktif sampai `saldo_awal` tiap Akun diisi.
+_Avoid_: saldo dompet (tanpa menyebut pemilik)
 
 **Saldo Awal**:
 Kas yang sudah dimiliki sebelum transaksi pertama tercatat. Bukan pemasukan — tidak ada
@@ -83,14 +102,14 @@ Pengelompokan transaksi. Selalu slug Inggris huruf kecil, tidak pernah Bahasa In
 _Avoid_: jenis, tipe belanja
 
 **Item**:
-Apa yang dibeli, ditulis apa adanya. Kalau ada tokonya, namanya ikut di belakang setelah
+Satu baris di Buku Kas; satu Transaksi punya satu Item atau lebih. Apa yang dibeli, ditulis apa adanya. Kalau ada tokonya, namanya ikut di belakang setelah
 tanda pisah — `Susu UHT + Yakult - Budiman Swalayan`. Toko tidak punya kolom sendiri: ia
 bagian dari Item. Bank dan e-wallet bukan toko — itu cara bayar, tempatnya di Catatan.
 _Avoid_: tempat, merchant, vendor, deskripsi
 
 **Pratinjau**:
 Tampilan apa yang akan disimpan ke CSV, dikirim bot sebelum pencatatan dan menunggu jawaban.
-Bukan Transaksi: belum ada baris yang tertulis, jadi tidak mengubah Saldo (ADR-0016). Berlaku
+Bukan Transaksi: belum ada baris yang tertulis, jadi tidak mengubah Saldo Bersama (ADR-0016). Berlaku
 juga sebelum mengubah atau menghapus Transaksi yang sudah tercatat, dengan tampilan sebelum →
 sesudah (ADR-0018).
 _Avoid_: draf, konfirmasi, preview
@@ -150,7 +169,7 @@ Laporan untuk satu Pekan yang sudah tutup, dikirim Senin pagi. Angkanya dihitung
 saat laporan dibuat — termasuk angka "pekan lalu" sebagai pembanding, yang karenanya bisa
 berbeda dari laporan yang dulu terkirim. Laporan Mingguan tidak punya Koreksi; itu tugas
 Laporan Bulanan. Kalau Pekan-nya melewati pergantian bulan, Budget dan Perkiraan kedua bulan
-disebutkan. Saldo di dalamnya adalah Saldo per akhir Pekan, bukan per saat dikirim.
+disebutkan. Saldo Bersama di dalamnya adalah Saldo Bersama per akhir Pekan, bukan per saat dikirim.
 _Avoid_: laporan minggu ini, weekly report, rekap mingguan
 
 **Hari Kosong**:
@@ -165,7 +184,7 @@ sekarang — biasanya karena transaksi yang baru tercatat saat pencocokan mutasi
 tidak mengubah laporan yang sudah terkirim; ia disebutkan di Laporan Bulanan berikutnya, untuk
 bulan mana pun yang pernah dilaporkan, dan hanya sekali. Koreksi melekat pada bulan asal
 perubahan — bulan yang Pemasukan atau Pengeluarannya berubah — bukan pada bulan-bulan
-sesudahnya yang Saldo akhirnya ikut bergeser karena Saldo kumulatif.
+sesudahnya yang Saldo Bersama akhirnya ikut bergeser karena Saldo Bersama kumulatif.
 _Avoid_: revisi, ralat, penyesuaian
 
 ### Waktu

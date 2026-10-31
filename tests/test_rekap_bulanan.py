@@ -45,7 +45,7 @@ class Susun(unittest.TestCase):
 
     def test_saldo_awal_bukan_pemasukan_tapi_ikut_saldo(self):
         agustus = self.teks().split("▸")[1]
-        self.assertIn("Pemasukan:   Rp 5.000.000", agustus)  # bukan 25.500.000
+        self.assertIn(f"{'Pemasukan:':<18}Rp 5.000.000", agustus)  # bukan 25.500.000
         self.assertIn("(2 transaksi)", agustus)               # saldo awal tidak dihitung transaksi
 
     def test_transfer_tidak_ikut_apa_pun(self):
@@ -55,12 +55,12 @@ class Susun(unittest.TestCase):
         september = self.teks().split("▸")[2]
         self.assertIn("September 2026", september)
         self.assertIn("(0 transaksi)", september)
-        self.assertIn("Saldo:       Rp 25.000.000", september)
+        self.assertIn(f"{'Saldo Bersama:':<18}Rp 25.000.000", september)
 
     def test_arus_kas_negatif_ditandai_dan_saldo_kumulatif_turun(self):
         oktober = self.teks().split("▸")[3]
-        self.assertIn("🔴 Arus Kas:    -Rp 6.500.000", oktober)
-        self.assertIn("Saldo:       Rp 18.500.000", oktober)
+        self.assertIn(f"🔴 {'Arus Kas Bulanan:':<18}-Rp 6.500.000", oktober)
+        self.assertIn(f"{'Saldo Bersama:':<18}Rp 18.500.000", oktober)
 
     def test_bulan_berjalan_ditandai(self):
         t = self.teks()
@@ -69,16 +69,16 @@ class Susun(unittest.TestCase):
 
     def test_penutup_menyebut_saldo_terakhir(self):
         # bulan terakhir masih berjalan: saldo per hari ini, bukan "akhir bulan"
-        self.assertIn("Saldo terakhir (per 31 Okt 2026): Rp 18.500.000", self.teks())
+        self.assertIn("Saldo Bersama terakhir (per 31 Okt 2026): Rp 18.500.000", self.teks())
         tutup = rb.susun(ROWS, date(2026, 11, 15))
-        self.assertIn("Saldo terakhir (akhir Oktober 2026): Rp 18.500.000", tutup)
+        self.assertIn("Saldo Bersama terakhir (akhir Oktober 2026): Rp 18.500.000", tutup)
         self.assertNotIn("(berjalan)", tutup.split("▸")[3])  # Oktober sudah tutup
 
     def test_dari_sampai_membatasi_tampilan_tapi_saldo_tetap_kumulatif(self):
         t = self.teks(dari="2026-10", sampai="2026-10")
         self.assertNotIn("Agustus 2026", t)
         self.assertIn("Oktober 2026", t)
-        self.assertIn("Saldo:       Rp 18.500.000", t)  # dibawa dari bulan-bulan sebelumnya
+        self.assertIn(f"{'Saldo Bersama:':<18}Rp 18.500.000", t)  # dibawa dari bulan-bulan sebelumnya
 
     def test_baris_tak_terhitung_diperingatkan(self):
         kotor = ROWS + [b("", "pengeluaran", 777_000)]
