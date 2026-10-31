@@ -466,15 +466,6 @@ class SinkronMasuk(Dasar):
         self.assertEqual([r["jumlah"] for r in self.baca_csv() if r["no_resi"] == "TRX-1"], ["88500"])
         self.assertEqual(laporan.ditolak, [])
 
-    def test_baris_baru_di_sheet_dilaporkan_tidak_dibuang_diam_diam(self):
-        self.klien.sheets["Buku Kas"].append(
-            ["2026-09-05", "pengeluaran", "food", "Baru", 1_000, "", "", "Eryanto", "", "", "", ""])
-
-        laporan = self.sinkron()
-
-        self.assertEqual(len(laporan.ditolak), 1)
-        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
-
 
 class SinkronMasukMultiItem(Dasar):
     def setUp(self):
@@ -562,6 +553,152 @@ class SinkronMasukMultiItem(Dasar):
         laporan = self.sinkron(uji=True)
 
         self.assertEqual(laporan.diterima, [("STRUK-9", 1, ["tanggal"])])
+
+
+class BarisBaruDariSheets(Dasar):
+    def setUp(self):
+        super().setUp()
+        (self.dir / "pembeli.json").write_text(json.dumps({"Elsi": ["istri"]}), encoding="utf-8")
+        ada_waktu = dict(tx("2026-08-20", "pengeluaran", 40_000, item="Bakso", no_resi="TRX-7"), waktu="09:00")
+        self.tulis_csv(DASAR + [ada_waktu])
+        self.sinkron()
+        self.csv_awal = self.bills.read_bytes()
+        self.klien.tulisan.clear()
+
+    def tambah(self, **sel):
+        isi = dict(tanggal="2026-09-05", tipe="pengeluaran", kategori="food", item="Baru", jumlah=1_000,
+                   catatan="", channel="", pencatat="Eryanto", akun="", akun_tujuan="", waktu="",
+                   no_resi="")
+        isi.update(sel)
+        self.klien.sheets["Buku Kas"].append([isi[k] for k in HEADER])
+
+    def test_baris_tanpa_no_resi_menjadi_transaksi_ber_trx_dan_channel_sheets(self):
+        self.tambah(item="Parkir", jumlah=3_000)
+
+        laporan = self.sinkron()
+
+        baru = [r for r in self.baca_csv() if r["item"] == "Parkir"]
+        self.assertEqual(len(baru), 1)
+        self.assertRegex(baru[0]["no_resi"], r"^TRX-20260905-\d{4}$")
+        self.assertEqual((baru[0]["channel"], baru[0]["jumlah"]), ("sheets", "3000"))
+        self.assertEqual(laporan.ditambah, [baru[0]["no_resi"]])
+        self.assertEqual(laporan.ditolak, [])
+        baris_sheet = [b for b in self.klien.sheets["Buku Kas"] if b[3] == "Parkir"]
+        self.assertEqual([b[11] for b in baris_sheet], [baru[0]["no_resi"]])  # No Resi ditulis balik
+        self.assertRegex(baris_sheet[0][10], r"^\d\d:\d\d$")
+        self.klien.tulisan.clear()
+        self.sinkron()
+        self.assertEqual(self.klien.tulisan, [])
+
+    def test_alias_pencatat_dibakukan(self):
+        self.tambah(pencatat="istri")
+
+        self.sinkron()
+
+        self.assertEqual([r["pencatat"] for r in self.baca_csv() if r["item"] == "Baru"], ["Elsi"])
+
+    def test_beberapa_baris_ber_no_resi_sama_menjadi_satu_transaksi_multi_item(self):
+        self.tambah(no_resi="NOTA-1", item="Susu", jumlah=20_000, waktu="10:00")
+        self.tambah(no_resi="NOTA-1", item="Roti", jumlah=5_000, waktu="10:00")
+
+        laporan = self.sinkron()
+
+        baru = [(r["no_resi"], r["item"], r["jumlah"]) for r in self.baca_csv() if r["no_resi"] == "NOTA-1"]
+        self.assertEqual(baru, [("NOTA-1", "Susu", "20000"), ("NOTA-1", "Roti", "5000")])
+        self.assertEqual(laporan.ditambah, ["NOTA-1"])
+
+    def test_dua_baris_baru_tanpa_no_resi_menjadi_dua_transaksi_terpisah(self):
+        self.tambah(item="A", jumlah=1_000, waktu="10:00")
+        self.tambah(item="B", jumlah=2_000, waktu="10:01")
+
+        laporan = self.sinkron()
+
+        resi_ = {r["item"]: r["no_resi"] for r in self.baca_csv() if r["item"] in ("A", "B")}
+        self.assertEqual(len(set(resi_.values())), 2)
+        self.assertEqual(len(laporan.ditambah), 2)
+
+    def test_baris_kembar_lapis_2_ditolak_dan_hilang_dari_sheet_dengan_alasan_dan_isinya(self):
+        self.tambah(tanggal="2026-08-20", waktu="09:00", jumlah=40_000, item="Bakso lagi")
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+        self.assertEqual(len(laporan.ditolak), 1)
+        self.assertIn("Bakso lagi", laporan.ditolak[0][2])
+        self.assertEqual(laporan.ditambah, [])
+        self.assertNotIn("Bakso lagi", [b[3] for b in self.klien.sheets["Buku Kas"]])
+
+    def test_no_resi_yang_sudah_ada_ditolak_lapis_1(self):
+        self.tambah(no_resi="TRX-2", item="Gaji kedua", jumlah=1_000)
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+        self.assertEqual(len(laporan.ditolak), 1)
+        self.assertEqual(laporan.ditambah, [])
+
+    def test_baris_baru_tidak_sah_ditolak_dengan_alasan_dan_isinya_dan_hilang_dari_sheet(self):
+        kasus = [dict(kategori="kategori-asing"), dict(jumlah="banyak"), dict(jumlah=88_500.5),
+                 dict(tanggal=""), dict(pencatat=""), dict(tipe="ngawur")]
+        for ubah in kasus:
+            with self.subTest(ubah=ubah):
+                self.tambah(item="Salah", **ubah)
+
+                laporan = self.sinkron()
+
+                self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+                self.assertEqual(len(laporan.ditolak), 1)
+                self.assertIn("Salah", laporan.ditolak[0][2])
+                self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
+
+    def test_transaksi_baru_yang_kolom_tingkat_transaksinya_tidak_sama_ditolak_seluruhnya(self):
+        self.tambah(no_resi="NOTA-2", item="Susu", tanggal="2026-09-05")
+        self.tambah(no_resi="NOTA-2", item="Roti", tanggal="2026-09-06")
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+        self.assertEqual(len(laporan.ditolak), 1)
+        self.assertEqual(laporan.ditambah, [])
+
+    def test_transfer_baru_dari_sheet_diterima(self):
+        self.tambah(tipe="transfer", kategori="transfer", item="Setor", jumlah=500_000,
+                    akun="Kas", akun_tujuan="Bank")
+
+        laporan = self.sinkron()
+
+        self.assertEqual(laporan.ditolak, [])
+        self.assertEqual([r["tipe"] for r in self.baca_csv() if r["item"] == "Setor"], ["transfer"])
+
+    def test_baris_kosong_di_sheet_diabaikan(self):
+        self.klien.sheets["Buku Kas"].append([""] * 12)
+
+        laporan = self.sinkron()
+
+        self.assertEqual((laporan.ditambah, laporan.ditolak), ([], []))
+
+    def test_uji_melapor_transaksi_yang_akan_ditambah_tanpa_menulis(self):
+        self.tambah(item="Parkir", jumlah=3_000)
+
+        laporan = self.sinkron(uji=True)
+
+        self.assertEqual(len(laporan.ditambah), 1)
+        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+        self.assertEqual(self.klien.tulisan, [])
+
+    def test_baris_baru_tanpa_no_resi_ditolak_bila_ada_baris_lama_tanpa_no_resi_yang_berubah(self):
+        # Baris lama tanpa No Resi yang diedit tampak seperti baris hilang + baris baru; jangan
+        # membuat Transaksi ganda dari suntingan itu.
+        self.tulis_csv(DASAR + [tx("2026-09-01", "pengeluaran", 9_000, item="Baris lama")])
+        self.sinkron()
+        csv_sebelum = self.bills.read_bytes()
+        self.klien.sheets["Buku Kas"][-1][4] = 10_000
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), csv_sebelum)
+        self.assertEqual(laporan.ditambah, [])
+        self.assertEqual(len(laporan.ditolak), 1)
 
 
 if __name__ == "__main__":

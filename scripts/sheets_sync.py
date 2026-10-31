@@ -23,7 +23,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buku  # noqa: E402
 import buku_kas  # noqa: E402
+import catat  # noqa: E402
 import periode  # noqa: E402
+import resi  # noqa: E402
 
 SHEET_BUKU = "Buku Kas"
 SHEET_RINGKASAN = "Ringkasan"
@@ -42,6 +44,7 @@ class Laporan:
     didorong: int = 0  # baris Transaksi yang ditulis ke Sheet pada sinkron ini
     # (no_resi, alasan) baris yang tampil di "Buku Kas" tetapi tidak ikut Ringkasan — tidak pernah hilang diam-diam
     tak_terhitung: list = field(default_factory=list)
+    ditambah: list = field(default_factory=list)    # No Resi Transaksi baru yang dibuat dari baris baru Sheet
     diterima: list = field(default_factory=list)    # (no_resi, item_ke, [kolom]) edit Sheet yang masuk ke CSV
     ditolak: list = field(default_factory=list)     # (no_resi, item_ke, alasan) edit Sheet yang dikembalikan
     dipulihkan: list = field(default_factory=list)  # (no_resi, item_ke) baris yang hilang dari Sheet
@@ -101,6 +104,8 @@ def _simpan_snapshot(path: Path, isi: dict) -> None:
 
 # ── Arah masuk: Sheets → CSV ──────────────────────────────────────────────
 OLEH = "sheets"  # Sheets tidak memberi tahu siapa pengubahnya; Jejak Perubahan mencatat asalnya saja
+CHANNEL = "sheets"  # Asal baris yang dibuat dari Sheets
+TINGKAT_TRANSAKSI = ("tanggal", "tipe", "pencatat", "waktu", "akun", "akun_tujuan")
 _JUMLAH_SAH = re.compile(r"(?:Rp\s*)?(?:\d+|\d{1,3}(?:[.,]\d{3})+)")
 _I_RESI = KOLOM.index("no_resi")
 
@@ -194,6 +199,66 @@ def _no_resi_diubah(dasar: dict, sheet: dict, laporan: Laporan) -> set:
     return dijelaskan
 
 
+def _gagal_baru(laporan: Laporan, no_resi: str, baris: list, alasan: str) -> None:
+    """Baris baru yang ditolak hilang dari Sheet pada penulisan ulang, jadi isinya ikut dilaporkan."""
+    isi = "; ".join(f"{b[KOLOM.index('tanggal')]} {b[KOLOM.index('item')]} {b[KOLOM.index('jumlah')]}"
+                    for b in baris)
+    laporan.ditolak.append((no_resi, 1, f"{alasan} — baris: {isi}"))
+
+
+def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, uji: bool, laporan: Laporan) -> None:
+    """Baris baru ber-No Resi sama = satu Transaksi multi-Item; tanpa No Resi = satu Transaksi
+    sendiri. Ditulis lewat catat.catat (validasi, Duplikat Lapis 1 & 2, No Resi `TRX-…`)."""
+    for k in TINGKAT_TRANSAKSI:
+        if len({b[KOLOM.index(k)] for b in baris}) > 1:
+            return _gagal_baru(laporan, no_resi, baris,
+                               f"kolom `{k}` harus sama untuk semua baris Transaksi {no_resi}")
+    for b in baris:
+        jumlah = b[KOLOM.index("jumlah")]
+        if not _JUMLAH_SAH.fullmatch(jumlah.strip()):
+            return _gagal_baru(laporan, no_resi, baris, f"jumlah harus bilangan bulat rupiah, dapat {jumlah!r}")
+    if Path(bills_path).resolve() != Path(resi.BILLS_CSV).resolve():
+        raise SinkronDitolak("catat.catat menulis ke resi.BILLS_CSV; bills_path berbeda, baris baru "
+                             "tidak dibuat supaya tidak salah berkas")
+    pertama = baris[0]
+    tx = {k: pertama[KOLOM.index(k)] for k in TINGKAT_TRANSAKSI}
+    tx["channel"] = CHANNEL
+    if no_resi:
+        tx["no_resi"] = no_resi
+    tx["items"] = [{k: b[KOLOM.index(k)] for k in ("kategori", "item", "jumlah", "catatan")} for b in baris]
+    kode, pesan = catat.catat(tx, uji=uji)
+    if kode != 0:
+        return _gagal_baru(laporan, no_resi, baris, _alasan(pesan))
+    laporan.ditambah.append(re.search(r"no_resi (\S+)", pesan).group(1))
+
+
+def _tambah_baris_baru(bills_path: Path, dasar: dict, sheet: dict, dari_csv: dict, dijelaskan: set,
+                       uji: bool, laporan: Laporan) -> None:
+    # Baris lama tanpa No Resi yang diedit tampak seperti satu baris hilang + satu baris baru.
+    # Selama ada yang hilang, baris baru tanpa No Resi tidak dibuat: jangan menggandakan suntingan.
+    lama_hilang = sum(max(0, len(d) - len(sheet.get(i, []))) for i, d in dasar.items() if i.startswith("\0"))
+    for id_, s in sheet.items():
+        if id_ in dasar:
+            continue
+        no_resi = _resi_dari(id_)
+        if no_resi:
+            baris = [sel for i, sel in enumerate(s) if ("baru", id_, i) not in dijelaskan]
+            if not baris:
+                continue
+            if id_ in dari_csv:  # No Resi yang sudah ada = Duplikat Lapis 1; sama persis = sudah sepakat
+                if s != dari_csv[id_]:
+                    _gagal_baru(laporan, no_resi, baris, "No Resi sudah ada di Buku Kas (Duplikat)")
+                continue
+            _buat_transaksi(bills_path, no_resi, baris, uji, laporan)
+        else:
+            for sel in s:
+                if lama_hilang:
+                    _gagal_baru(laporan, "", [sel], "baris tanpa no_resi tidak bisa ditunjuk atau diubah "
+                                "dari Sheets; ada baris lama tanpa no_resi yang berubah")
+                else:
+                    _buat_transaksi(bills_path, "", [sel], uji, laporan)
+
+
 def _terapkan_masuk(bills_path: Path, klien, snapshot: dict, uji: bool, laporan: Laporan) -> None:
     """Diff tiga arah per Transaksi: snapshot (dasar) vs Sheet sekarang vs CSV sekarang."""
     dasar, sheet = _struk(snapshot["buku_kas"]), _struk(klien.baca(SHEET_BUKU))
@@ -214,8 +279,9 @@ def _terapkan_masuk(bills_path: Path, klien, snapshot: dict, uji: bool, laporan:
                 elif i < len(c) and ("lama", id_, i) not in dijelaskan:
                     laporan.dipulihkan.append((no_resi, i + 1))
             if sisa:
-                laporan.ditolak.append((no_resi, 1, "jumlah baris Transaksi ini berubah di Sheets; "
-                                        "edit pada Transaksi ini tidak diterapkan"))
+                laporan.ditolak.append((no_resi, 1, "baris ditambah atau dihapus pada Transaksi yang "
+                                        "sudah ada tidak didukung dari Sheets; edit pada Transaksi "
+                                        "ini tidak diterapkan"))
             continue
         if sorted(s) == sorted(d):
             continue  # hanya diurutkan ulang
@@ -233,15 +299,7 @@ def _terapkan_masuk(bills_path: Path, klien, snapshot: dict, uji: bool, laporan:
                 _terapkan_baris(skema, no_resi, i + 1, {KOLOM[k]: sel[k] for k in berubah},
                                 len(c) > 1, uji, laporan, terapan)
 
-    for id_, s in sheet.items():
-        if id_ in dasar:
-            continue
-        for i, sel in enumerate(s):
-            if ("baru", id_, i) in dijelaskan or id_ in dari_csv:
-                continue
-            laporan.ditolak.append((_resi_dari(id_), i + 1, "baris tanpa no_resi tidak bisa ditunjuk "
-                                    "atau diubah dari Sheets" if id_.startswith("\0")
-                                    else "baris baru dari Sheets belum didukung"))
+    _tambah_baris_baru(bills_path, dasar, sheet, dari_csv, dijelaskan, uji, laporan)
 
 
 def _berisi_data(grid: list[list]) -> bool:
