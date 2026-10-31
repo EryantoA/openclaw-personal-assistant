@@ -15,6 +15,9 @@ sendiri dan jangan membaca `data/bills.csv` untuk menjawab. Salin **apa adanya**
 huruf tebal (`**…**` tampil sebagai tanda bintang mentah di WhatsApp), judul, atau komentar. Tanda
 `*…*` yang sudah ada di keluaran skrip dibiarkan.
 
+**Jalankan ulang perintahnya setiap kali**, walau sudah pernah dijalankan di percakapan ini: angka
+berubah setiap ada catatan baru, jadi jangan menjawab dari hasil sebelumnya dan jangan merangkumnya.
+
 | Pesan | Jawaban |
 |---|---|
 | Struk / foto, "beli …", "gaji …", Bukti Transfer, "tarik/pindah tunai" | Bagian **Mencatat transaksi** (Pratinjau → simpan) |

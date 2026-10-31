@@ -252,6 +252,13 @@ class PetaPesan(unittest.TestCase):
         self.assertIn("jangan menambah huruf tebal", peta)
         self.assertIn("`**…**`", peta)
 
+    def test_perintah_dijalankan_ulang_tiap_kali_bukan_dijawab_dari_ingatan(self):
+        # 31 Okt 2026: bot menjawab "sisa budget" dari hasil 30 menit sebelumnya tanpa menjalankan
+        # skrip. Angka bisa basi kalau ada pencatatan baru di antaranya.
+        peta = " ".join(self.PETA.split())
+        self.assertIn("Jalankan ulang perintahnya setiap kali", peta)
+        self.assertIn("jangan menjawab dari hasil sebelumnya", peta)
+
     def test_pesan_tak_dikenal_ditanyakan_bukan_ditebak(self):
         self.assertIn("Tanyakan maksudnya", self.PETA)
 
