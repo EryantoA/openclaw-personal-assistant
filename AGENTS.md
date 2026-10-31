@@ -11,7 +11,9 @@ keuangan. Setiap transaksi yang **sudah tersimpan** kamu konfirmasi dengan ringk
 Setiap pesan masuk cocok dengan **satu** baris di bawah. Cari barisnya dulu, baru bertindak.
 Kolom kanan yang berisi perintah = jalankan perintah itu dan **salin keluarannya utuh** sebagai
 balasan (pengguna di WhatsApp tidak melihat keluaran tool, hanya balasanmu). Jangan menghitung
-sendiri dan jangan membaca `data/bills.csv` untuk menjawab.
+sendiri dan jangan membaca `data/bills.csv` untuk menjawab. Salin **apa adanya**: jangan menambah
+huruf tebal (`**…**` tampil sebagai tanda bintang mentah di WhatsApp), judul, atau komentar. Tanda
+`*…*` yang sudah ada di keluaran skrip dibiarkan.
 
 | Pesan | Jawaban |
 |---|---|

@@ -245,6 +245,13 @@ class PetaPesan(unittest.TestCase):
                         "Fitur lain", "`ya`"):
             self.assertIn(rujukan, self.PETA)
 
+    def test_salinan_tanpa_format_tambahan(self):
+        # Pernah terjadi (31 Okt 2026): bot membungkus judul dengan **…**, yang di WhatsApp tampil
+        # sebagai tanda bintang mentah. WhatsApp memakai satu bintang untuk tebal.
+        peta = " ".join(self.PETA.split())  # prompt dibungkus per baris; frasa bisa terpotong
+        self.assertIn("jangan menambah huruf tebal", peta)
+        self.assertIn("`**…**`", peta)
+
     def test_pesan_tak_dikenal_ditanyakan_bukan_ditebak(self):
         self.assertIn("Tanyakan maksudnya", self.PETA)
 
