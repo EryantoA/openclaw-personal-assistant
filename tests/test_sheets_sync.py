@@ -37,7 +37,7 @@ DASAR = [
 ]
 
 
-def setattr_resi(asli):
+def pulihkan_resi(asli):
     resi.BILLS_CSV, resi.BUDGET_JSON, resi.PEMBELI_JSON = asli
 
 
@@ -73,7 +73,7 @@ class Dasar(unittest.TestCase):
         asli = (resi.BILLS_CSV, resi.BUDGET_JSON, resi.PEMBELI_JSON)
         resi.BILLS_CSV, resi.BUDGET_JSON, resi.PEMBELI_JSON = (
             self.bills, self.dir / "budget.json", self.dir / "pembeli.json")
-        self.addCleanup(lambda: setattr_resi(asli))
+        self.addCleanup(lambda: pulihkan_resi(asli))
 
     def tulis_csv(self, rows):
         with open(self.bills, "w", encoding="utf-8", newline="") as f:
@@ -354,7 +354,10 @@ class SinkronMasuk(Dasar):
 
         self.assertEqual(self.bills.read_bytes(), self.csv_awal)
         self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
-        self.assertEqual(laporan.dipulihkan, [("TRX-1", 1)])
+        self.assertEqual(laporan.dipulihkan, [])
+        self.assertEqual([(r, k) for r, k, _ in laporan.ditolak], [("TRX-1", 1)])
+        self.assertIn("no_resi", laporan.ditolak[0][2])
+        self.assertIn("terkunci", laporan.ditolak[0][2])
 
     def test_baris_yang_dihapus_dari_sheet_dipulihkan_dan_csv_utuh(self):
         del self.klien.sheets["Buku Kas"][self.baris_sheet("TRX-1")]
@@ -430,6 +433,38 @@ class SinkronMasuk(Dasar):
         self.assertEqual(self.bills.read_bytes(), csv_sebelum)
         self.assertEqual(len(laporan.ditolak), 1)
         self.assertIn("no_resi", laporan.ditolak[0][2])
+        self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
+
+    def test_sheet_diurutkan_ulang_tidak_dianggap_perubahan_apa_pun(self):
+        self.tulis_csv(DASAR + [tx("2026-09-01", "pengeluaran", 9_000, item="Baris lama")])
+        self.sinkron()
+        csv_sebelum = self.bills.read_bytes()
+        isi = self.klien.sheets["Buku Kas"]
+        isi[1:] = sorted(isi[1:], key=lambda b: int(b[4]))
+
+        laporan = self.sinkron()
+
+        self.assertEqual((laporan.diterima, laporan.ditolak, laporan.dipulihkan), ([], [], []))
+        self.assertEqual(self.bills.read_bytes(), csv_sebelum)
+        self.assertEqual(self.jejak(), [])
+        self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
+
+    def test_jumlah_desimal_ditolak_bukan_dibaca_sebagai_ribuan(self):
+        self.ubah_sheet("TRX-1", "jumlah", 88_500.5)
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+        self.assertEqual([(r, k) for r, k, _ in laporan.ditolak], [("TRX-1", 1)])
+        self.assertIn("jumlah", laporan.ditolak[0][2])
+
+    def test_jumlah_berformat_rupiah_diterima(self):
+        self.ubah_sheet("TRX-1", "jumlah", "Rp 88.500")
+
+        laporan = self.sinkron()
+
+        self.assertEqual([r["jumlah"] for r in self.baca_csv() if r["no_resi"] == "TRX-1"], ["88500"])
+        self.assertEqual(laporan.ditolak, [])
 
     def test_baris_baru_di_sheet_dilaporkan_tidak_dibuang_diam_diam(self):
         self.klien.sheets["Buku Kas"].append(
@@ -485,6 +520,48 @@ class SinkronMasukMultiItem(Dasar):
 
         self.assertEqual([r["tanggal"] for r in self.baca_csv()], ["2026-09-02", "2026-09-02"])
         self.assertEqual(laporan.ditolak, [])
+
+    def test_item_pertama_yang_dihapus_dari_sheet_dipulihkan_tanpa_menimpa_item_lain(self):
+        del self.klien.sheets["Buku Kas"][self.baris_sheet("STRUK-9", 1)]
+        csv_awal = self.bills.read_bytes()
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), csv_awal)
+        self.assertEqual(laporan.dipulihkan, [("STRUK-9", 1)])
+        self.assertEqual((laporan.diterima, laporan.ditolak), ([], []))
+        self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
+        self.assertEqual(self.jejak(), [])
+
+    def test_item_dihapus_sambil_item_lain_diedit_tidak_diterapkan(self):
+        del self.klien.sheets["Buku Kas"][self.baris_sheet("STRUK-9", 1)]
+        self.ubah_sheet("STRUK-9", "jumlah", 6_000, item_ke=1)  # kini Item "Roti" di baris pertama
+        csv_awal = self.bills.read_bytes()
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), csv_awal)
+        self.assertEqual(laporan.diterima, [])
+        self.assertEqual(len(laporan.ditolak), 1)
+
+    def test_item_ditukar_urutannya_di_sheet_tidak_mengubah_csv(self):
+        buku = self.klien.sheets["Buku Kas"]
+        buku[1], buku[2] = buku[2], buku[1]
+        csv_awal = self.bills.read_bytes()
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), csv_awal)
+        self.assertEqual((laporan.diterima, laporan.ditolak, laporan.dipulihkan), ([], [], []))
+        self.assertEqual(self.jejak(), [])
+
+    def test_uji_dua_baris_satu_struk_diubah_ke_tanggal_sama_dilaporkan_sekali(self):
+        self.ubah_sheet("STRUK-9", "tanggal", "2026-09-02", item_ke=1)
+        self.ubah_sheet("STRUK-9", "tanggal", "2026-09-02", item_ke=2)
+
+        laporan = self.sinkron(uji=True)
+
+        self.assertEqual(laporan.diterima, [("STRUK-9", 1, ["tanggal"])])
 
 
 if __name__ == "__main__":

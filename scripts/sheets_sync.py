@@ -101,23 +101,25 @@ def _simpan_snapshot(path: Path, isi: dict) -> None:
 
 # ── Arah masuk: Sheets → CSV ──────────────────────────────────────────────
 OLEH = "sheets"  # Sheets tidak memberi tahu siapa pengubahnya; Jejak Perubahan mencatat asalnya saja
+_JUMLAH_SAH = re.compile(r"(?:Rp\s*)?(?:\d+|\d{1,3}(?:[.,]\d{3})+)")
+_I_RESI = KOLOM.index("no_resi")
 
 
-def _indeks(grid: list[list]) -> dict:
-    """Baris tiap Item menurut kuncinya: (No Resi, nomor Item) — sama dengan penunjuk buku.py.
-    Baris tanpa No Resi tidak bisa ditunjuk; kuncinya ("", urutan baris)."""
-    hasil, cacah = {}, {}
-    for i, baris in enumerate(_norm(grid)[1:], start=1):
+def _struk(grid: list[list]) -> dict:
+    """Baris Sheet dikelompokkan per Transaksi (No Resi), urutan Item dipertahankan. Baris tanpa
+    No Resi tidak bisa ditunjuk; ia dikelompokkan menurut isinya, jadi diurutkan ulang pun tetap
+    sama. Mencocokkan per kelompok, bukan per nomor urut baris: menghapus satu Item tidak boleh
+    menggeser Item lain menjadi 'Item yang diedit'."""
+    hasil = {}
+    for baris in _norm(grid)[1:]:
         sel = baris + [""] * (len(KOLOM) - len(baris))
-        if not any(sel):
-            continue
-        resi_ = sel[KOLOM.index("no_resi")]
-        if resi_:
-            cacah[resi_] = cacah.get(resi_, 0) + 1
-            hasil[(resi_, cacah[resi_])] = sel
-        else:
-            hasil[("", i)] = sel
+        if any(sel):
+            hasil.setdefault(sel[_I_RESI] or "\0" + "\x1f".join(sel), []).append(sel)
     return hasil
+
+
+def _resi_dari(id_: str) -> str:
+    return "" if id_.startswith("\0") else id_
 
 
 def _jalankan_ubah(skema, req: dict, uji: bool):
@@ -133,64 +135,113 @@ def _alasan(pesan: str) -> str:
     return re.sub(r"^ERROR ", "", pesan.splitlines()[0])
 
 
+def _permintaan_ubah(skema, no_resi: str, item_ke: int, nilai: dict, banyak: bool) -> list:
+    """Satu Transaksi satu Item: satu permintaan. Banyak Item: kolom tingkat Transaksi (berlaku
+    untuk semua Item) dan kolom Item (butuh item_ke) dipisah, karena buku.py menolak campurannya."""
+    if banyak:
+        bagian = [{"set": {c: v for c, v in nilai.items() if c in skema.tingkat_transaksi}},
+                  {"set": {c: v for c, v in nilai.items() if c not in skema.tingkat_transaksi},
+                   "item_ke": item_ke}]
+    else:
+        bagian = [{"set": nilai}]
+    return [{"no_resi": no_resi, "oleh": OLEH, **b} for b in bagian if b["set"]]
+
+
+def _terapkan_baris(skema, no_resi: str, item_ke: int, nilai: dict, banyak: bool, uji: bool,
+                    laporan: Laporan, terapan: set) -> None:
+    """Satu baris masuk seluruhnya atau ditolak seluruhnya (diuji dulu sebelum satu pun ditulis)."""
+    nilai = {c: v for c, v in nilai.items()
+             if (no_resi, c, v) not in terapan or c not in skema.tingkat_transaksi}
+    if not nilai:
+        return  # Item lain dari struk yang sama sudah membawa perubahan tingkat Transaksi ini
+    if "jumlah" in nilai and not _JUMLAH_SAH.fullmatch(nilai["jumlah"].strip()):
+        laporan.ditolak.append((no_resi, item_ke, f"jumlah harus bilangan bulat rupiah, dapat {nilai['jumlah']!r}"))
+        return
+    permintaan = _permintaan_ubah(skema, no_resi, item_ke, nilai, banyak)
+    gagal = next((m for k, m in (_jalankan_ubah(skema, r, True) for r in permintaan) if k != 0), None)
+    if gagal:
+        laporan.ditolak.append((no_resi, item_ke, _alasan(gagal)))
+        return
+    for r in permintaan:
+        kode, pesan = _jalankan_ubah(skema, r, uji)
+        laporan.peringatan += [b for b in pesan.splitlines() if b.startswith("⚠️")]
+        if kode != 0:
+            laporan.ditolak.append((no_resi, item_ke, _alasan(pesan)))
+            return
+    laporan.diterima.append((no_resi, item_ke, list(nilai)))
+    terapan.update((no_resi, c, v) for c, v in nilai.items())
+
+
+def _no_resi_diubah(dasar: dict, sheet: dict, laporan: Laporan) -> set:
+    """No Resi terkunci. Mengedit selnya membuat baris tampak hilang sekaligus baru; pasangkan
+    keduanya (isi lain sama persis) supaya alasannya jujur. Mengembalikan baris yang sudah
+    dijelaskan, sebagai (id, nomor) di dasar dan (id, nomor) di sheet."""
+    hilang = {}
+    for id_, d in dasar.items():
+        if id_ not in sheet and not id_.startswith("\0"):
+            for i, sel in enumerate(d):
+                hilang[tuple(sel[:_I_RESI] + sel[_I_RESI + 1:])] = (id_, i)
+    dijelaskan = set()
+    for id_, s in sheet.items():
+        if id_ in dasar or id_.startswith("\0"):
+            continue
+        for i, sel in enumerate(s):
+            lama = hilang.pop(tuple(sel[:_I_RESI] + sel[_I_RESI + 1:]), None)
+            if lama:
+                laporan.ditolak.append((lama[0], lama[1] + 1,
+                                        "kolom `no_resi` terkunci; dikembalikan ke nilai Buku Kas"))
+                dijelaskan |= {("lama",) + lama, ("baru", id_, i)}
+    return dijelaskan
+
+
 def _terapkan_masuk(bills_path: Path, klien, snapshot: dict, uji: bool, laporan: Laporan) -> None:
-    """Diff tiga arah per baris: snapshot (dasar) vs Sheet sekarang vs CSV sekarang."""
-    dasar = _indeks(snapshot["buku_kas"])
-    sheet = _indeks(klien.baca(SHEET_BUKU))
-    csv_ = _indeks(grid_buku(buku_kas.muat(bills_path)))
+    """Diff tiga arah per Transaksi: snapshot (dasar) vs Sheet sekarang vs CSV sekarang."""
+    dasar, sheet = _struk(snapshot["buku_kas"]), _struk(klien.baca(SHEET_BUKU))
+    dari_csv = _struk(grid_buku(buku_kas.muat(bills_path)))
     skema = replace(buku.skema_bills(), path=lambda: Path(bills_path))
-    tx_level = skema.tingkat_transaksi
+    dijelaskan = _no_resi_diubah(dasar, sheet, laporan)
+    terapan = set()
 
-    for kunci, baris_dasar in dasar.items():
-        if kunci not in sheet:
-            if kunci in csv_:
-                laporan.dipulihkan.append(kunci)
+    for id_, d in dasar.items():
+        s, c, no_resi = sheet.get(id_, []), dari_csv.get(id_, []), _resi_dari(id_)
+        if s == d:
             continue
-        berubah = [c for i, c in enumerate(KOLOM) if sheet[kunci][i] != baris_dasar[i]]
-        if not berubah:
+        if len(s) != len(d):  # baris dihapus (atau ditambah) di Sheet: tidak ada yang diedit
+            sisa = list(s)
+            for i, sel in enumerate(d):
+                if sel in sisa:
+                    sisa.remove(sel)
+                elif i < len(c) and ("lama", id_, i) not in dijelaskan:
+                    laporan.dipulihkan.append((no_resi, i + 1))
+            if sisa:
+                laporan.ditolak.append((no_resi, 1, "jumlah baris Transaksi ini berubah di Sheets; "
+                                        "edit pada Transaksi ini tidak diterapkan"))
             continue
-        no_resi, item_ke = kunci
-        if kunci not in csv_:
-            laporan.ditolak.append((no_resi, item_ke, "Transaksi ini sudah dihapus dari Buku Kas"))
-            continue
-        if csv_[kunci] != baris_dasar:
-            if all(sheet[kunci][KOLOM.index(c)] == csv_[kunci][KOLOM.index(c)] for c in berubah):
-                continue  # kedua sisi sudah sepakat
-            laporan.ditolak.append((no_resi, item_ke, "konflik: baris ini juga berubah di Buku Kas; "
-                                    "nilai Buku Kas yang dipakai"))
-            continue
-        if not no_resi:
-            laporan.ditolak.append((no_resi, item_ke, "baris tanpa no_resi tidak bisa ditunjuk"))
-            continue
-        nilai = {c: sheet[kunci][KOLOM.index(c)] for c in berubah}
-        banyak = sum(1 for k in csv_ if k[0] == no_resi) > 1
-        if banyak:
-            permintaan = [{"set": {c: v for c, v in nilai.items() if c in tx_level}},
-                          {"set": {c: v for c, v in nilai.items() if c not in tx_level},
-                           "item_ke": item_ke}]
-        else:
-            permintaan = [{"set": nilai}]
-        permintaan = [{"no_resi": no_resi, "oleh": OLEH, **r} for r in permintaan if r["set"]]
+        if sorted(s) == sorted(d):
+            continue  # hanya diurutkan ulang
+        for i, (sel, awal) in enumerate(zip(s, d)):
+            if sel == awal:
+                continue
+            berubah = [k for k, (x, y) in enumerate(zip(sel, awal)) if x != y]
+            if i >= len(c):
+                laporan.ditolak.append((no_resi, i + 1, "Transaksi ini sudah dihapus dari Buku Kas"))
+            elif c[i] != awal:
+                if not all(sel[k] == c[i][k] for k in berubah):
+                    laporan.ditolak.append((no_resi, i + 1, "konflik: baris ini juga berubah di "
+                                            "Buku Kas; nilai Buku Kas yang dipakai"))
+            else:
+                _terapkan_baris(skema, no_resi, i + 1, {KOLOM[k]: sel[k] for k in berubah},
+                                len(c) > 1, uji, laporan, terapan)
 
-        # Uji semuanya dulu: satu baris masuk seluruhnya atau ditolak seluruhnya.
-        gagal = next((m for k, m in (_jalankan_ubah(skema, r, True) for r in permintaan) if k != 0), None)
-        if gagal:
-            laporan.ditolak.append((no_resi, item_ke, _alasan(gagal)))
+    for id_, s in sheet.items():
+        if id_ in dasar:
             continue
-        for r in permintaan:
-            kode, pesan = _jalankan_ubah(skema, r, uji)
-            laporan.peringatan += [b for b in pesan.splitlines() if b.startswith("⚠️")]
-            if kode != 0:
-                laporan.ditolak.append((no_resi, item_ke, _alasan(pesan)))
-                break
-        else:
-            laporan.diterima.append((no_resi, item_ke, berubah))
-            if not uji:  # baris lain dari struk yang sama harus melihat CSV yang sudah berubah
-                csv_ = _indeks(grid_buku(buku_kas.muat(bills_path)))
-
-    for kunci in sheet.keys() - dasar.keys():
-        if kunci not in csv_:
-            laporan.ditolak.append((kunci[0], kunci[1], "baris baru dari Sheets belum didukung"))
+        for i, sel in enumerate(s):
+            if ("baru", id_, i) in dijelaskan or id_ in dari_csv:
+                continue
+            laporan.ditolak.append((_resi_dari(id_), i + 1, "baris tanpa no_resi tidak bisa ditunjuk "
+                                    "atau diubah dari Sheets" if id_.startswith("\0")
+                                    else "baris baru dari Sheets belum didukung"))
 
 
 def _berisi_data(grid: list[list]) -> bool:
