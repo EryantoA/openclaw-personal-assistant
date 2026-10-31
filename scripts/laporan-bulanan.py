@@ -110,8 +110,8 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
     out = [judul, "",
            f"📥 Pemasukan:   {rp(h['pemasukan'])}",
            f"📤 Pengeluaran: {rp(h['pengeluaran'])}  ({h['transaksi_pengeluaran']} transaksi)",
-           f"{'💚' if arus_kas >= 0 else '🔴'} Arus Kas Bulan: {rp(arus_kas)}",
-           f"🏦 Saldo akhir {NAMA_BULAN[int(bulan[5:]) - 1]}: {rp(saldo_akhir(baris, bulan))}"]
+           f"{'💚' if arus_kas >= 0 else '🔴'} Arus Kas Bulanan: {rp(arus_kas)}",
+           f"🏦 Saldo Bersama akhir {NAMA_BULAN[int(bulan[5:]) - 1]}: {rp(saldo_akhir(baris, bulan))}"]
 
     batas = float(budget.get("budget_bulanan") or 0)
     if batas > 0:
@@ -147,7 +147,7 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
             bagian.append(f"pemasukan {'naik' if k['pemasukan'] > 0 else 'turun'} "
                           f"{rp(abs(k['pemasukan']))}")
         out += ["", f"⚠️ Koreksi {nama_bulan(k['bulan'])}: {', '.join(bagian)} sejak dilaporkan. "
-                    f"Saldo akhir {NAMA_BULAN[int(k['bulan'][5:]) - 1]} sekarang "
+                    f"Saldo Bersama akhir {NAMA_BULAN[int(k['bulan'][5:]) - 1]} sekarang "
                     f"{rp(k['saldo_akhir'])}."]
 
     tak = buku_kas.tak_terhitung(baris)

@@ -55,7 +55,7 @@ python3 scripts/check-bills.py --mode all
 
 **Perkiraan** = transaksi yang biasanya berulang tiap bulan — gaji akhir bulan, langganan yang
 ditarik tanggal 26. Disimpan di `data/perkiraan.json`. **Bukan** Transaksi: belum ada uang
-berpindah, jadi **tidak pernah** ikut menghitung Saldo, Arus Kas Bulan, maupun budget.
+berpindah, jadi **tidak pernah** ikut menghitung Saldo Bersama, Arus Kas Bulanan, maupun budget.
 
 Gunanya dua: bersiap untuk uang yang akan keluar, dan menyadari kalau yang seharusnya masuk
 ternyata tidak masuk.

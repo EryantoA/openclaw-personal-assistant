@@ -76,7 +76,7 @@ class Saldo(DenganBerkasKosong):
                 tx("2026-10-21", "transfer", 3_000_000, "other"),
                 tx("2026-10-26", "pengeluaran", 1_000_000)] + tiap_hari(SENIN, MINGGU)
         pesan = lm.susun(rows, SENIN, MINGGU, True)
-        self.assertIn("🏦 Saldo akhir Pekan: Rp 25.430.000", pesan)  # tanpa transfer & Senin depan
+        self.assertIn("🏦 Saldo Bersama akhir Pekan: Rp 25.430.000", pesan)  # tanpa transfer & Senin depan
 
     def test_pemasukan_pekan_tanpa_saldo_awal(self):
         rows = [tx("2026-10-20", "pemasukan", 20_500_000, "opening_balance"),
@@ -86,7 +86,7 @@ class Saldo(DenganBerkasKosong):
     def test_pekan_berjalan_saldo_per_hari_itu(self):
         rows = tiap_hari(SENIN, date(2026, 10, 21)) + [tx("2026-10-22", "pengeluaran", 5_000)]
         pesan = lm.susun(rows, SENIN, date(2026, 10, 21), False)
-        self.assertIn("🏦 Saldo per 21 Okt: Rp -30.000", pesan)  # 22 Okt belum ikut
+        self.assertIn("🏦 Saldo Bersama per 21 Okt: Rp -30.000", pesan)  # 22 Okt belum ikut
 
 
 class HariKosong(DenganBerkasKosong):

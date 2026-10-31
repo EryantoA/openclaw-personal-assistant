@@ -4,7 +4,7 @@
     python3 scripts/rekap-bulanan.py                                # semua bulan
     python3 scripts/rekap-bulanan.py --dari 2026-08 --sampai 2026-10  # sebagian saja
 
-Read-only. Tiap bulan: Pemasukan, Pengeluaran, Arus Kas Bulan (berdiri sendiri), dan Saldo
+Read-only. Tiap bulan: Pemasukan, Pengeluaran, Arus Kas Bulanan (berdiri sendiri), dan Saldo Bersama
 (kumulatif, dibawa antar bulan). Saldo tetap dihitung dari awal walau tampilan dibatasi
 --dari/--sampai. Aturan hitung (Transfer, Saldo Awal, baris tanpa tanggal/tipe tak dikenal)
 ada di scripts/buku_kas.py (ringkas), satu untuk semua laporan; jumlah Transaksi = No Resi
@@ -24,6 +24,7 @@ import periode  # noqa: E402
 
 NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
               "Agustus", "September", "Oktober", "November", "Desember"]
+LEBAR = 18  # lebar kolom label: "Arus Kas Bulanan:" + spasi
 BULAN_PENDEK = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 
 
@@ -72,11 +73,11 @@ def susun(rows, hari_ini, dari=None, sampai=None):
         saldo = buku_kas.saldo(rows, per)
         judul = nama(bulan) + (" (berjalan)" if bulan == ini else "")
         baris += [f"▸ {judul}",
-                  f"  📥 Pemasukan:   {rp(h['pemasukan'])}",
-                  f"  📤 Pengeluaran: {rp(h['pengeluaran'])}",
-                  f"  {'💚' if arus >= 0 else '🔴'} Arus Kas:    {rp(arus)}  "
+                  f"  📥 {'Pemasukan:':<{LEBAR}}{rp(h['pemasukan'])}",
+                  f"  📤 {'Pengeluaran:':<{LEBAR}}{rp(h['pengeluaran'])}",
+                  f"  {'💚' if arus >= 0 else '🔴'} {'Arus Kas Bulanan:':<{LEBAR}}{rp(arus)}  "
                   f"({h['transaksi_pemasukan'] + h['transaksi_pengeluaran']} transaksi)",
-                  f"  🏦 Saldo:       {rp(saldo)}", ""]
+                  f"  🏦 {'Saldo Bersama:':<{LEBAR}}{rp(saldo)}", ""]
         terakhir_tampil, saldo_terakhir = bulan, saldo
         bulan = _bulan_berikut(bulan)
 
@@ -87,7 +88,7 @@ def susun(rows, hari_ini, dari=None, sampai=None):
         kapan = f"per {hari_ini.day} {BULAN_PENDEK[hari_ini.month - 1]} {hari_ini.year}"
     else:
         kapan = f"akhir {nama(terakhir_tampil)}"
-    baris += ["─────────────────────────", f"Saldo terakhir ({kapan}): {rp(saldo_terakhir)}", "",
+    baris += ["─────────────────────────", f"Saldo Bersama terakhir ({kapan}): {rp(saldo_terakhir)}", "",
               "_Dihitung scripts/rekap-bulanan.py, tanpa model_"]
     return "\n".join(baris)
 

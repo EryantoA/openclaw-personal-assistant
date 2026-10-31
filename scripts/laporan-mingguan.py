@@ -217,8 +217,8 @@ def susun(rows, mulai, akhir, pekan_tutup):
     saldo = buku_kas.saldo(rows, per=akhir)
     baris += [
         "",
-        f"💰 Pemasukan pekan ini: {rupiah(ringkasan["pemasukan"])}",
-        f"🏦 Saldo {'akhir Pekan' if pekan_tutup else 'per ' + tgl(akhir)}: {rupiah(saldo)}",
+        f"💰 Pemasukan pekan ini: {rupiah(ringkasan['pemasukan'])}",
+        f"🏦 Saldo Bersama {'akhir Pekan' if pekan_tutup else 'per ' + tgl(akhir)}: {rupiah(saldo)}",
     ]
     baris += bagian_budget(rows, mulai, akhir, pekan_tutup)
     baris += [""] + bagian_kewajiban(rows)

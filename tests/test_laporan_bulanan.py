@@ -60,6 +60,17 @@ class AturanHitung(unittest.TestCase):
 
 
 
+class IstilahKeluarga(unittest.TestCase):
+    """Label di balasan memakai istilah keluarga (ADR-0023): Saldo Bersama, Arus Kas Bulanan."""
+
+    def test_label_laporan_bulanan(self):
+        pesan = lb.susun("2026-08", DASAR, {}, {"bulan": {}}, [])
+        self.assertIn("Arus Kas Bulanan:", pesan)
+        self.assertIn("Saldo Bersama akhir Agustus:", pesan)
+        self.assertNotIn("Arus Kas Bulan:", pesan)
+        self.assertNotIn("Saldo akhir", pesan)
+
+
 class AturanKoreksi(unittest.TestCase):
     def test_koreksi_hanya_di_bulan_asal(self):
         simpanan = lb.simpanan_baru({"bulan": {}}, "2026-07", DASAR)

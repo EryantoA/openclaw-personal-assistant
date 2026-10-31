@@ -81,7 +81,7 @@ class LaporanSilang(unittest.TestCase):
 
     def test_rekap_menghitung_pemasukan_ditambah_pengeluaran_di_samping_arus_kas(self):
         teks = rekap.susun(ROWS, date(2026, 11, 15))
-        self.assertIn(f"Pengeluaran: {TOTAL}", teks)
+        self.assertIn(f"{'Pengeluaran:':<18}{TOTAL}", teks)
         self.assertIn(f"({TRANSAKSI + 1} transaksi)", teks)  # + 1 Transaksi Pemasukan
 
     def test_pembeli_jumlahnya_per_orang_tapi_aturannya_sama(self):
