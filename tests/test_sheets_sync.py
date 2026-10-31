@@ -5,16 +5,20 @@ Klien Sheets-nya palsu (memori); tidak ada tes yang memanggil Google.
     python3 -m unittest tests/test_sheets_sync.py
 """
 import csv
+import fcntl
 import json
+import signal
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 AKAR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(AKAR / "scripts"))
 import resi  # noqa: E402
 import sheets_sync  # noqa: E402
+import validasi  # noqa: E402
 
 HEADER = ["tanggal", "tipe", "kategori", "item", "jumlah", "catatan", "channel", "pencatat",
           "akun", "akun_tujuan", "waktu", "no_resi"]
@@ -42,18 +46,43 @@ def pulihkan_resi(asli):
 
 
 class KlienPalsu:
-    """Sheets di memori: nama worksheet → grid. Mencatat tiap tulisan."""
+    """Sheets di memori: nama worksheet → grid. Mencatat tiap panggilan; `gagal` berisi nama
+    metode ("baca"/"tulis") yang harus melempar ConnectionError; `saat_jaringan(nama)` dipanggil
+    di tiap panggilan jaringan (untuk memeriksa keadaan di luar klien)."""
 
     def __init__(self, isi=None):
         self.sheets = {k: [list(r) for r in v] for k, v in (isi or {}).items()}
         self.tulisan = []
+        self.bacaan = 0
+        self.gagal = set()
+        self.saat_jaringan = None
+
+    def _jaringan(self, metode, nama):
+        if self.saat_jaringan:
+            self.saat_jaringan(nama)
+        if metode in self.gagal:
+            raise ConnectionError(f"{metode} {nama} gagal")
 
     def baca(self, nama):
+        self._jaringan("baca", nama)
+        self.bacaan += 1
         return [list(r) for r in self.sheets.get(nama, [])]
 
     def tulis(self, nama, grid):
+        self._jaringan("tulis", nama)
         self.sheets[nama] = [list(r) for r in grid]
         self.tulisan.append(nama)
+
+
+def kunci_dipegang(path):
+    """True bila ada pemegang lain kunci `<path>.lock` (flock pada berkas yang dibuka terpisah)."""
+    with open(path.with_name(path.name + ".lock"), "a+") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(f, fcntl.LOCK_UN)
+        return False
 
 
 class Dasar(unittest.TestCase):
@@ -714,6 +743,191 @@ class BarisBaruDariSheets(Dasar):
         self.assertEqual(self.bills.read_bytes(), csv_sebelum)
         self.assertEqual(laporan.ditambah, [])
         self.assertEqual(len(laporan.ditolak), 1)
+
+
+class KunciBerkas(unittest.TestCase):
+    def test_kunci_yang_sama_boleh_dimasuki_ulang_oleh_proses_yang_memegangnya(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "bills.csv"
+
+            def macet(*_):
+                raise AssertionError("kunci_berkas bersarang menunggu dirinya sendiri")
+
+            signal.signal(signal.SIGALRM, macet)
+            signal.alarm(3)
+            try:
+                with validasi.kunci_berkas(path):
+                    with validasi.kunci_berkas(path):
+                        self.assertTrue(kunci_dipegang(path))
+                self.assertFalse(kunci_dipegang(path))  # dilepas setelah blok terluar selesai
+            finally:
+                signal.alarm(0)
+
+
+class KetahananSinkron(Dasar):
+    def setUp(self):
+        super().setUp()
+        self.tulis_csv(DASAR)
+        self.sinkron()
+        self.csv_awal = self.bills.read_bytes()
+        self.klien.tulisan.clear()
+
+    def tambah(self, **sel):
+        isi = dict(tanggal="2026-09-05", tipe="pengeluaran", kategori="food", item="Parkir", jumlah=3_000,
+                   catatan="", channel="", pencatat="Eryanto", akun="", akun_tujuan="", waktu="",
+                   no_resi="")
+        isi.update(sel)
+        self.klien.sheets["Buku Kas"].append([isi[k] for k in HEADER])
+
+    def n_baris(self, item):
+        return len([r for r in self.baca_csv() if r["item"] == item])
+
+    def test_kunci_tidak_dipegang_selama_panggilan_jaringan(self):
+        dipegang = []
+        self.klien.saat_jaringan = lambda nama: dipegang.append(kunci_dipegang(self.bills))
+        self.ubah_sheet("TRX-1", "jumlah", 120_000)
+        self.tambah()
+
+        self.sinkron()
+
+        self.assertGreaterEqual(len(dipegang), 3)  # baca, baca, tulis…
+        self.assertEqual(set(dipegang), {False})
+
+    def test_kunci_dipegang_selama_membaca_csv_dan_menerapkan_perubahan(self):
+        dipegang = []
+        asli = sheets_sync.buku_kas.muat
+
+        def muat(*a, **kw):
+            dipegang.append(kunci_dipegang(self.bills))
+            return asli(*a, **kw)
+
+        self.ubah_sheet("TRX-1", "jumlah", 120_000)
+        self.tambah()
+        with mock.patch.object(sheets_sync.buku_kas, "muat", muat):
+            self.sinkron()
+
+        self.assertTrue(dipegang)
+        self.assertEqual(set(dipegang), {True})
+
+    def test_sinkron_yang_masih_berjalan_membuat_pemanggilan_kedua_keluar_tanpa_kerja(self):
+        self.ubah_sheet("TRX-1", "jumlah", 120_000)
+        with open(self.snapshot.with_name(self.snapshot.name + ".lock"), "a+") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)  # sinkron lain sedang jalan
+            bacaan_sebelum = self.klien.bacaan
+
+            laporan = self.sinkron()
+
+        self.assertTrue(laporan.dilewati)
+        self.assertEqual(self.klien.bacaan, bacaan_sebelum)
+        self.assertEqual(self.klien.tulisan, [])
+        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+
+    def test_tulis_gagal_csv_konsisten_snapshot_tak_berubah_dan_sinkron_berikutnya_menyelesaikan(self):
+        self.ubah_sheet("TRX-1", "jumlah", 120_000)
+        snapshot_sebelum = self.snapshot.read_text()
+        self.klien.gagal = {"tulis"}
+
+        with self.assertRaises(ConnectionError):
+            self.sinkron()
+
+        self.assertEqual([r["jumlah"] for r in self.baca_csv() if r["no_resi"] == "TRX-1"], ["120000"])
+        self.assertEqual(self.snapshot.read_text(), snapshot_sebelum)
+        self.klien.gagal = set()
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
+        self.assertEqual(laporan.ditolak, [])
+        self.assertEqual(len(self.jejak()), 1)  # edit yang sama tidak diterapkan dua kali
+        self.assertNotEqual(self.snapshot.read_text(), snapshot_sebelum)
+        self.klien.tulisan.clear()
+        self.sinkron()
+        self.assertEqual(self.klien.tulisan, [])
+
+    def test_baca_gagal_tidak_mengubah_apa_pun(self):
+        self.ubah_sheet("TRX-1", "jumlah", 120_000)
+        snapshot_sebelum = self.snapshot.read_text()
+        self.klien.gagal = {"baca"}
+
+        with self.assertRaises(ConnectionError):
+            self.sinkron()
+
+        self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+        self.assertEqual(self.snapshot.read_text(), snapshot_sebelum)
+
+    def test_baris_baru_tanpa_no_resi_tidak_jadi_ganda_bila_tulis_gagal_lalu_diulang(self):
+        self.tambah()  # waktu kosong → jam sekarang; Lapis 2 tidak akan menangkap ulangannya
+        self.klien.gagal = {"tulis"}
+        with self.assertRaises(ConnectionError):
+            self.sinkron()
+        pertama = [r["no_resi"] for r in self.baca_csv() if r["item"] == "Parkir"]
+        self.assertEqual(len(pertama), 1)
+        self.klien.gagal = set()
+
+        laporan = self.sinkron()
+
+        self.assertEqual([r["no_resi"] for r in self.baca_csv() if r["item"] == "Parkir"], pertama)
+        self.assertEqual((laporan.ditambah, laporan.ditolak), (pertama, []))
+        self.assertEqual([b[11] for b in self.klien.sheets["Buku Kas"] if b[3] == "Parkir"], pertama)
+
+    def test_baris_baru_ber_no_resi_tidak_dilaporkan_duplikat_setelah_gagal(self):
+        self.tambah(no_resi="NOTA-9", waktu="10:00", jumlah="Rp 3.000")  # format beda dari yang tersimpan
+        self.klien.gagal = {"tulis"}
+        with self.assertRaises(ConnectionError):
+            self.sinkron()
+        self.klien.gagal = set()
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.n_baris("Parkir"), 1)
+        self.assertEqual((laporan.ditambah, laporan.ditolak), (["NOTA-9"], []))
+
+    def test_dua_baris_identik_tetap_ditolak_yang_kedua_bukan_dianggap_sudah_dibuat(self):
+        self.tambah(waktu="10:00")
+        self.tambah(waktu="10:00")
+
+        laporan = self.sinkron()
+
+        self.assertEqual(self.n_baris("Parkir"), 1)
+        self.assertEqual(len(laporan.ditambah), 1)
+        self.assertEqual(len(laporan.ditolak), 1)
+
+    def test_jurnal_dibersihkan_setelah_sinkron_sukses(self):
+        self.tambah()
+        self.sinkron()
+
+        self.assertEqual(list(self.dir.glob("*.jurnal.json")), [])
+
+    def test_snapshot_rusak_ditolak_dengan_petunjuk_dan_tidak_mengubah_apa_pun(self):
+        for isi in ("{", "", "{}", "[]"):
+            with self.subTest(isi=isi):
+                self.snapshot.write_text(isi, encoding="utf-8")
+
+                with self.assertRaises(sheets_sync.SinkronDitolak) as ctx:
+                    self.sinkron()
+
+                self.assertIn("inisialisasi", str(ctx.exception))
+                self.assertEqual(self.bills.read_bytes(), self.csv_awal)
+                self.assertEqual(self.klien.tulisan, [])
+
+    def test_kegagalan_separuh_jalan_pada_dua_permintaan_dilaporkan_sebagian_dan_csv_tetap_sah(self):
+        self.tulis_csv([
+            tx("2026-09-01", "pengeluaran", 20_000, item="Susu", no_resi="STRUK-9"),
+            tx("2026-09-01", "pengeluaran", 5_000, item="Roti", no_resi="STRUK-9"),
+            tx("2026-09-02", "pengeluaran", 6_000, item="Lain", no_resi="TRX-X"),
+        ])
+        self.sinkron(inisialisasi=True)
+        # tanggal (semua Item) lolos; jumlah 6000 lalu menyamai TRX-X pada tanggal baru itu
+        self.ubah_sheet("STRUK-9", "tanggal", "2026-09-02", item_ke=2)
+        self.ubah_sheet("STRUK-9", "jumlah", 6_000, item_ke=2)
+
+        laporan = self.sinkron()
+
+        self.assertEqual([(r["tanggal"], r["jumlah"]) for r in self.baca_csv() if r["no_resi"] == "STRUK-9"],
+                         [("2026-09-02", "20000"), ("2026-09-02", "5000")])
+        self.assertEqual(len(laporan.ditolak), 1)
+        self.assertIn("sebagian", laporan.ditolak[0][2])
+        self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
 
 
 if __name__ == "__main__":

@@ -97,6 +97,9 @@ def cek_baris(b: dict, sah: set[str], awalan: str = "", ubah: set | None = None)
     }
 
 
+_DIPEGANG: set = set()  # kunci yang sedang dipegang proses ini
+
+
 @contextlib.contextmanager
 def kunci_berkas(path: Path):
     """Kunci eksklusif untuk satu CSV, lewat berkas `<nama>.lock` di sampingnya.
@@ -104,8 +107,20 @@ def kunci_berkas(path: Path):
     Bukan mengunci CSV-nya sendiri: buku.py mengganti CSV dengan rename atomik, dan kunci pada
     inode lama tidak melindungi penulis yang menunggu (tulisannya jatuh ke berkas yang sudah
     tak terpakai). catat.py dan buku.py sama-sama lewat sini.
+
+    Boleh dimasuki ulang oleh proses yang sudah memegangnya (sheets_sync memegang kunci selagi
+    memanggil catat/buku): flock kedua pada berkas yang sama menunggu pemegangnya sendiri.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path.with_name(path.name + ".lock"), "a+") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
+    berkas_kunci = path.with_name(path.name + ".lock")
+    ident = str(berkas_kunci.resolve())
+    if ident in _DIPEGANG:
         yield
+        return
+    with open(berkas_kunci, "a+") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        _DIPEGANG.add(ident)
+        try:
+            yield
+        finally:
+            _DIPEGANG.discard(ident)

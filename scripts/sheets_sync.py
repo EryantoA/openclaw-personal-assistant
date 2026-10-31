@@ -13,11 +13,15 @@ Seluruh aturan hidup di sini; adaptor Google yang sungguhan hanya memenuhi dua m
 # Cron memakai /usr/bin/python3 3.9 — lihat catatan yang sama di resi.py.
 from __future__ import annotations
 
+import contextlib
+import fcntl
+import hashlib
 import json
 import os
 import re
 import sys
 from dataclasses import dataclass, field, replace
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -26,6 +30,7 @@ import buku_kas  # noqa: E402
 import catat  # noqa: E402
 import periode  # noqa: E402
 import resi  # noqa: E402
+from validasi import kunci_berkas  # noqa: E402
 
 SHEET_BUKU = "Buku Kas"
 SHEET_RINGKASAN = "Ringkasan"
@@ -41,6 +46,7 @@ class SinkronDitolak(Exception):
 
 @dataclass
 class Laporan:
+    dilewati: bool = False  # sinkron lain masih berjalan; tidak ada yang dikerjakan
     didorong: int = 0  # baris Transaksi yang ditulis ke Sheet pada sinkron ini
     # (no_resi, alasan) baris yang tampil di "Buku Kas" tetapi tidak ikut Ringkasan — tidak pernah hilang diam-diam
     tak_terhitung: list = field(default_factory=list)
@@ -92,14 +98,17 @@ def _norm(grid: list[list]) -> list[list[str]]:
     return hasil
 
 
-def _simpan_snapshot(path: Path, isi: dict) -> None:
-    teks = json.dumps(isi, ensure_ascii=False, indent=1)
-    if path.exists() and path.read_text(encoding="utf-8") == teks:
-        return
+def _tulis_atomik(path: Path, teks: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     sementara = path.with_name(path.name + ".tmp")
     sementara.write_text(teks, encoding="utf-8")
     os.replace(sementara, path)
+
+
+def _simpan_snapshot(path: Path, isi: dict) -> None:
+    teks = json.dumps(isi, ensure_ascii=False, indent=1)
+    if not (path.exists() and path.read_text(encoding="utf-8") == teks):
+        _tulis_atomik(path, teks)
 
 
 # ── Arah masuk: Sheets → CSV ──────────────────────────────────────────────
@@ -167,11 +176,13 @@ def _terapkan_baris(skema, no_resi: str, item_ke: int, nilai: dict, banyak: bool
     if gagal:
         laporan.ditolak.append((no_resi, item_ke, _alasan(gagal)))
         return
-    for r in permintaan:
+    for n, r in enumerate(permintaan):
         kode, pesan = _jalankan_ubah(skema, r, uji)
         laporan.peringatan += [b for b in pesan.splitlines() if b.startswith("⚠️")]
-        if kode != 0:
-            laporan.ditolak.append((no_resi, item_ke, _alasan(pesan)))
+        if kode != 0:  # uji tadi memakai keadaan sebelum permintaan pertama; yang kedua bisa gagal
+            sudah = ", ".join(c for x in permintaan[:n] for c in x["set"])
+            laporan.ditolak.append((no_resi, item_ke, (f"sebagian sudah masuk ({sudah}); " if n else "")
+                                    + _alasan(pesan)))
             return
     laporan.diterima.append((no_resi, item_ke, list(nilai)))
     terapan.update((no_resi, c, v) for c, v in nilai.items())
@@ -199,6 +210,36 @@ def _no_resi_diubah(dasar: dict, sheet: dict, laporan: Laporan) -> set:
     return dijelaskan
 
 
+class _Jurnal:
+    """Baris baru yang sudah dibuatkan No Resi-nya, dicatat SEBELUM catat.catat menulis CSV.
+
+    Tanpa ini, sinkron yang gagal menulis Sheet sesudah catat berhasil akan melihat baris yang sama
+    lagi (Sheet belum bernomor, snapshot lama) dan membuat Transaksi kedua; Lapis 2 tidak
+    menangkapnya karena waktu kosong berarti jam sekarang. Dengan jurnal, ulangannya memakai No
+    Resi yang sama dan jatuh ke Lapis 1. Dikosongkan setelah snapshot tertulis."""
+
+    def __init__(self, path: Path, aktif: bool):
+        self.path, self.aktif = path, aktif
+        try:
+            isi = json.loads(path.read_text(encoding="utf-8"))
+            self.isi = isi if isinstance(isi, dict) else {}
+        except (OSError, ValueError):
+            self.isi = {}
+
+    def get(self, kunci: str):
+        return self.isi.get(kunci)
+
+    def simpan(self, kunci: str, no_resi: str) -> None:
+        self.isi[kunci] = no_resi
+        if self.aktif:
+            _tulis_atomik(self.path, json.dumps(self.isi, ensure_ascii=False))
+
+    def kosongkan(self) -> None:
+        self.isi = {}
+        if self.aktif and self.path.exists():
+            self.path.unlink()
+
+
 def _gagal_baru(laporan: Laporan, no_resi: str, baris: list, alasan: str) -> None:
     """Baris baru yang ditolak hilang dari Sheet pada penulisan ulang, jadi isinya ikut dilaporkan."""
     isi = "; ".join(f"{b[KOLOM.index('tanggal')]} {b[KOLOM.index('item')]} {b[KOLOM.index('jumlah')]}"
@@ -206,7 +247,8 @@ def _gagal_baru(laporan: Laporan, no_resi: str, baris: list, alasan: str) -> Non
     laporan.ditolak.append((no_resi, 1, f"{alasan} — baris: {isi}"))
 
 
-def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, uji: bool, laporan: Laporan) -> None:
+def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, kunci: str, uji: bool,
+                    laporan: Laporan, jurnal: _Jurnal) -> None:
     """Baris baru ber-No Resi sama = satu Transaksi multi-Item; tanpa No Resi = satu Transaksi
     sendiri. Ditulis lewat catat.catat (validasi, Duplikat Lapis 1 & 2, No Resi `TRX-…`)."""
     for k in TINGKAT_TRANSAKSI:
@@ -220,17 +262,29 @@ def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, uji: bool, lapo
     pertama = baris[0]
     tx = {k: pertama[KOLOM.index(k)] for k in TINGKAT_TRANSAKSI}
     tx["channel"] = ASAL
-    if no_resi:
-        tx["no_resi"] = no_resi
     tx["items"] = [{k: b[KOLOM.index(k)] for k in ("kategori", "item", "jumlah", "catatan")} for b in baris]
+
+    pernah = jurnal.get(kunci)
+    pakai = no_resi or pernah
+    if not pakai:
+        try:  # No Resi dibuat di sini (bukan di catat) supaya bisa dijurnalkan sebelum CSV ditulis
+            pakai = resi.gen_resi(buku_kas.muat(bills_path), date.fromisoformat(tx["tanggal"]))
+        except ValueError:
+            pakai = ""  # tanggal tidak sah: biarkan catat menolaknya dengan pesannya sendiri
+    if pakai:
+        tx["no_resi"] = pakai
+        if not uji and not pernah:
+            jurnal.simpan(kunci, pakai)
     kode, pesan = catat.catat(tx, uji=uji)
+    if kode == 1 and pernah and any(r.get("no_resi") == pakai for r in buku_kas.muat(bills_path)):
+        kode = 0  # sudah dibuat oleh sinkron sebelumnya yang gagal sebelum sempat menulis Sheet
     if kode != 0:
         return _gagal_baru(laporan, no_resi, baris, _alasan(pesan))
-    laporan.ditambah.append(re.search(r"no_resi (\S+)", pesan).group(1))
+    laporan.ditambah.append(pakai or re.search(r"no_resi (\S+)", pesan).group(1))
 
 
 def _tambah_baris_baru(bills_path: Path, dasar: dict, sheet: dict, dari_csv: dict, dijelaskan: set,
-                       uji: bool, laporan: Laporan) -> None:
+                       uji: bool, laporan: Laporan, jurnal: _Jurnal) -> None:
     # Baris lama tanpa No Resi yang diedit tampak seperti satu baris hilang + satu baris baru.
     # Selama ada yang hilang, baris baru tanpa No Resi tidak dibuat: jangan menggandakan suntingan.
     lama_hilang = sum(max(0, len(d) - len(sheet.get(i, []))) for i, d in dasar.items() if i.startswith("\0"))
@@ -242,23 +296,28 @@ def _tambah_baris_baru(bills_path: Path, dasar: dict, sheet: dict, dari_csv: dic
             baris = [sel for i, sel in enumerate(s) if ("baru", id_, i) not in dijelaskan]
             if not baris:
                 continue
-            if id_ in dari_csv:  # No Resi yang sudah ada = Duplikat Lapis 1; sama persis = sudah sepakat
-                if s != dari_csv[id_]:
+            kunci = f"resi:{no_resi}"
+            if id_ in dari_csv:
+                if jurnal.get(kunci):  # dibuat oleh sinkron sebelumnya yang gagal sebelum menulis Sheet
+                    laporan.ditambah.append(no_resi)
+                elif s != dari_csv[id_]:  # No Resi yang sudah ada = Duplikat Lapis 1
                     _gagal_baru(laporan, no_resi, baris, "No Resi sudah ada di Buku Kas (Duplikat)")
                 continue
-            _buat_transaksi(bills_path, no_resi, baris, uji, laporan)
+            _buat_transaksi(bills_path, no_resi, baris, kunci, uji, laporan, jurnal)
         else:
-            for sel in s:
+            for ke, sel in enumerate(s, 1):
                 if lama_hilang:
                     _gagal_baru(laporan, "", [sel], "baris tanpa no_resi tidak bisa ditunjuk atau diubah "
                                 "dari Sheets; ada baris lama tanpa no_resi yang berubah")
-                else:
-                    _buat_transaksi(bills_path, "", [sel], uji, laporan)
+                else:  # baris identik diberi urutan, supaya yang kedua tidak dianggap "sudah dibuat"
+                    kunci = hashlib.sha1("\x1f".join(sel).encode("utf-8")).hexdigest() + f"#{ke}"
+                    _buat_transaksi(bills_path, "", [sel], kunci, uji, laporan, jurnal)
 
 
-def _terapkan_masuk(bills_path: Path, klien, snapshot: dict, uji: bool, laporan: Laporan) -> None:
+def _terapkan_masuk(bills_path: Path, sheet_grid: list, snapshot: dict, uji: bool, laporan: Laporan,
+                    jurnal: _Jurnal) -> None:
     """Diff tiga arah per Transaksi: snapshot (dasar) vs Sheet sekarang vs CSV sekarang."""
-    dasar, sheet = _struk(snapshot["buku_kas"]), _struk(klien.baca(SHEET_BUKU))
+    dasar, sheet = _struk(snapshot["buku_kas"]), _struk(sheet_grid)
     dari_csv = _struk(grid_buku(buku_kas.muat(bills_path)))
     skema = replace(buku.skema_bills(), path=lambda: Path(bills_path))
     dijelaskan = _no_resi_diubah(dasar, sheet, laporan)
@@ -296,7 +355,7 @@ def _terapkan_masuk(bills_path: Path, klien, snapshot: dict, uji: bool, laporan:
                 _terapkan_baris(skema, no_resi, i + 1, {KOLOM[k]: sel[k] for k in berubah},
                                 len(c) > 1, uji, laporan, terapan)
 
-    _tambah_baris_baru(bills_path, dasar, sheet, dari_csv, dijelaskan, uji, laporan)
+    _tambah_baris_baru(bills_path, dasar, sheet, dari_csv, dijelaskan, uji, laporan, jurnal)
 
 
 def _berisi_data(grid: list[list]) -> bool:
@@ -304,31 +363,73 @@ def _berisi_data(grid: list[list]) -> bool:
     return len(grid) > 1
 
 
+@contextlib.contextmanager
+def _satu_sinkron(snapshot_path: Path):
+    """Hanya satu sinkron berjalan sekaligus. Yield False bila yang lain masih berjalan."""
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(snapshot_path.with_name(snapshot_path.name + ".lock"), "a+") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        yield True
+
+
+def _muat_snapshot(path: Path):
+    if not path.exists():
+        return None
+    try:
+        isi = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(isi.get("buku_kas"), list):
+            return isi
+    except (OSError, ValueError, AttributeError):
+        pass
+    raise SinkronDitolak(f"Snapshot {path} rusak atau tidak terbaca. Hapus berkasnya lalu jalankan "
+                         "dengan inisialisasi (CSV menang).")
+
+
 def sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool = False,
             inisialisasi: bool = False) -> Laporan:
-    """Salin Buku Kas ke Sheets. `uji` melapor tanpa menulis apa pun. Sheet yang sudah berisi data
-    tetapi belum punya snapshot ditolak (SinkronDitolak) kecuali `inisialisasi`: CSV menang."""
-    if not inisialisasi and not snapshot_path.exists() and _berisi_data(klien.baca(SHEET_BUKU)):
+    """Sinkron dua arah. `uji` melapor tanpa menulis apa pun. Sheet yang sudah berisi data tetapi
+    belum punya snapshot ditolak (SinkronDitolak) kecuali `inisialisasi`: CSV menang.
+
+    Urutan: baca Sheet (jaringan, tanpa kunci) → di bawah kunci CSV yang sama dengan catat/buku:
+    baca CSV dan terapkan perubahan masuk (tanpa jaringan) → tulis Sheet (jaringan, tanpa kunci)
+    → snapshot. Pencatatan lewat chat tidak pernah menunggu Google. Snapshot ditulis paling akhir,
+    jadi kegagalan di mana pun membuat sinkron berikutnya mengulang bagian yang belum selesai."""
+    with _satu_sinkron(snapshot_path) as giliran:
+        if not giliran:
+            return Laporan(dilewati=True)
+        return _sinkron(Path(bills_path), klien, snapshot_path, uji, inisialisasi)
+
+
+def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisasi: bool) -> Laporan:
+    snapshot = None if inisialisasi else _muat_snapshot(snapshot_path)
+    if not bills_path.exists():
+        raise SinkronDitolak(f"{bills_path} tidak ada; Sheet tidak ditimpa dengan tabel kosong.")
+    if snapshot is not None and bills_path.resolve() != Path(resi.BILLS_CSV).resolve():
+        # catat.catat tidak menerima path dan selalu menulis ke resi.BILLS_CSV; tolak di awal,
+        # sebelum satu edit pun sempat masuk.
+        raise SinkronDitolak(f"sinkron dua arah hanya untuk resi.BILLS_CSV ({resi.BILLS_CSV}), "
+                             f"bukan {bills_path}")
+    saat_ini = {nama: klien.baca(nama) for nama in (SHEET_BUKU, SHEET_RINGKASAN)}
+    if snapshot is None and not inisialisasi and _berisi_data(saat_ini[SHEET_BUKU]):
         raise SinkronDitolak(
             f"Worksheet '{SHEET_BUKU}' sudah berisi data tetapi belum pernah disinkronkan dari sini. "
             "Jalankan dengan inisialisasi untuk menimpanya dari bills.csv.")
-    if not Path(bills_path).exists():
-        raise SinkronDitolak(f"{bills_path} tidak ada; Sheet tidak ditimpa dengan tabel kosong.")
+
     laporan = Laporan()
-    if not inisialisasi and snapshot_path.exists():
-        # catat.catat tidak menerima path dan selalu menulis ke resi.BILLS_CSV; tolak di awal,
-        # sebelum satu edit pun sempat masuk, bila bills_path berbeda.
-        if Path(bills_path).resolve() != Path(resi.BILLS_CSV).resolve():
-            raise SinkronDitolak(f"sinkron dua arah hanya untuk resi.BILLS_CSV ({resi.BILLS_CSV}), "
-                                 f"bukan {bills_path}")
-        _terapkan_masuk(bills_path, klien, json.loads(snapshot_path.read_text(encoding="utf-8")),
-                        uji, laporan)
-    rows = buku_kas.muat(bills_path)
+    jurnal = _Jurnal(snapshot_path.with_name(snapshot_path.stem + ".jurnal.json"), aktif=not uji)
+    with kunci_berkas(bills_path):
+        if snapshot is not None:
+            _terapkan_masuk(bills_path, saat_ini[SHEET_BUKU], snapshot, uji, laporan, jurnal)
+        rows = buku_kas.muat(bills_path)
     target = {SHEET_BUKU: grid_buku(rows), SHEET_RINGKASAN: grid_ringkasan(rows)}
     laporan.tak_terhitung = [(r.get("no_resi") or "", alasan)
                              for r, alasan in buku_kas.tak_terhitung(rows)]
     for nama, grid in target.items():
-        if _norm(klien.baca(nama)) == _norm(grid):
+        if _norm(saat_ini[nama]) == _norm(grid):
             continue
         if not uji:
             klien.tulis(nama, grid)
@@ -337,4 +438,5 @@ def sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool = False,
     if not uji:
         _simpan_snapshot(snapshot_path,
                          {"buku_kas": target[SHEET_BUKU], "ringkasan": target[SHEET_RINGKASAN]})
+        jurnal.kosongkan()
     return laporan
