@@ -32,8 +32,8 @@ references jarang dipakai dan hasilnya tidak mengubah Buku Kas lewat jalur tulis
 berpratinjau (semua penulisan tetap lewat `catat.py` / `buku.py`). Kalau terbukti sering terjadi
 di pemakaian nyata, kembalikan bagian itu ke inti — bukan menambah instruksi "wajib baca".
 
-## Diketahui, belum diselesaikan
+## Yang sempat tertinggal
 
-`references/laporan-per-bulan.md` masih menyuruh model menghitung rekap dari `bills.csv`, bertolak
-belakang dengan "JANGAN hitung sendiri" di `AGENTS.md`. Ia dipindah apa adanya dengan catatan; yang
-benar adalah skrip rekap tersendiri.
+`references/laporan-per-bulan.md` semula menyuruh model menghitung rekap dari `bills.csv`, bertolak
+belakang dengan "JANGAN hitung sendiri". Sudah diganti `scripts/rekap-bulanan.py` (baris di Peta
+pesan, ADR-0022) dan berkasnya dihapus.

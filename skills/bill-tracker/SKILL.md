@@ -318,7 +318,6 @@ Fitur yang jarang dipakai ada di `{baseDir}/references/`. Saat pengguna meminta 
 | saldo per akun, mengaktifkan akun / cutover, transfer antar akun | `{baseDir}/references/akun-transfer.md` |
 | `tambah kategori`, `hapus kategori`, `daftar kategori` | `{baseDir}/references/kategori-custom.md` |
 | `backup`, `backup sekarang`, `export excel` | `{baseDir}/references/backup.md` |
-| `laporan per bulan`, `rekap per bulan`, `breakdown bulanan`, `laporan semua bulan` | `{baseDir}/references/laporan-per-bulan.md` |
 
 ---
 

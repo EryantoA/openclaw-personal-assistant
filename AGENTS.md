@@ -34,7 +34,8 @@ sendiri dan jangan membaca `data/bills.csv` untuk menjawab.
 | cek tagihan, ada tagihan? | `python3 scripts/check-bills.py --mode all` |
 | cek resi `<no>`, "sudah dicatat?" | `python3 scripts/resi.py --check "<no_resi>"` — `DUPLICATE …` = sudah tercatat, tampilkan detail barisnya; `OK …` = belum |
 | cek duplikat, "ada data dobel?" | `python3 scripts/resi.py --find-dup` — laporkan grupnya, sarankan cek manual, **jangan hapus otomatis**; `OK …` = data bersih |
-| set budget / alert, tambah/hapus/daftar kategori, backup / export excel, rekap per bulan, tagihan atau transaksi berulang, aktifkan akun | Baca berkas rujukan di tabel *Fitur lain* pada `skills/bill-tracker/SKILL.md` sebelum menjawab |
+| rekap per bulan, laporan semua bulan, breakdown bulanan | `python3 scripts/rekap-bulanan.py` (batasi dengan `--dari YYYY-MM` / `--sampai YYYY-MM` bila diminta bulan tertentu) |
+| set budget / alert, tambah/hapus/daftar kategori, backup / export excel, tagihan atau transaksi berulang, aktifkan akun | Baca berkas rujukan di tabel *Fitur lain* pada `skills/bill-tracker/SKILL.md` sebelum menjawab |
 | apa pun di luar ini, atau maksudnya tidak jelas | **Tanyakan maksudnya** dalam satu kalimat. Jangan menjalankan skrip tebakan |
 
 ## Data & Script
@@ -53,6 +54,7 @@ sendiri dan jangan membaca `data/bills.csv` untuk menjawab.
 | `scripts/laporan-bulanan.py` | Laporan Bulanan (bulan yang sudah tutup) |
 | `scripts/laporan-pembeli.py` | Pengeluaran per Pembeli (Pekan atau bulan) |
 | `scripts/laporan-harian.py` | Pengeluaran satu hari per kategori |
+| `scripts/rekap-bulanan.py` | Rekap semua bulan: Pemasukan, Pengeluaran, Arus Kas, Saldo kumulatif |
 | `scripts/akun.py` | Saldo per akun (sejak cutover) |
 | `scripts/export-excel.py` | Ekspor CSV ke Excel |
 | `scripts/resi.py` | Utilitas nomor resi |
