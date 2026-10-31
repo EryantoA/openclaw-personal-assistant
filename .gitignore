@@ -20,6 +20,9 @@ data/backups/*
 data/bills.csv
 data/*.bak
 
+# Snapshot & jurnal sinkron Google Sheets — memuat salinan seluruh Buku Kas (spec #20, ADR-0004)
+data/sheets-snapshot*
+
 # Kewajiban (tagihan belum dibayar) & Perkiraan (transaksi berulang) — sama-sama
 # memuat nominal (gaji, premi, langganan), jadi diperlakukan seperti bills.csv.
 # Bentuknya ada di pasangan *.example yang dilacak. Lihat docs/adr/0004 & 0006.

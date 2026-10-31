@@ -899,7 +899,7 @@ class KetahananSinkron(Dasar):
         self.assertEqual(list(self.dir.glob("*.jurnal.json")), [])
 
     def test_snapshot_rusak_ditolak_dengan_petunjuk_dan_tidak_mengubah_apa_pun(self):
-        for isi in ("{", "", "{}", "[]"):
+        for isi in ("{", "", "{}", "[]", '{"buku_kas": [null]}', '{"buku_kas": [[1, 2]]}'):
             with self.subTest(isi=isi):
                 self.snapshot.write_text(isi, encoding="utf-8")
 
@@ -928,6 +928,52 @@ class KetahananSinkron(Dasar):
         self.assertEqual(len(laporan.ditolak), 1)
         self.assertIn("sebagian", laporan.ditolak[0][2])
         self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
+
+    def test_edit_pengguna_di_antara_baca_awal_dan_tulis_akhir_tidak_ditimpa_diam_diam(self):
+        self.tulis_csv(DASAR + [tx("2026-09-02", "pengeluaran", 1_000, item="Dari bot", no_resi="TRX-8")])
+        snapshot_sebelum = self.snapshot.read_text()
+        awal = self.klien.bacaan
+
+        def pengguna_mengedit(nama):
+            if self.klien.bacaan == awal + 2 and nama == "Buku Kas":  # pembacaan ulang sebelum menulis
+                self.ubah_sheet("TRX-3", "jumlah", 999_999)
+
+        self.klien.saat_jaringan = pengguna_mengedit
+
+        laporan = self.sinkron()
+
+        self.assertTrue(laporan.berubah_saat_sinkron)
+        self.assertEqual(self.klien.tulisan, [])
+        self.assertEqual(self.snapshot.read_text(), snapshot_sebelum)
+        self.klien.saat_jaringan = None
+
+        laporan = self.sinkron()
+
+        self.assertFalse(laporan.berubah_saat_sinkron)
+        self.assertEqual([r["jumlah"] for r in self.baca_csv() if r["no_resi"] == "TRX-3"], ["999999"])
+        self.assertEqual(self.klien.sheets["Buku Kas"], sheets_sync.grid_buku(self.baca_csv()))
+
+    def test_baris_yang_ditolak_catat_tidak_meninggalkan_entri_jurnal(self):
+        self.tambah(item="Salah", kategori="kategori-asing")
+        self.tambah(item="Salah juga", no_resi="BAD-1", kategori="kategori-asing")
+        self.tambah(item="Parkir")
+        self.klien.gagal = {"tulis"}
+
+        with self.assertRaises(ConnectionError):
+            self.sinkron()
+
+        jurnal = json.loads(next(self.dir.glob("*.jurnal.json")).read_text())
+        self.assertEqual(len(jurnal), 1)  # hanya baris Parkir yang benar-benar dibuat
+
+    def test_tanggal_berspasi_tetap_dijurnalkan_sebelum_catat(self):
+        self.tambah(tanggal=" 2026-09-05 ")
+        self.klien.gagal = {"tulis"}
+
+        with self.assertRaises(ConnectionError):
+            self.sinkron()
+
+        jurnal = json.loads(next(self.dir.glob("*.jurnal.json")).read_text())
+        self.assertEqual(list(jurnal.values()), [r["no_resi"] for r in self.baca_csv() if r["item"] == "Parkir"])
 
 
 if __name__ == "__main__":

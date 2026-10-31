@@ -110,6 +110,7 @@ def kunci_berkas(path: Path):
 
     Boleh dimasuki ulang oleh proses yang sudah memegangnya (sheets_sync memegang kunci selagi
     memanggil catat/buku): flock kedua pada berkas yang sama menunggu pemegangnya sendiri.
+    Satu thread per proses, seperti seluruh skrip di sini.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     berkas_kunci = path.with_name(path.name + ".lock")

@@ -47,6 +47,9 @@ class SinkronDitolak(Exception):
 @dataclass
 class Laporan:
     dilewati: bool = False  # sinkron lain masih berjalan; tidak ada yang dikerjakan
+    # Sheet diedit di antara pembacaan awal dan penulisan akhir: tidak ada yang ditimpa dan snapshot
+    # tidak maju, sehingga edit itu ditangkap sinkron berikutnya.
+    berubah_saat_sinkron: bool = False
     didorong: int = 0  # baris Transaksi yang ditulis ke Sheet pada sinkron ini
     # (no_resi, alasan) baris yang tampil di "Buku Kas" tetapi tidak ikut Ringkasan — tidak pernah hilang diam-diam
     tak_terhitung: list = field(default_factory=list)
@@ -234,6 +237,10 @@ class _Jurnal:
         if self.aktif:
             _tulis_atomik(self.path, json.dumps(self.isi, ensure_ascii=False))
 
+    def hapus(self, kunci: str) -> None:
+        if self.isi.pop(kunci, None) is not None and self.aktif:
+            _tulis_atomik(self.path, json.dumps(self.isi, ensure_ascii=False))
+
     def kosongkan(self) -> None:
         self.isi = {}
         if self.aktif and self.path.exists():
@@ -268,7 +275,7 @@ def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, kunci: str, uji
     pakai = no_resi or pernah
     if not pakai:
         try:  # No Resi dibuat di sini (bukan di catat) supaya bisa dijurnalkan sebelum CSV ditulis
-            pakai = resi.gen_resi(buku_kas.muat(bills_path), date.fromisoformat(tx["tanggal"]))
+            pakai = resi.gen_resi(buku_kas.muat(bills_path), date.fromisoformat(tx["tanggal"].strip()))
         except ValueError:
             pakai = ""  # tanggal tidak sah: biarkan catat menolaknya dengan pesannya sendiri
     if pakai:
@@ -279,6 +286,7 @@ def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, kunci: str, uji
     if kode == 1 and pernah and any(r.get("no_resi") == pakai for r in buku_kas.muat(bills_path)):
         kode = 0  # sudah dibuat oleh sinkron sebelumnya yang gagal sebelum sempat menulis Sheet
     if kode != 0:
+        jurnal.hapus(kunci)  # tidak ada yang dibuat; entri basi bisa menelan baris lain nanti
         return _gagal_baru(laporan, no_resi, baris, _alasan(pesan))
     laporan.ditambah.append(pakai or re.search(r"no_resi (\S+)", pesan).group(1))
 
@@ -381,7 +389,8 @@ def _muat_snapshot(path: Path):
         return None
     try:
         isi = json.loads(path.read_text(encoding="utf-8"))
-        if isinstance(isi.get("buku_kas"), list):
+        grid = isi.get("buku_kas")
+        if isinstance(grid, list) and grid[:1] == [KOLOM] and all(isinstance(b, list) for b in grid):
             return isi
     except (OSError, ValueError, AttributeError):
         pass
@@ -432,10 +441,14 @@ def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisa
         if _norm(saat_ini[nama]) == _norm(grid):
             continue
         if not uji:
+            if _norm(klien.baca(nama)) != _norm(saat_ini[nama]):
+                laporan.berubah_saat_sinkron = True  # jangan menimpa edit yang baru masuk; ulangi nanti
+                return laporan
             klien.tulis(nama, grid)
         if nama == SHEET_BUKU:
             laporan.didorong = len(grid) - 1
     if not uji:
+        # Snapshot = apa yang kini tertulis di Sheet, jadi tidak perlu kunci CSV (sinkron sudah serial).
         _simpan_snapshot(snapshot_path,
                          {"buku_kas": target[SHEET_BUKU], "ringkasan": target[SHEET_RINGKASAN]})
         jurnal.kosongkan()
