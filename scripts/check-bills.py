@@ -16,6 +16,7 @@ diam total di hari-hari biasa.
 
 Usage:
   python3 scripts/check-bills.py --mode budget
+  python3 scripts/check-bills.py --mode status        # sisa budget sesuai permintaan (chat)
   python3 scripts/check-bills.py --mode all
   python3 scripts/check-bills.py --mode all --kirim   # cron cek_budget_malam: kirim HANYA kalau ada isi
 """
@@ -60,21 +61,11 @@ def parse_tanggal(value: str) -> Optional[date]:
 
 
 # ── Mode: Cek Budget ─────────────────────────────────────────
-def check_budget(today: Optional[date] = None) -> str:
-    """Cek total pengeluaran bulan ini vs budget."""
-    budget_data = pengaturan.muat()
-    budget_bulanan = budget_data.get("budget_bulanan", 0)
-    alert_persen = budget_data.get("alert_persen", 80)
-
-    if budget_bulanan <= 0:
-        return ""  # Budget belum diset, tidak perlu alert
-
-    bills = load_bills()
-    today = today or date.today()
+def _pengeluaran_bulan(today: date) -> float:
+    """Total pengeluaran bulan `today`."""
     bulan_ini = today.strftime("%Y-%m")
-
     total_bulan = 0
-    for row in bills:
+    for row in load_bills():
         tgl = buku_kas.tanggal(row)
         if tgl is None or tgl.strftime("%Y-%m") != bulan_ini:
             continue
@@ -84,6 +75,54 @@ def check_budget(today: Optional[date] = None) -> str:
         if buku_kas.arah(row) != "pengeluaran":
             continue
         total_bulan += buku_kas.jumlah(row)
+    return total_bulan
+
+
+def _bar(persen: float) -> str:
+    """Progress bar 20 karakter."""
+    bar_filled = min(20, int(persen / 5))
+    return "█" * bar_filled + "░" * (20 - bar_filled)
+
+
+def status_budget(today: Optional[date] = None) -> str:
+    """Sisa budget bulan ini sesuai permintaan: selalu menjawab, tidak menunggu ambang alert.
+
+    Dipakai bot untuk "sisa budget" supaya angkanya tidak dihitung model; check_budget tetap
+    diam di bawah ambang supaya cron malam tidak berisik.
+    """
+    budget_bulanan = pengaturan.muat().get("budget_bulanan", 0)
+    if budget_bulanan <= 0:
+        return ("⚠️ Budget belum diset!\n"
+                "Ketik: set budget [nominal]\n"
+                "Contoh: set budget 3 juta")
+    today = today or date.today()
+    total_bulan = _pengeluaran_bulan(today)
+    persen = (total_bulan / budget_bulanan) * 100
+    sisa = budget_bulanan - total_bulan
+    return "\n".join([
+        "💰 Status Budget Bulan Ini",
+        "",
+        f"📊 Budget:    {format_rupiah(budget_bulanan)}",
+        f"💸 Terpakai:  {format_rupiah(total_bulan)} ({persen:.0f}%)",
+        f"{'💚' if sisa > 0 else '🔴'} Sisa:      {format_rupiah(abs(sisa))}{'  (MINUS!)' if sisa < 0 else ''}",
+        "",
+        f"{_bar(persen)}  {persen:.0f}%",
+        "",
+        "_Dihitung scripts/check-bills.py, tanpa model_",
+    ])
+
+
+def check_budget(today: Optional[date] = None) -> str:
+    """Cek total pengeluaran bulan ini vs budget."""
+    budget_data = pengaturan.muat()
+    budget_bulanan = budget_data.get("budget_bulanan", 0)
+    alert_persen = budget_data.get("alert_persen", 80)
+
+    if budget_bulanan <= 0:
+        return ""  # Budget belum diset, tidak perlu alert
+
+    today = today or date.today()
+    total_bulan = _pengeluaran_bulan(today)
 
     persen = (total_bulan / budget_bulanan) * 100
 
@@ -92,11 +131,7 @@ def check_budget(today: Optional[date] = None) -> str:
 
     sisa = budget_bulanan - total_bulan
     bulan_label = today.strftime("%B %Y")
-
-    # Progress bar (20 karakter)
-    bar_filled = min(20, int(persen / 5))
-    bar_empty = 20 - bar_filled
-    bar = "█" * bar_filled + "░" * bar_empty
+    bar = _bar(persen)
 
     if persen >= 100:
         status = "🚨 BUDGET HABIS!"
@@ -227,7 +262,7 @@ def main():
     parser = argparse.ArgumentParser(description="Budget checker untuk Family Bill Tracker")
     parser.add_argument(
         "--mode",
-        choices=["budget", "all"],
+        choices=["budget", "status", "all"],
         default="all",
         help="Mode pengecekan",
     )
@@ -247,6 +282,12 @@ def main():
     today = parse_tanggal(args.tanggal) if args.tanggal else None
     if args.tanggal and today is None:
         parser.error(f"--tanggal tidak valid: {args.tanggal}")
+
+    if args.mode == "status":
+        if args.kirim:
+            parser.error("--mode status hanya menampilkan; tidak untuk --kirim")
+        print(status_budget(today))
+        return 0
 
     result = check_budget(today) if args.mode == "budget" else check_all(today)
 

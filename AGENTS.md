@@ -17,10 +17,12 @@ keuangan. Setiap transaksi yang **sudah tersimpan** kamu konfirmasi dengan ringk
 | `scripts/catat.py` | **Satu-satunya** cara menambah transaksi ke `bills.csv` (JSON di stdin; isi waktu, no resi, cek duplikat) — jangan tulis baris dengan Edit/Write |
 | `scripts/buku.py` | Mencari (`cari`), mengubah (`ubah`), dan menghapus (`hapus`) transaksi yang **sudah tercatat** — ubah/hapus lewat Pratinjau (ADR-0018). Jangan edit `bills.csv` dengan Edit/Write |
 | `data/riwayat-ubah.csv` | Jejak ubah/hapus (append-only, diisi `buku.py`, jangan disentuh) |
-| `scripts/check-bills.py` | Cek budget, kewajiban, perkiraan (`--mode all`) — read-only |
+| `scripts/check-bills.py` | Cek budget, kewajiban, perkiraan (`--mode all`); `--mode status` = sisa budget sesuai permintaan — read-only |
 | `scripts/laporan-mingguan.py` | Laporan Mingguan (Pekan Senin–Minggu) |
 | `scripts/laporan-bulanan.py` | Laporan Bulanan (bulan yang sudah tutup) |
 | `scripts/laporan-pembeli.py` | Pengeluaran per Pembeli (Pekan atau bulan) |
+| `scripts/laporan-harian.py` | Pengeluaran satu hari per kategori |
+| `scripts/akun.py` | Saldo per akun (sejak cutover) |
 | `scripts/export-excel.py` | Ekspor CSV ke Excel |
 | `scripts/resi.py` | Utilitas nomor resi |
 | `scripts/backup.sh` | Backup harian CSV + Excel per bulan |
@@ -167,6 +169,11 @@ Detail:
   "N entri tercatat", tidak ada total kumulatif karangan.
 - `DUPLICATE` = beri tahu sudah tercatat, jangan tanya ulang.
 
+**Cek budget setelah tersimpan.** Sesudah kerangka `✅ Sudah dicatat!` (hanya bila keluarannya
+`OK tersimpan`), jalankan `python3 scripts/check-bills.py --mode budget`. Keluarannya `✅ Semua
+lancar!` → jangan tambah apa-apa. Selain itu → salin utuh di bawah kerangka, dipisah satu baris
+kosong. Jangan menghitung persentase budget sendiri.
+
 Aturan lengkap (resi struk tanpa nomor, transfer, kewajiban) ada di skill `bill-tracker`.
 
 ## Mencari transaksi
@@ -276,8 +283,17 @@ versi angka.
 | pengeluaran per orang / per pembeli, pekan lalu | `python3 scripts/laporan-pembeli.py` |
 | pengeluaran per orang, pekan ini | `python3 scripts/laporan-pembeli.py --berjalan` |
 | pengeluaran per orang, bulan tertentu | `python3 scripts/laporan-pembeli.py --bulan YYYY-MM` |
+| laporan / pengeluaran hari ini | `python3 scripts/laporan-harian.py` |
+| laporan / pengeluaran hari tertentu | `python3 scripts/laporan-harian.py --tanggal YYYY-MM-DD` |
+| laporan bulan ini, pengeluaran bulan ini (bulan berjalan) | `python3 scripts/laporan-bulanan.py --bulan YYYY-MM` (isi `YYYY-MM` dengan bulan sekarang) |
+| sisa budget, cek budget, budget bulan ini | `python3 scripts/check-bills.py --mode status` |
+| saldo per akun, saldo bank/kas/tabungan | `python3 scripts/akun.py` |
 
 - **Jangan pernah menambah `--kirim`.** Flag itu khusus untuk cron; balasan chat sudah sampai.
+- Laporan bulan ini angkanya setengah jalan: skripnya sudah menandainya "berjalan"; jangan
+  menyebutnya Laporan Bulanan dan jangan menambah angka sendiri.
+- Saldo per akun: salin keluaran `akun.py` apa adanya, termasuk batas cutover-nya. Skrip bilang
+  fiturnya belum aktif → sampaikan itu, jangan mengarang angka.
 - "Minggu" berarti **Pekan Senin–Minggu**, bukan "7 hari terakhir" (lihat `CONTEXT.md`).
 - Untuk pertanyaan lain yang bukan laporan (mis. "food minggu ini berapa?"), boleh dijawab
   langsung, tapi tetap pakai batas Pekan Senin–Minggu.

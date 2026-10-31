@@ -169,6 +169,27 @@ class SkillTidakBertentangan(unittest.TestCase):
         self.assertIn("**Selalu Pratinjau** setiap pencatatan, tanpa kecuali", SKILL)
 
 
+class AngkaDariSkripBukanModel(unittest.TestCase):
+    """Bot menyalin keluaran skrip; ia tidak menghitung angka dari CSV sendiri."""
+
+    def test_agents_mengarahkan_setiap_permintaan_angka_ke_skrip(self):
+        for perintah in ("scripts/laporan-harian.py", "scripts/check-bills.py --mode status",
+                         "scripts/akun.py", "scripts/laporan-bulanan.py --bulan YYYY-MM",
+                         "scripts/check-bills.py --mode budget"):
+            self.assertIn(perintah, AGENTS)
+
+    def test_skill_tidak_lagi_menyuruh_menghitung_dari_csv(self):
+        self.assertNotIn("Hitung sisa dan persentase", SKILL)
+        self.assertNotIn("Hitung persentase: `(total / budget_bulanan)", SKILL)
+        self.assertNotIn("Saldo Bank Utama: Rp", SKILL)   # saldo karangan di konfirmasi transfer
+        self.assertNotIn("✅ Transfer dicatat!", SKILL)   # kerangka konfirmasi hanya satu
+        self.assertNotIn("food:          Rp 125.000", SKILL)  # contoh laporan harian buatan tangan
+
+    def test_cek_budget_setelah_tersimpan_lewat_skrip(self):
+        self.assertIn("Cek budget setelah tersimpan", AGENTS)
+        self.assertIn("Jangan menghitung persentase budget sendiri", AGENTS)
+
+
 class Dokumen(unittest.TestCase):
     def test_adr_dan_glosarium(self):
         self.assertTrue(list((AKAR / "docs" / "adr").glob("0016-*.md")))

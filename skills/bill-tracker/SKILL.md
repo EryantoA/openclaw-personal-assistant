@@ -349,18 +349,8 @@ Setelah konfirmasi, cek budget otomatis (lihat bagian Cek Budget Otomatis).
 ### 📊 Lihat Laporan Hari Ini
 Trigger: `laporan hari ini`, `pengeluaran hari ini`, `summary hari ini`
 
-Response format:
-```
-📊 Pengeluaran Hari Ini — 15 Jan 2025
-
-food:          Rp 125.000
-utilities:     Rp 150.000
-personal_care: Rp  18.500
-─────────────────────────
-Total:         Rp 293.500
-
-📝 5 transaksi tercatat
-```
+Jalankan `python3 scripts/laporan-harian.py` dan salin keluarannya utuh — jangan menghitung
+sendiri. Aturan lengkap ada di `AGENTS.md` (bagian *Laporan*).
 
 ### 📊 Laporan Mingguan
 Trigger: `laporan minggu ini`, `pengeluaran minggu ini`, `laporan pekan ini`, `weekly report`,
@@ -384,7 +374,9 @@ Pertanyaan bebas ("food minggu ini berapa?") tetap boleh dijawab biasa, tapi pak
 Trigger: `laporan bulan ini`, `pengeluaran bulan ini`
 
 Bulan yang **sedang berjalan**, angkanya setengah jalan. Jangan sebut ini "Laporan Bulanan" —
-nama itu hanya untuk bulan yang sudah tutup (lihat bawah dan `CONTEXT.md`).
+nama itu hanya untuk bulan yang sudah tutup (lihat bawah dan `CONTEXT.md`). Jalankan
+`python3 scripts/laporan-bulanan.py --bulan YYYY-MM` (bulan sekarang) dan salin keluarannya utuh;
+tabel perintah ada di `AGENTS.md` (bagian *Laporan*).
 
 ### 📊 Laporan Bulanan (bulan yang sudah tutup)
 Trigger: `laporan bulan lalu`, `laporan bulanan`, `monthly report`, `laporan bulan <nama bulan>`
@@ -515,49 +507,15 @@ Response:
 ### Cek Sisa Budget
 Trigger: `sisa budget`, `budget`, `cek budget`, `budget bulan ini`
 
-Langkah:
-1. Baca `data/budget.json` → ambil `budget_bulanan` dan `alert_persen`
-2. Baca `data/bills.csv` → hitung total **pengeluaran** bulan ini (**hanya baris `tipe=pengeluaran`**; abaikan `pemasukan`)
-3. Hitung sisa dan persentase
-
-Response:
-```
-💰 Status Budget Bulan Ini
-
-📊 Budget:    Rp 3.000.000
-💸 Terpakai:  Rp 1.850.000 (62%)
-💚 Sisa:      Rp 1.150.000
-
-████████░░░░░░░░  62%
-```
-
-Jika budget belum diset (budget_bulanan = 0):
-```
-⚠️ Budget belum diset!
-Ketik: set budget [nominal]
-Contoh: set budget 3 juta
-```
+Jalankan `python3 scripts/check-bills.py --mode status` dan salin keluarannya utuh. Skrip yang
+membaca `budget.json` dan `bills.csv` (hanya `tipe=pengeluaran`) dan menghitung sisa serta
+persentasenya — jangan dihitung sendiri. Budget belum diset pun dijawab skrip.
 
 ### Cek Budget Otomatis (setiap catat transaksi)
-Setelah mencatat transaksi baru, otomatis cek:
-1. Baca `data/budget.json` → jika `budget_bulanan = 0`, skip
-2. Hitung total pengeluaran bulan ini dari `data/bills.csv` (**hanya `tipe=pengeluaran`**)
-3. Hitung persentase: `(total / budget_bulanan) * 100`
-4. Jika persentase ≥ `alert_persen` (default 80%), kirim peringatan:
-
-```
-⚠️ PERINGATAN BUDGET!
-Pengeluaran bulan ini sudah mencapai 85% dari budget
-💸 Terpakai: Rp 2.550.000 dari Rp 3.000.000
-💡 Sisa: Rp 450.000
-```
-
-Jika sudah melebihi 100%:
-```
-🚨 BUDGET HABIS!
-Pengeluaran sudah melebihi budget bulan ini!
-💸 Terpakai: Rp 3.250.000 (108% dari Rp 3.000.000)
-```
+Setelah `catat.py` membalas `OK tersimpan`, jalankan `python3 scripts/check-bills.py --mode budget`.
+Skrip itu diam (`✅ Semua lancar!`) di bawah `alert_persen` dan mencetak peringatan di atasnya;
+salin utuh di bawah kerangka konfirmasi bila ada. Jangan menghitung persentasenya sendiri.
+Alur lengkapnya di `AGENTS.md` (bagian *Bentuk balasan setelah `OK tersimpan`*).
 
 ### Set Alert Threshold
 Trigger: `set alert [persen]%`, `alert budget [persen]`
@@ -674,19 +632,9 @@ Transfer **tidak pernah** menyentuh Total Pemasukan, Total Pengeluaran, Arus Kas
 Saldo global, maupun budget. Ia hanya menggeser saldo antar akun. Kalau setelah mencatat
 transfer angka Saldo global ikut berubah, itu **bug** — hentikan dan laporkan.
 
-Konfirmasinya menyebut kedua sisi:
-
-```
-✅ Transfer dicatat!
-
-🏦 Bank Utama → Kas
-💰 Jumlah: Rp 500.000
-📅 2 Sep 2026  🕒 09:00
-
-Saldo Bank Utama: Rp 4.500.000
-Saldo Kas: Rp 1.500.000
-(Saldo global tidak berubah)
-```
+Konfirmasinya memakai kerangka bersama di `AGENTS.md`; baris `Arah:` menyebut kedua sisinya
+(`🔁 Transfer (Bank Utama → Kas)`). Jangan menambah baris saldo: saldo akun hanya dari
+`python3 scripts/akun.py`, tidak pernah dihitung atau dikarang di balasan.
 
 ---
 
