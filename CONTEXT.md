@@ -99,8 +99,7 @@ _Avoid_: pengeluaran besar-besaran, one-off
 
 **Pengaturan**:
 Isi `data/budget.json`: Budget, ambang Pengeluaran Besar, kategori yang sah, aturan Duplikat Lapis 2,
-toleransi Perkiraan,
-dan kapan Kewajiban diingatkan. Budget hanya salah satu isinya, jadi berkasnya tidak disebut
+toleransi Perkiraan, dan kapan Kewajiban diingatkan. Budget hanya salah satu isinya, jadi berkasnya tidak disebut
 "budget". Dibaca lewat `scripts/pengaturan.py`; kategori dan aturan Duplikat masih lewat
 `resi.BUDGET_JSON` (ADR-0020).
 _Avoid_: config, budget (untuk seluruh berkas)
