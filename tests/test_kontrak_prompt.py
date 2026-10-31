@@ -169,6 +169,23 @@ class SkillTidakBertentangan(unittest.TestCase):
         self.assertIn("**Selalu Pratinjau** setiap pencatatan, tanpa kecuali", SKILL)
 
 
+class SkillTidakMenyalinAgents(unittest.TestCase):
+    """Bagian SKILL.md yang dipangkas karena menyalin AGENTS.md atau memancing angka karangan."""
+
+    def test_contoh_balasan_berangka_tetap_tidak_ada(self):
+        self.assertNotIn("7 CSV + 7 Excel", SKILL)    # status backup harus dari isi folder
+        self.assertNotIn("Laporan Mingguan Otomatis", SKILL)  # bot tidak menyusunnya; skrip cron
+        self.assertNotIn("PENGELUARAN PER KATEGORI", SKILL)   # salinan keluaran skrip
+
+    def test_pencatat_adalah_nama_pengirim(self):
+        self.assertNotIn("nomor HP atau username", SKILL)
+        self.assertIn("**Pencatat** = nama pengirim pesan", SKILL)
+
+    def test_laporan_satu_blok_menunjuk_agents(self):
+        self.assertEqual(SKILL.count("### 📊 Laporan"), 1)  # tidak lagi satu blok per jenis laporan
+        self.assertIn("tabel *Laporan* di `AGENTS.md`", SKILL)
+
+
 class AngkaDariSkripBukanModel(unittest.TestCase):
     """Bot menyalin keluaran skrip; ia tidak menghitung angka dari CSV sendiri."""
 

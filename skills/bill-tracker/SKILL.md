@@ -123,75 +123,45 @@ slug di sana yang belum ada di tabel ini, slug itu tetap sah dipakai.
 
 ## ✍️ Mencatat = `scripts/catat.py` (WAJIB, satu-satunya jalan tulis)
 
-> Urutan wajib: `catat.py --uji` → Pratinjau → jawaban pengguna (*ya*) → `catat.py` tanpa
-> `--uji` (ADR-0016). Perintah di bawah menunjukkan bentuk JSON; jangan menjalankannya tanpa
-> Pratinjau.
+Urutan wajib: `catat.py --uji` → Pratinjau → jawaban pengguna (*ya*) → `catat.py` tanpa `--uji`
+(ADR-0016). Alur, contoh JSON, dan kerangka Pratinjau didefinisikan **hanya di `AGENTS.md`** —
+bagian ini cuma merinci isinya. **Jangan pernah menulis baris ke `data/bills.csv` dengan
+Edit/Write/echo**: model yang menulis CSV dengan tangan sudah terbukti menghasilkan baris 13 kolom.
 
-**Jangan pernah menulis baris ke `data/bills.csv` dengan tool Edit/Write/echo.** Setiap
-transaksi baru dicatat lewat tool shell (Bash) dengan satu panggilan:
-
-```bash
-python3 scripts/catat.py <<'EOF'
-{"tanggal": "2026-09-21", "tipe": "pengeluaran", "channel": "whatsapp", "pencatat": "Eryanto",
- "items": [{"kategori": "food", "item": "Nasi goreng - Warung Ani", "jumlah": 25000}]}
-EOF
-```
-
-Skrip itu yang mengisi `waktu` (jam sekarang bila kamu tidak memberi), membuat `no_resi`
-(`TRX-YYYYMMDD-XXXX` bila kamu tidak memberi), menjalankan **cek duplikat dua lapis**, memvalidasi
-kategori/tipe/jumlah, lalu menulis tepat 12 kolom. Tugasmu hanya mengisi JSON-nya dengan benar
-lalu membalas berdasarkan keluarannya. **Pengguna di WhatsApp tidak melihat keluaran tool, hanya
-balasanmu** — jadi selalu tulis konfirmasi atau pesan duplikatnya sendiri:
+Skrip mengisi `waktu` (jam sekarang bila kosong) dan `no_resi` (`TRX-YYYYMMDD-XXXX` bila kosong),
+menjalankan cek duplikat dua lapis, memvalidasi kategori/tipe/jumlah, lalu menulis tepat 12 kolom.
+**Pengguna di WhatsApp tidak melihat keluaran tool, hanya balasanmu.**
 
 | Keluaran (exit code) | Artinya | Balasanmu |
 |---|---|---|
-| `OK tersimpan ...` (0) | Sudah tercatat. Baris yang ditulis ikut dicetak | Konfirmasi (lihat Pesan Konfirmasi) memakai `no_resi`, `waktu`, `tanggal` & `pencatat` dari keluaran |
-| `DUPLICATE ...` (1) | **Tidak** dicatat | Pesan duplikat (lihat di bawah) |
-| `ERROR ...` (2) | Masukan salah, **tidak** dicatat | Perbaiki JSON-nya lalu jalankan lagi; kalau datanya memang kurang, tanya pengguna |
+| `OK tersimpan ...` (0) | Sudah tercatat | Konfirmasi (lihat Pesan Konfirmasi), nilainya dari keluaran |
+| `DUPLICATE ...` (1) | **Tidak** dicatat | Pesan duplikat (lihat Cek Duplikat) |
+| `ERROR ...` (2) | Masukan salah, **tidak** dicatat | Perbaiki JSON lalu uji lagi; kalau datanya kurang, tanya pengguna |
 
 Field JSON: `tanggal` (YYYY-MM-DD), `tipe`, `channel`, `pencatat`, `items` (daftar
 `{kategori, item, jumlah}`, `catatan` per item opsional) wajib; `waktu`, `no_resi`, `catatan`,
 `akun`, `akun_tujuan` opsional. `jumlah` boleh angka atau teks rupiah (`"Rp 12.000"`).
 
-> Skrip ini hanya untuk **menambah** transaksi. Mencari, mengubah, atau menghapus baris yang
-> sudah ada (koreksi, "hapus terakhir") lewat `scripts/buku.py` — alurnya didefinisikan **hanya
-> di `AGENTS.md`** (bagian *Mengubah dan menghapus*, ADR-0018). Jangan menulis ulang file.
+Skrip ini hanya **menambah**. Mencari, mengubah, atau menghapus baris yang sudah ada lewat
+`scripts/buku.py` (AGENTS.md, ADR-0018).
 
-## 🧾 Waktu & No Resi (WAJIB tiap transaksi)
+## 🧾 Waktu & No Resi
 
-Setiap transaksi **harus** punya `waktu` dan `no_resi`. `catat.py` mengisinya otomatis bila
-kosong; kamu hanya perlu memberikannya bila ada di struk.
+`catat.py` mengisi `waktu` dan `no_resi` bila kosong; kamu hanya memberikannya bila ada di struk.
 
-### Kolom `waktu` (jam `HH:MM`)
-- Struk: pakai **jam yang tercetak** di struk bila ada.
-- Kalau tidak ada (chat biasa / struk tanpa jam): kosongkan — `catat.py` memakai **jam saat ini**.
-
-### Kolom `no_resi` — urut prioritas
-1. **Struk dengan nomor tercetak** (No. Transaksi / No. Struk / No. Nota / Ref) →
-   `"no_resi": "STRUK-<nomor>"` (contoh: `STRUK-000123`).
-2. **Struk tanpa nomor tercetak** → hitung sidik jari isi struk via tool shell (Bash):
-   ```bash
-   python3 scripts/resi.py --fingerprint --merchant "<nama toko>" --date <YYYY-MM-DD> --total <total>
-   ```
-   Pakai hasilnya (mis. `STRUK-a1b2c3d4`) sebagai `"no_resi"` di JSON `catat.py`. Ini yang membuat **kirim ulang struk yang
-   sama otomatis terdeteksi**, walau tidak ada nomor resi.
-3. **Chat biasa** → **jangan isi** `no_resi`; `catat.py` membuat `TRX-YYYYMMDD-XXXX` sendiri.
-   **Jangan pernah mengarang resi** sendiri (`SS-20SEP-SOCK`, `MOMOYO-14SEP`, dst.) — resi
-   karangan tidak bisa dideteksi saat dikirim ulang.
-4. **Baris Saldo Awal** → `SALDO-AWAL`. Hanya ada satu, sudah dibuat. Jangan pernah membuat lagi.
-5. **Baris hasil impor riwayat** (dari aplikasi keuangan lain) → `IMP-<id sumber>`, mis.
-   `IMP-262`. Bukan struk dan bukan chat, jadi tidak memakai `STRUK-` maupun `TRX-`. Kamu
-   tidak pernah membuat ini saat mencatat dari pesan — awalan ini hanya muncul pada data
-   yang diimpor massal.
-6. **Baris lama berresi bebas** (`SS-20SEP-SOCK`, `MOMOYO-14SEP`, `TRX-20260908-CATFOOD`, …;
-   ±120 baris Jul–Sep 2026, sebelum skill ini benar-benar dimuat) **dibiarkan apa adanya**,
-   begitu pula `waktu` yang kosong di sana. Keputusan pemilik 21 Sep 2026: tidak dimigrasi.
-   Jangan mengubahnya dan jangan menganggapnya kesalahan saat membuat laporan — resi itu tetap
-   unik. Aturan format di atas berlaku untuk transaksi **baru**.
-
-> **Struk banyak item = SATU panggilan `catat.py`** dengan semua item di `items`, sehingga
-> semuanya berbagi satu `no_resi`. Jangan memanggilnya sekali per item — panggilan kedua akan
-> ditolak sebagai duplikat resi.
+- **`waktu`** (`HH:MM`): jam yang tercetak di struk; chat biasa kosongkan (dipakai jam sekarang).
+- **`no_resi`**, urut prioritas:
+  1. Struk dengan nomor tercetak (No. Transaksi / Struk / Nota / Ref) → `STRUK-<nomor>`.
+  2. Struk tanpa nomor → sidik jari: `python3 scripts/resi.py --fingerprint --merchant "<toko>"
+     --date <YYYY-MM-DD> --total <total>`; pakai hasilnya (mis. `STRUK-a1b2c3d4`) sebagai
+     `no_resi` — kirim ulang struk yang sama jadi terdeteksi.
+  3. Chat biasa → kosongkan. **Jangan mengarang resi** (`SS-20SEP-SOCK`): resi karangan tidak
+     terdeteksi saat dikirim ulang.
+- Awalan lain bukan buatanmu: `SALDO-AWAL` (satu baris, sudah ada), `IMP-<id>` (impor massal),
+  dan ±120 baris lama berresi bebas (Jul–Sep 2026) yang **dibiarkan apa adanya** — keputusan
+  pemilik 21 Sep 2026. Jangan diubah dan jangan dianggap kesalahan di laporan.
+- Struk banyak item = **satu** panggilan `catat.py` dengan semua item di `items`; memanggilnya
+  per item ditolak sebagai duplikat resi.
 
 ---
 
@@ -224,56 +194,42 @@ dicatat belum?" tanpa mencatat apa pun.
 
 ---
 
-## Cara Menyimpan Data
+## Arti Kolom `bills.csv`
 
-Transaksi disimpan oleh `scripts/catat.py` (lihat di atas) ke `data/bills.csv` dengan format berikut.
-Bagian ini menjelaskan arti tiap kolom supaya kamu mengisi JSON-nya dengan benar dan bisa membaca
-file saat membuat laporan — **bukan** untuk menulis barisnya sendiri.
+12 kolom: `tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,waktu,no_resi`.
+Untuk mengisi JSON dengan benar dan membaca data — bukan untuk menulis barisnya.
 
-```
-tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,waktu,no_resi
-2025-01-15,pengeluaran,groceries,Beras 5kg - Indomaret,75000,,telegram,Ayah,,,14:05,TRX-20250115-4821
-2025-01-15,pengeluaran,utilities,Listrik PLN,150000,token listrik via GoPay,whatsapp,Ibu,,,09:30,STRUK-000123
-2025-01-25,pemasukan,salary,Gaji bulanan,5000000,,whatsapp,Ayah,,,08:00,TRX-20250125-0117
-```
-
-> **Catatan kolom `tipe`**: Isi `pemasukan` untuk uang masuk (gaji, bonus, dsb) dan `pengeluaran` untuk uang keluar (belanja, tagihan). Jika ragu, default `pengeluaran`. Baris lama tanpa kolom ini tetap dianggap `pengeluaran`.
->
-> Ada nilai ketiga: **`transfer`** — memindahkan uang antar akun sendiri. Uangnya tidak masuk dan tidak keluar dari kas keluarga, jadi transfer **tidak pernah** ikut Total Pemasukan, Total Pengeluaran, Arus Kas Bulan, Saldo, maupun budget. Lihat bagian Akun di bawah.
-
-> **Catatan kolom `channel`**: Asal baris ini, bukan sekadar saluran pesan. Isi `whatsapp` atau
-> `telegram` untuk transaksi yang kamu catat dari pesan; baris hasil impor massal memakai nama
-> aplikasi sumbernya (mis. `keuangan-keluarga`). Ini yang membuat data impor gampang disaring
-> atau dicopot tanpa menyentuh catatan harian.
-
-> **Catatan kolom `item`**: Apa yang dibeli, apa adanya. **Nama tokonya ikut di sini**, di
-> belakang setelah tanda pisah — `Susu UHT + Yakult - Budiman Swalayan`, `Matcha Cream - Sanama
-> Plus`. Tidak ada kolom `tempat`; kolom itu dibuang setelah 288 baris tak pernah mengisinya
-> sementara nama toko selalu ditulis di `item` (lihat `docs/adr/0007`). Kalau memang tak ada
-> tokonya (`infaq`, `bensin`, `gym`), tulis itemnya saja. **Bank dan e-wallet bukan toko**:
-> `Livin' by Mandiri`, `GoPay`, `Shopee Pay` itu cara bayar — tulis di `catatan`.
-
-> **Catatan kolom `akun` & `akun_tujuan`**: Akun sumber dana (`Kas`, `Bank Utama`,
-> `Tabungan` — daftar resminya di `data/akun.json`). `akun_tujuan` **hanya** diisi saat
-> `tipe=transfer`. **Jangan tertukar dengan cara bayar**: `Livin' by Mandiri`, `GoPay`,
-> `Shopee Pay` adalah cara bayar dan tetap ditulis di `catatan` — bisa saja bayar pakai
-> GoPay yang saldonya ditarik dari Bank Utama. Baris sebelum tanggal cutover berkolom
-> `akun` kosong dan itu benar, jangan diisi mundur (ADR-0010).
-
-> **Catatan kolom `waktu` & `no_resi`**: Selalu diisi (lihat bagian di atas). Baris lama tanpa dua kolom ini tetap valid dan dibaca sebagai kosong; isi otomatis dengan `python3 scripts/resi.py --backfill`.
-
-> ⚠️ **Jangan menambah baris dengan Edit/Write.** Model yang menulis CSV dengan tangan sudah
-> terbukti menghasilkan baris 13 kolom (menyalin pola `,,,,` dari baris lama sambil mengisi
-> `waktu`), yang menggeser `waktu` ke kolom `no_resi`. `catat.py` mengunci file selama menulis,
-> jadi dua pesan bersamaan juga aman.
+- **`tipe`**: `pengeluaran` (default bila ragu; baris lama tanpa kolom ini dianggap begitu),
+  `pemasukan`, atau `transfer` — pindah antar akun sendiri, **tidak pernah** ikut Pemasukan,
+  Pengeluaran, Arus Kas Bulan, Saldo, maupun budget (lihat Akun).
+- **`channel`**: asal baris — `whatsapp`/`telegram` untuk pesan; impor massal memakai nama
+  aplikasi sumbernya (mis. `keuangan-keluarga`), supaya mudah disaring.
+- **`item`**: apa yang dibeli, apa adanya. **Nama toko ikut di sini**, setelah tanda pisah —
+  `Susu UHT + Yakult - Budiman Swalayan`. Tidak ada kolom `tempat` (ADR-0007). Tak ada tokonya
+  (`infaq`, `bensin`) → itemnya saja. **Bank dan e-wallet bukan toko**: `Livin' by Mandiri`,
+  `GoPay`, `Shopee Pay` itu cara bayar — tulis di `catatan`.
+- **`akun` & `akun_tujuan`**: akun sumber dana (`Kas`, `Bank Utama`, `Tabungan` — daftar di
+  `data/akun.json`); `akun_tujuan` hanya untuk `transfer`. **Bukan cara bayar** (lihat `item`).
+  Baris sebelum tanggal cutover berkolom `akun` kosong dan itu benar — jangan diisi mundur
+  (ADR-0010).
+- **`waktu` & `no_resi`**: selalu diisi untuk transaksi baru; baris lama boleh kosong
+  (`python3 scripts/resi.py --backfill` mengisinya).
 
 ---
 
 ## Pesan Konfirmasi
 
-Setelah `catat.py` membalas `OK tersimpan`, kirim konfirmasi **dengan kerangka yang sama persis**
-setiap kali (sama dengan `AGENTS.md`, yang selalu ada di prompt). Bentuknya tidak boleh
-berubah antar-sesi dan tidak boleh diringkas jadi satu baris:
+Setelah `catat.py` membalas `OK tersimpan`, pakai kerangka `✅ Sudah dicatat!` dari `AGENTS.md`,
+persis, tidak diringkas. Semua nilai disalin dari baris `OK tersimpan` — `label`, `no_resi`,
+`tanggal`, `waktu`, `arah`, dan `nama_label: pencatat` — jangan dikarang (ADR-0015, ADR-0019).
+
+- `label` = `Struk` hanya bila No Resi berawalan `STRUK-` (struk / Bukti Transfer); selain itu
+  (chat biasa, impor, resi bebas lama) `No Resi`. Chat biasa **tidak pernah** berlabel `Struk`.
+- `Arah` selalu tampil: `📤 Pengeluaran`, `📥 Pemasukan`, atau `🔁 Transfer (<akun> → <akun_tujuan>)`.
+  Baris nama: `Pembeli` untuk pengeluaran, `Pencatat` untuk pemasukan dan transfer.
+- Satu baris `- ` per item lalu `- Total: …`. Info tambahan (siapa yang bayar, cara bayar) di
+  kurung setelah nama item; toko sudah ikut nama item. Jangan menulis angka yang tidak datang
+  dari keluaran `catat.py` atau dari bukti (mis. "N entri tercatat").
 
 ```
 ✅ Sudah dicatat!
@@ -285,19 +241,8 @@ Pembeli: Eryanto
 Detail:
 - Dragon Red Fruit 1.21kg: Rp 34.010
 - Regal Biskuit 230gr: Rp 24.500
-- La Fonte Saus Pasta Bolognese: Rp 17.700
-- Counterpain Cream 15gr: Rp 30.400
-- Total: Rp 106.610
+- Total: Rp 58.510
 ```
-
-- `<label>` (`Struk` atau `No Resi`) = `label`, `<no_resi>` = `no_resi`, `Tanggal` = `tanggal`,
-  `Jam` = `waktu`, `Arah` = `arah`, baris nama = `<nama_label>: <pencatat>`, **diambil dari
-  baris `OK tersimpan`** — jangan dikarang (ADR-0015, ADR-0019).
-- `label` dari `catat.py` adalah `Struk` hanya bila No Resi benar-benar dari struk/Bukti Transfer
-  (awalan `STRUK-`); selain itu (chat biasa, impor, resi bebas lama) labelnya `No Resi`. Contoh di
-  atas berlabel `Struk` karena `no_resi`-nya `STRUK-BSDUPG` (awalan `STRUK-`). Chat biasa **tanpa** struk
-  berlabel `No Resi`, seperti contoh di bawah — **jangan** ikut menulis `Struk` untuk kasus ini.
-- Satu baris `- ` per item, lalu `- Total: …`. Chat biasa satu item pakai kerangka yang sama:
 
 ```
 ✅ Sudah dicatat!
@@ -311,10 +256,6 @@ Detail:
 - Total: Rp 100.000
 ```
 
-- **Arah selalu tampil** (ADR-0019), disalin dari `arah` keluaran: `📤 Pengeluaran`,
-  `📥 Pemasukan`, atau `🔁 Transfer (<akun> → <akun_tujuan>)`. Baris nama memakai
-  `nama_label`: `Pembeli` untuk pengeluaran, `Pencatat` untuk pemasukan dan transfer:
-
 ```
 ✅ Sudah dicatat!
 
@@ -327,74 +268,31 @@ Detail:
 - Total: Rp 170.000
 ```
 
-- Info tambahan (siapa yang bayar, cara bayar) di dalam kurung setelah nama item.
-- Nama toko sudah ikut di nama item (`… - Budiman Swalayan`); jangan dibuat baris sendiri.
-- Jangan menulis angka yang tidak datang dari keluaran `catat.py` atau dari bukti
-  (mis. "N entri tercatat").
-
-### Pratinjau dan Bukti Transfer
-
-Kerangka Pratinjau (`Akan disimpan (belum dicatat)`), varian Bukti Transfer, pembandingan total
-struk, dan aturan *ya* / koreksi / *batal* didefinisikan **hanya di `AGENTS.md`** — ikuti itu,
-jangan membuat bentuk sendiri. Intinya: jumlah persis dari bukti, `no_resi` =
-`STRUK-<nomor referensi>` tanpa awalan karangan, akun dari `data/akun.json` (nama orang bukan
-akun), balasan akhir memakai kerangka `✅ Sudah dicatat!` di atas (ADR-0016).
-
-Setelah konfirmasi, cek budget otomatis (lihat bagian Cek Budget Otomatis).
+Kerangka Pratinjau, varian Bukti Transfer, pembandingan total struk, dan aturan *ya* / koreksi /
+*batal* ada **hanya di `AGENTS.md`** — jangan membuat bentuk sendiri (ADR-0016).
 
 ---
 
 ## Perintah yang Didukung
 
-### 📊 Lihat Laporan Hari Ini
-Trigger: `laporan hari ini`, `pengeluaran hari ini`, `summary hari ini`
+### 📊 Laporan (hari ini, pekan, bulan, per pembeli)
+Trigger: `laporan hari ini`, `laporan minggu ini` / `minggu lalu` / `pekan ini` / `pekan lalu`,
+`weekly report`, `laporan bulan ini`, `laporan bulan lalu`, `laporan bulanan`, `monthly report`,
+`laporan bulan <nama bulan>`, `pengeluaran per orang`, `per pembeli`
 
-Jalankan `python3 scripts/laporan-harian.py` dan salin keluarannya utuh — jangan menghitung
-sendiri. Aturan lengkap ada di `AGENTS.md` (bagian *Laporan*).
+**Jangan hitung sendiri.** Jalankan skrip dari tabel *Laporan* di `AGENTS.md` dan salin
+keluarannya utuh — angkanya identik dengan laporan otomatis. Yang hanya dicatat di sini:
 
-### 📊 Laporan Mingguan
-Trigger: `laporan minggu ini`, `pengeluaran minggu ini`, `laporan pekan ini`, `weekly report`,
-`laporan minggu lalu`, `laporan pekan lalu`
-
-**Jangan hitung sendiri** — jalankan skrip yang sama dengan cron Senin 07:00 (docs/adr/0013),
-supaya tidak pernah ada dua angka untuk satu Pekan:
-
-```bash
-python3 scripts/laporan-mingguan.py --berjalan            # "minggu ini" = Pekan berjalan s.d. hari ini
-python3 scripts/laporan-mingguan.py                       # "minggu lalu" = Pekan terakhir yang sudah tutup
-python3 scripts/laporan-mingguan.py --pekan 2026-09-14    # Pekan yang memuat tanggal itu
-```
-
-Kirim keluarannya **apa adanya** — jangan diringkas, dihitung ulang, atau ditambah tips.
-**JANGAN tambah `--kirim`** saat menjawab chat: itu jalur cron, dan balasan chat sudah sampai.
-Pekan = Senin–Minggu (`CONTEXT.md`); jangan pakai "7 hari terakhir".
-Pertanyaan bebas ("food minggu ini berapa?") tetap boleh dijawab biasa, tapi pakai batas Pekan yang sama.
-
-### 📊 Lihat Bulan Berjalan
-Trigger: `laporan bulan ini`, `pengeluaran bulan ini`
-
-Bulan yang **sedang berjalan**, angkanya setengah jalan. Jangan sebut ini "Laporan Bulanan" —
-nama itu hanya untuk bulan yang sudah tutup (lihat bawah dan `CONTEXT.md`). Jalankan
-`python3 scripts/laporan-bulanan.py --bulan YYYY-MM` (bulan sekarang) dan salin keluarannya utuh;
-tabel perintah ada di `AGENTS.md` (bagian *Laporan*).
-
-### 📊 Laporan Bulanan (bulan yang sudah tutup)
-Trigger: `laporan bulan lalu`, `laporan bulanan`, `monthly report`, `laporan bulan <nama bulan>`
-
-Laporan Bulanan resmi dikirim otomatis tiap **tanggal 6 pukul 09:00 WIB** oleh cron
-`laporan_bulanan` (docs/adr/0012). Kalau diminta lewat chat, **jangan hitung sendiri** —
-jalankan skrip yang sama supaya angkanya identik dengan versi yang terkirim:
-
-```bash
-python3 scripts/laporan-bulanan.py                   # bulan lalu
-python3 scripts/laporan-bulanan.py --bulan 2026-08   # bulan tertentu
-```
-
-Kirim keluarannya apa adanya. **JANGAN PERNAH menambah `--kirim`** saat menjawab chat:
-`--kirim` menyimpan angka yang dilaporkan dan menghabiskan Koreksi yang belum sempat
-disebut laporan resmi tanggal 6. Tanpa `--kirim`, skrip ini tidak menulis apa pun.
-
-Kalau yang diminta bulan yang **belum tutup**, pakai "Lihat Bulan Berjalan" di atas.
+- Bulan yang **sedang berjalan** angkanya setengah jalan; itu bukan "Laporan Bulanan", nama itu
+  hanya untuk bulan yang sudah tutup (`CONTEXT.md`).
+- **Jangan pernah menambah `--kirim`** di chat. Untuk `laporan-bulanan.py`, `--kirim` juga
+  menyimpan angka dan menghabiskan Koreksi yang belum sempat disebut laporan resmi.
+- Laporan Bulanan resmi terkirim otomatis tanggal 6 pukul 09:00 WIB (ADR-0012) dan Laporan
+  Mingguan tiap Senin 07:00 (ADR-0013), keduanya dari skrip tanpa model.
+- Pekan = Senin–Minggu, bukan "7 hari terakhir". Pertanyaan bebas ("food minggu ini berapa?")
+  boleh dijawab langsung, tapi pakai batas Pekan yang sama.
+- Pengeluaran per pembeli (`laporan-pembeli.py`) hanya menghitung pengeluaran; baris tanpa
+  pencatat tampil "Tanpa nama".
 
 ### 📅 Laporan Per Bulan (dipisah, bukan digabung)
 Trigger: `laporan per bulan`, `rekap per bulan`, `breakdown bulanan`, `laporan semua bulan`
@@ -439,11 +337,7 @@ Saldo terakhir (akhir Februari 2025): Rp 950.000
 
 > 💡 Untuk versi Excel per-bulan (satu sheet tiap bulan), lihat bagian **Fitur Backup** → `export excel`.
 
-### 👥 Pengeluaran per Pembeli
-Trigger: `pengeluaran per orang`, `siapa paling banyak belanja`, `per pembeli`
-Jalankan `python3 scripts/laporan-pembeli.py` (pekan lalu), `--berjalan` (pekan ini), atau
-`--bulan YYYY-MM`, lalu salin keluarannya utuh (seperti laporan lain; tanpa menghitung sendiri).
-Hanya pengeluaran; baris tanpa pencatat tampil sebagai "Tanpa nama".
+
 
 ### 🔍 Cari Transaksi
 Trigger: `cari [keyword]`, `history [kategori]`
@@ -481,10 +375,8 @@ adalah jawaban untuk Pratinjau yang sedang menunggu, bukan perintah hapus.
 
 ## 💰 Fitur Budget
 
-> **Budget aktif saat ini: Rp 7.000.000/bulan**, alert di 80% (Rp 5.600.000). Dikalibrasi dari
-> belanja rutin Apr–Jul 2026 (median Rp 6,9 juta di luar transaksi ≥ Rp 1 juta). Angka pasti
-> selalu dibaca dari `data/budget.json`, bukan dari catatan ini — contoh-contoh di bawah cuma
-> ilustrasi format.
+Angka budget dan ambang alert selalu dibaca dari `data/budget.json`, jangan dari ingatan atau
+contoh di bawah (cuma ilustrasi format).
 
 ### Set Budget Bulanan
 Trigger: `set budget [nominal]`, `atur budget [nominal]`
@@ -725,105 +617,23 @@ Response:
 
 ## 💾 Fitur Backup
 
-Setiap backup menghasilkan file di `data/backups/`:
-- `bills_YYYYMMDD.csv` — salinan mentah seluruh transaksi (semua bulan), **termasuk kolom `no_resi` & `waktu`**.
-- `bills_export_YYYYMMDD_HHMMSS.xlsx` — **Excel dipisah per bulan**: satu sheet `Ringkasan` +
-  satu sheet per bulan (`2025-01`, `2025-02`, ...). Tiap sheet bulan memuat Total Pemasukan,
-  Total Pengeluaran, **Arus Kas Bulan**, serta **Saldo Awal Bulan** dan **Saldo Akhir Bulan**.
-  Sheet `Ringkasan` punya kolom `Arus Kas Bulan` (berdiri sendiri) dan `Saldo Akhir`
-  (kumulatif). Kolom **`no_resi`** ditampilkan paling kiri tiap sheet.
-
-> 🆕 **File Excel baru tiap export**: nama file memakai stempel waktu sampai detik
-> (`bills_export_YYYYMMDD_HHMMSS.xlsx`), jadi **tiap kali diminta export, file baru dibuat** — tidak
-> menimpa export sebelumnya. File "terbaru" = yang stempel waktunya paling akhir.
-
-> 🔁 **Laporan duplikat**: proses export otomatis mengecek baris kembar (isi identik kecuali `no_resi`).
-> Jika ada, dibuat sheet **"Duplikat"** di file Excel + ringkasan di output (mis. `⚠️ 2 baris duplikat...`).
-> **Tidak ada data yang dihapus** — hanya dilaporkan agar mudah dicek.
-
-> 🗑️ **Retensi otomatis (30 hari)**: setiap kali export Excel baru berhasil dibuat, file
-> `bills_export_*.xlsx` yang lebih tua dari 30 hari di `data/backups/` otomatis dihapus
-> (lihat `scripts/export-excel.py` → `cleanup_old_exports`). Berlaku **baik dipicu lewat
-> `backup.sh` maupun langsung** via `python3 scripts/export-excel.py`. Backup CSV harian
-> (`bills_*.csv`) punya retensi 30 hari terpisah, ditangani di `backup.sh`.
+Backup otomatis tiap hari pukul 02:00 (`scripts/backup.sh`) ke `data/backups/`:
+`bills_YYYYMMDD.csv` (salinan mentah) dan `bills_export_YYYYMMDD_HHMMSS.xlsx` (Excel: sheet
+`Ringkasan` + satu sheet per bulan, plus sheet `Duplikat` bila ada baris kembar — hanya
+dilaporkan, tidak ada yang dihapus). Tiap export membuat file baru; yang lebih tua dari 30 hari
+dihapus otomatis.
 
 ### Cek Status Backup
 Trigger: `backup`, `cek backup`, `status backup`
 
-Langkah:
-1. List file di `data/backups/` (gunakan tool shell / Bash)
-2. Tampilkan backup terakhir dan jumlah backup tersimpan (CSV + Excel)
-
-Response:
-```
-💾 Status Backup
-
-📁 Backup tersedia: 7 CSV + 7 Excel
-📅 Terakhir backup: Kemarin, 02:00 WIB
-💿 File terbaru: bills_20250115.csv & bills_export_20250115_143025.xlsx
-
-✅ Backup otomatis berjalan setiap hari pukul 02:00
-```
+List isi `data/backups/` (Bash) dan laporkan **apa adanya**: jumlah CSV dan Excel yang benar-benar
+ada dan file terbarunya (dari stempel di nama file). Jangan mengarang jumlah atau jam.
 
 ### Backup Manual / Export Excel
 Trigger: `backup sekarang`, `backup manual`, `export excel`, `backup excel`
 
-Jalankan script backup via tool shell (Bash) (membuat CSV **dan** Excel per-bulan sekaligus):
-```bash
-bash scripts/backup.sh
-```
-
-> Untuk hanya membuat file Excel tanpa backup CSV harian, jalankan:
-> ```bash
-> python3 scripts/export-excel.py
-> ```
-
-Konfirmasi:
-```
-💾 Backup berhasil dibuat!
-📁 CSV:   data/backups/bills_20250115.csv
-📊 Excel: data/backups/bills_export_20250115_143025.xlsx (per bulan, file baru tiap export)
-📝 Total baris: 47 transaksi
-```
-
----
-
-## Laporan Mingguan Otomatis (Setiap Senin 07:00)
-
-Dikirim oleh cron `laporan_mingguan` sebagai **command payload tanpa model**
-(`scripts/laporan-mingguan.py --kirim`, docs/adr/0013) untuk Pekan yang baru tutup
-(Senin–Minggu). Bot **tidak** menyusun laporan ini — formatnya ditentukan skrip:
-
-```
-📊 LAPORAN MINGGUAN
-Pekan: Senin 14 Sep – Minggu 20 Sep 2026
-
-⚠️ Tidak ada catatan pada Sel 15, Rab 16, Kam 17, Jum 18 Sep — angka pekan ini mungkin kurang
-
-💸 PENGELUARAN PER KATEGORI
-⚡ utilities      Rp 235.000  (29%)
-🛒 groceries      Rp 182.997  (22%)
-...
-Total: Rp 815.997 · 8 transaksi
-vs pekan lalu: -Rp 548.459 (-40%)
-  (pekan lalu dihitung dari catatan hari ini)
-
-🏆 3 TERBESAR
-1. Pembayaran WiFi — Rp 235.000 (14 Sep)
-...
-
-💰 Pemasukan pekan ini: Rp 0
-🏦 Saldo akhir Pekan: Rp 10.107.898
-📅 Budget Sep: Rp 4.766.560 dari Rp 7.000.000 (68%)
-
-🧾 Kewajiban belum lunas: tidak ada
-🔮 Perkiraan Sep:
-  • Gaji Elsi ✓
-  • Langganan Anthropic (≈26) belum waktunya
-```
-
-Peringatan ⚠️ hanya muncul untuk ≥2 Hari Kosong berturut-turut. Pekan yang melewati
-pergantian bulan menampilkan Budget dan Perkiraan kedua bulan (bulan lama bertanda "(tutup)").
+Jalankan `bash scripts/backup.sh` (CSV **dan** Excel). Hanya Excel: `python3 scripts/export-excel.py`.
+Sebut nama file dari keluaran skrip, bukan dari ingatan.
 
 ---
 
@@ -834,10 +644,9 @@ pergantian bulan menampilkan Budget dan Perkiraan kedua bulan (bulan lama bertan
 3. **Gunakan bahasa Indonesia** yang ramah dan natural
 4. **Format angka** selalu dengan titik pemisah ribuan: `Rp 75.000`
 5. **Tanggal** selalu gunakan tanggal hari ini kecuali struk menunjukkan tanggal berbeda
-6. **Catat pencatat** — simpan info siapa yang mencatat (Ayah/Ibu/nama) berdasarkan nomor HP atau username Telegram
+6. **Pencatat** = nama pengirim pesan; alias (nama panggilan, peran) dibakukan skrip lewat `data/pembeli.json`, jadi tulis apa adanya
 7. **Emoji** boleh digunakan untuk membuat pesan lebih menarik
-8. **Baca budget.json** di awal setiap sesi untuk memuat kategori custom dan budget aktif
-9. **Cek budget** otomatis setiap kali ada transaksi baru dicatat
-10. **Jangan pernah hapus data massal** — hapus hanya lewat `buku.py hapus` untuk tepat satu Transaksi atau satu Item setelah Pratinjau, bukan reset semua
-11. **Transfer bukan belanja** — `tipe=transfer` tidak pernah masuk Total Pemasukan, Total Pengeluaran, Arus Kas Bulan, Saldo global, maupun budget. Kalau Saldo global berubah setelah mencatat transfer, itu bug — hentikan dan laporkan
-12. **Jangan tebak akun** — baris sebelum tanggal cutover memang berkolom `akun` kosong dan itu benar. Sesudah cutover, kalau pengguna tidak menyebut akunnya, **tanyakan**. Saldo per akun selalu disajikan dengan menyebut batas cutover-nya (ADR-0010)
+8. **Baca budget.json** di awal setiap sesi untuk memuat kategori custom
+9. **Jangan pernah hapus data massal** — hapus hanya lewat `buku.py hapus` untuk tepat satu Transaksi atau satu Item setelah Pratinjau, bukan reset semua
+10. **Transfer bukan belanja** — `tipe=transfer` tidak pernah masuk Total Pemasukan, Total Pengeluaran, Arus Kas Bulan, Saldo global, maupun budget. Kalau Saldo global berubah setelah mencatat transfer, itu bug — hentikan dan laporkan
+11. **Jangan tebak akun** — baris sebelum tanggal cutover memang berkolom `akun` kosong dan itu benar. Sesudah cutover, kalau pengguna tidak menyebut akunnya, **tanyakan**. Saldo per akun selalu disajikan dengan menyebut batas cutover-nya (ADR-0010)
