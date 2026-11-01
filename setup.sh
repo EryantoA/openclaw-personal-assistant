@@ -65,20 +65,16 @@ mkdir -p data/backups
 mkdir -p scripts
 
 if [ ! -f data/bills.csv ]; then
-  echo "tanggal,kategori,item,jumlah,catatan,channel,pengirim,jatuh_tempo" > data/bills.csv
+  # Header diambil dari data/bills.csv.example supaya tidak menyimpang dari skema 12 kolom.
+  if [ -f data/bills.csv.example ]; then
+    head -1 data/bills.csv.example > data/bills.csv
+  else
+    echo "tanggal,tipe,kategori,item,jumlah,catatan,channel,pencatat,akun,akun_tujuan,waktu,no_resi" > data/bills.csv
+  fi
   echo -e "${GREEN}✓ data/bills.csv dibuat${RESET}"
 else
-  # Cek apakah header perlu update (tambah kolom jatuh_tempo)
-  HEADER=$(head -1 data/bills.csv)
-  if [[ "$HEADER" != *"jatuh_tempo"* ]]; then
-    TMPFILE=$(mktemp)
-    echo "${HEADER},jatuh_tempo" > "$TMPFILE"
-    tail -n +2 data/bills.csv | awk '{print $0","}' >> "$TMPFILE"
-    mv "$TMPFILE" data/bills.csv
-    echo -e "${GREEN}✓ data/bills.csv diupdate (tambah kolom jatuh_tempo)${RESET}"
-  else
-    echo -e "${GREEN}✓ data/bills.csv sudah ada${RESET}"
-  fi
+  # Buku Kas yang sudah ada tidak pernah diubah oleh setup (ADR-0003: kolom jatuh tempo tidak dihidupkan lagi).
+  echo -e "${GREEN}✓ data/bills.csv sudah ada (tidak diubah)${RESET}"
 fi
 
 if [ ! -f data/budget.json ]; then
@@ -86,6 +82,7 @@ if [ ! -f data/budget.json ]; then
 {
   "budget_bulanan": 0,
   "alert_persen": 80,
+  "pengeluaran_besar_mulai": 1000000,
   "kategori_custom": []
 }
 EOF
@@ -117,41 +114,21 @@ if command -v python3 &> /dev/null && [ -f scripts/check-bills.py ]; then
   fi
 fi
 
-# ── 6. Cek konfigurasi API Keys ──────────────────────────────
+# ── 6. Cek login Claude dan konfigurasi channel ─────────────
 echo ""
-echo -e "${CYAN}[6/8] Mengecek konfigurasi API Keys...${RESET}"
+echo -e "${CYAN}[6/8] Mengecek login Claude dan konfigurasi channel...${RESET}"
 
-GROQ_KEY=$(node -e "const c=require('./openclaw.json'); console.log(c.env?.GROQ_API_KEY||'')" 2>/dev/null || echo "")
-DEEPSEEK_KEY=$(node -e "const c=require('./openclaw.json'); console.log(c.env?.DEEPSEEK_API_KEY||'')" 2>/dev/null || echo "")
-ANTHROPIC_KEY=$(node -e "const c=require('./openclaw.json'); console.log(c.env?.ANTHROPIC_API_KEY||'')" 2>/dev/null || echo "")
 TG_TOKEN=$(node -e "const c=require('./openclaw.json'); console.log(c.channels?.telegram?.token||'')" 2>/dev/null || echo "")
 WA_NUMBER=$(node -e "const c=require('./openclaw.json'); console.log((c.channels?.whatsapp?.allowFrom||[])[0]||'')" 2>/dev/null || echo "")
 
-# Groq
-if [[ "$GROQ_KEY" == gsk_* ]]; then
-  echo -e "${GREEN}✓ [PRIMARY] Groq API Key sudah diisi${RESET}"
+# Bot memakai akun Claude yang login di Mac ini (claude-cli), bukan kunci API.
+CLAUDE_STATUS=$(claude auth status 2>/dev/null || true)
+if echo "$CLAUDE_STATUS" | grep -q '"loggedIn": *true'; then
+  echo -e "${GREEN}✓ Login Claude aktif${RESET}"
 else
-  echo -e "${RED}✗ [PRIMARY] Groq API Key belum diisi!${RESET}"
-  echo "  → Daftar GRATIS di: https://console.groq.com"
-  echo "  → Isi di openclaw.json → env.GROQ_API_KEY"
-fi
-
-# DeepSeek
-if [[ "$DEEPSEEK_KEY" == sk-* ]]; then
-  echo -e "${GREEN}✓ [FALLBACK 1] DeepSeek API Key sudah diisi${RESET}"
-else
-  echo -e "${YELLOW}⚠ [FALLBACK 1] DeepSeek API Key belum diisi (opsional)${RESET}"
-  echo "  → Top up \$2 di: https://platform.deepseek.com"
-  echo "  → Isi di openclaw.json → env.DEEPSEEK_API_KEY"
-fi
-
-# Anthropic / Claude
-if [[ "$ANTHROPIC_KEY" == sk-ant-* ]]; then
-  echo -e "${GREEN}✓ [FALLBACK 2] Anthropic API Key sudah diisi${RESET}"
-else
-  echo -e "${YELLOW}⚠ [FALLBACK 2] Anthropic API Key belum diisi (opsional)${RESET}"
-  echo "  → Dapatkan di: https://console.anthropic.com → API Keys"
-  echo "  → Isi di openclaw.json → env.ANTHROPIC_API_KEY"
+  echo -e "${YELLOW}⚠ Claude belum login (atau perintah claude tidak ditemukan)${RESET}"
+  echo "  → Jalankan: claude   (lalu ikuti petunjuk login)"
+  echo "  → Cek ulang: claude auth status"
 fi
 
 # Telegram
@@ -180,7 +157,6 @@ FALLBACK=$(node -e "const c=require('./openclaw.json'); const f=c.agents?.defaul
 echo -e "  🟢 Primary  : ${GREEN}${PRIMARY}${RESET}"
 echo -e "  🔄 Fallback : ${YELLOW}${FALLBACK}${RESET}"
 echo ""
-echo -e "  Urutan: Groq → DeepSeek → Claude (Anthropic)"
 echo -e "  ${CYAN}OpenClaw otomatis beralih ke fallback jika primary error/limit.${RESET}"
 
 # ── 8. Selesai ───────────────────────────────────────────────
@@ -202,13 +178,13 @@ echo ""
 echo -e "  ${CYAN}Fitur:${RESET}"
 echo -e "  • ${YELLOW}set budget 3 juta${RESET}         — Set budget bulanan"
 echo -e "  • ${YELLOW}sisa budget${RESET}               — Cek sisa budget"
-echo -e "  • ${YELLOW}tambah kategori Investasi${RESET}   — Buat kategori custom"
-echo -e "  • ${YELLOW}jatuh tempo${RESET}               — Lihat tagihan mendatang"
+echo -e "  • ${YELLOW}tambah kategori investment${RESET} — Buat kategori custom"
+echo -e "  • ${YELLOW}cek tagihan${RESET}               — Lihat tagihan yang belum dibayar"
 echo -e "  • ${YELLOW}backup sekarang${RESET}           — Backup manual data"
 echo ""
 echo -e "  Jadwal otomatis:"
 echo -e "  • Backup data setiap hari pukul ${YELLOW}02:00${RESET}"
-echo -e "  • Reminder tagihan jatuh tempo ${YELLOW}09:00${RESET} (jika ada)"
-echo -e "  • Cek budget malam pukul ${YELLOW}20:00${RESET} (Senin-Sabtu)"
-echo -e "  • Laporan mingguan setiap ${YELLOW}Minggu pukul 20:00${RESET}"
+echo -e "  • Cek budget, tagihan, dan perkiraan malam pukul ${YELLOW}20:00${RESET} (Senin-Sabtu, hanya mengirim jika ada temuan)"
+echo -e "  • Laporan mingguan setiap ${YELLOW}Senin pukul 07:00${RESET}"
+echo -e "  • Laporan bulanan setiap ${YELLOW}tanggal 6 pukul 09:00${RESET}"
 echo ""
