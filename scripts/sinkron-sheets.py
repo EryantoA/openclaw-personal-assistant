@@ -9,6 +9,9 @@ Pertama kali: salin data/sheets.json.example ke data/sheets.json dan isi; jalank
 --inisialisasi. bills.csv tetap satu-satunya Buku Kas: edit di Sheets masuk lewat jalan tulis yang
 sama dengan bot, dan menghapus Transaksi tetap hanya lewat bot.
 
+Tiap sinkron sungguhan (bukan --uji, bukan yang dilewati) mencatat hasilnya di data/sheets-status.json;
+scripts/periksa-kesehatan.py memperingatkan bila sinkron sukses terakhir terlalu lama.
+
 Kode keluar: 0 selesai (termasuk bila ada baris yang ditolak — itu ada di laporan); 1 ditolak
 (mis. Sheet berisi data tanpa snapshot, atau snapshot rusak); 2 gagal (konfigurasi, klien, atau
 jaringan) — cron harus tercatat error supaya penjaga kesehatan menangkapnya.
@@ -29,12 +32,24 @@ import sheets_sync  # noqa: E402
 AKAR = Path(__file__).resolve().parent.parent
 CONFIG = AKAR / "data" / "sheets.json"
 SNAPSHOT = AKAR / "data" / "sheets-snapshot.json"
+STATUS = AKAR / "data" / "sheets-status.json"  # dibaca penjaga kesehatan (ADR-0011)
 
 
 def _samar(teks: str, config: dict) -> str:
     """ID spreadsheet ikut di URL pesan error jaringan; jangan sampai masuk log cron."""
     id_ = str(config.get("spreadsheet_id") or "")
     return teks.replace(id_, "<id>") if id_ else teks
+
+
+def _catat(a, hasil: str, pesan: str = "", laporan=None) -> None:
+    """Hasil sinkron untuk penjaga kesehatan. Uji tidak mengubah status; gagal menulisnya tidak
+    boleh menutupi hasil sinkron itu sendiri."""
+    if a.uji:
+        return
+    try:
+        sheets_sync.tulis_status(STATUS, hasil, pesan, laporan)
+    except OSError as e:
+        print(f"(status sinkron tidak tertulis: {e})", file=sys.stderr)
 
 
 def main(argv=None) -> int:
@@ -46,27 +61,38 @@ def main(argv=None) -> int:
 
     try:
         config = json.loads(CONFIG.read_text(encoding="utf-8"))
+        if not isinstance(config, dict):
+            raise ValueError("isinya harus objek JSON")
     except (OSError, ValueError) as e:
-        print(f"GAGAL membaca {CONFIG}: {e}\nSalin data/sheets.json.example ke data/sheets.json lalu isi.",
-              file=sys.stderr)
+        pesan = f"GAGAL membaca {CONFIG.name}: {e}"
+        print(f"{pesan}\nSalin data/sheets.json.example ke data/sheets.json lalu isi.", file=sys.stderr)
+        if not isinstance(e, FileNotFoundError):  # belum dikonfigurasi bukan kegagalan yang perlu dicatat
+            _catat(a, "gagal", pesan)
         return 2
     K, buku = sheets_sync.KOLOM, sheets_sync.SHEET_BUKU
     try:
         klien = sheets_google.dari_konfigurasi(
             config, AKAR, {buku: {K.index("jumlah")}}, {buku: {K.index("tanggal")}}, {buku: {K.index("waktu")}})
     except (RuntimeError, KeyError, OSError, ValueError) as e:
-        print(f"GAGAL menyiapkan klien Google: {_samar(str(e), config)}", file=sys.stderr)
+        pesan = _samar(str(e), config)
+        print(f"GAGAL menyiapkan klien Google: {pesan}", file=sys.stderr)
+        _catat(a, "gagal", pesan)
         return 2
 
     try:
         laporan = sheets_sync.sinkron(resi.BILLS_CSV, klien, SNAPSHOT, uji=a.uji, inisialisasi=a.inisialisasi)
     except sheets_sync.SinkronDitolak as e:
         print(f"DITOLAK: {e}", file=sys.stderr)
+        _catat(a, "ditolak", _samar(str(e), config))
         return 1
     except Exception as e:  # noqa: BLE001  jaringan, API, disk: apa pun yang menggagalkan sinkron
-        print(f"GAGAL: {type(e).__name__}: {_samar(str(e), config)}", file=sys.stderr)
+        pesan = f"{type(e).__name__}: {_samar(str(e), config)}"
+        print(f"GAGAL: {pesan}", file=sys.stderr)
+        _catat(a, "gagal", pesan)
         return 2
     print(sheets_sync.teks_laporan(laporan, uji=a.uji))
+    if not laporan.dilewati:  # yang dilewati tidak mengerjakan apa pun; yang berjalan menulis statusnya
+        _catat(a, "tertunda" if laporan.berubah_saat_sinkron else "sukses", laporan=laporan)
     return 0
 
 

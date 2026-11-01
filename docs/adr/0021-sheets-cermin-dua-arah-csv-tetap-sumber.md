@@ -27,8 +27,12 @@ membuat pencatatan lewat WhatsApp bergantung pada internet dan Google. Maka Shee
   mengedit sel langsung adalah konfirmasinya, dan laporan memuat apa yang diterima, ditolak
   (beserta alasan dan isi barisnya), dan dipulihkan. Pratinjau percakapan (ADR-0016/0018) tetap
   berlaku untuk bot.
-- **Bukan real-time.** Tidak ada server; sinkron berkala lewat cron dan perintah manual.
+- **Bukan real-time.** Tidak ada server; sinkron berkala lewat cron gateway tiap 15 menit (ADR-0009:
+  didaftarkan dengan `openclaw cron add`, bukan hanya di `openclaw.json`) dan perintah manual.
   Pencatatan lewat chat tidak pernah menunggu Google.
+- **Kegagalan tidak boleh senyap** (ADR-0011): tiap sinkron mencatat hasilnya di
+  `data/sheets-status.json`, dan penjaga kesehatan memperingatkan — tanpa model — bila sinkron tak
+  pernah sukses selama 3 jam. Kegagalan memberi kode keluar 2 supaya cron sendiri tercatat error.
 - **Tahan gagal.** Jaringan tidak dilakukan sambil memegang kunci CSV; hanya satu sinkron sekaligus;
   snapshot ditulis paling akhir; baris baru dijurnalkan sebelum ditulis agar kegagalan menulis Sheet
   tidak menggandakan Transaksi; Sheet dibaca ulang sebelum ditulis agar edit pengguna tidak
@@ -50,8 +54,13 @@ membuat pencatatan lewat WhatsApp bergantung pada internet dan Google. Maka Shee
   penguncian per sel, jadi celah beberapa detik antara baca-ulang dan tulis tetap ada;
   perlindungan Google (`warningOnly`) untuk kolom terkunci dan "Ringkasan" belum dipasang —
   penolakan di skrip yang menegakkannya; format kolom TEXT hanya dipasang ulang saat ada tulis;
-  cron dan penjaga kesehatan belum mendaftarkan sinkron ini (tiket #27); belum dijalankan terhadap
-  Google sungguhan (butuh akun layanan dan spreadsheet pemilik).
+  satu kegagalan sesaat pada run tepat sebelum penjaga jalan (08/14/21) menimbulkan peringatan
+  KRITIS dari `periksa_cron` karena kode keluar 2 membuat cron berstatus error, walau sinkron pulih
+  sendiri — dipertahankan sebagai lapis kedua bila berkas status sendiri yang bermasalah; Mac yang
+  baru bangun dari tidur bisa memicu peringatan "mandek" sebelum sinkron menyusul (pesannya
+  menyebut itu);
+  penjaga kesehatan berjalan di dalam gateway, jadi gateway yang mati total tetap tak terkabari
+  (blind spot ADR-0011; `backup_harian` tetap sinyal cadangannya).
 - **Dependensi baru** (`google-auth`, `requests`) harus terpasang untuk interpreter yang dipakai
   cron (`/usr/bin/python3`, 3.9). Tanpa itu sinkron gagal dengan kode 2 dan pesan yang jelas —
   jangan mengulang pelajaran export Excel yang mati diam 29 Jul–21 Sep 2026.

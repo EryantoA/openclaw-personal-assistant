@@ -22,6 +22,7 @@ data/*.bak
 
 # Snapshot & jurnal sinkron Google Sheets — memuat salinan seluruh Buku Kas (spec #20, ADR-0004)
 data/sheets-snapshot*
+data/sheets-status.json
 
 # Konfigurasi & kunci akun layanan Google (kredensial — jangan pernah commit); bentuk di data/sheets.json.example
 data/sheets.json

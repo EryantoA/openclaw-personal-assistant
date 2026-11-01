@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import re
 import time
+import warnings
 from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import quote
@@ -191,8 +192,10 @@ def dari_konfigurasi(config: dict, akar: Path, kolom_angka: dict | None = None,
         raise RuntimeError("kunci_akun_layanan di data/sheets.json belum diisi (jalur berkas kunci "
                            "akun layanan Google)")
     try:
-        from google.auth.transport.requests import AuthorizedSession
-        from google.oauth2 import service_account
+        with warnings.catch_warnings():  # Python 3.9 sudah EOL: pustaka Google/urllib3 berisik di log cron
+            warnings.simplefilter("ignore")
+            from google.auth.transport.requests import AuthorizedSession
+            from google.oauth2 import service_account
     except ImportError as e:
         raise RuntimeError(f"google-auth dan requests belum terpasang untuk interpreter ini ({e}). "
                            "Jalankan: /usr/bin/python3 -m pip install --user google-auth requests") from e
