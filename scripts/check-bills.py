@@ -170,7 +170,7 @@ def kirim_kalau_ada(isi: str) -> int:
     spec.loader.exec_module(pengirim)
     tujuan = pengirim.tujuan_baku()
     if not tujuan:
-        print("\n❌ Tidak ada tujuan pengiriman (channels.whatsapp.allowFrom kosong).")
+        print("\n❌ Tidak ada tujuan pengiriman (WhatsApp di config OpenClaw dan data/tujuan.json sama-sama kosong).")
         return 1
     hasil = pengirim.kirim_ke_semua(isi, tujuan)
     return 0 if all(ok for _, _, ok, _ in hasil) else 1

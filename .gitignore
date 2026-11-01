@@ -61,6 +61,10 @@ data/laporan-bulanan.json
 # Bentuknya ada di data/pembeli.json.example (nama karangan). Lihat docs/adr/0017.
 data/pembeli.json
 
+# ID tujuan laporan otomatis selain WhatsApp (Telegram, Discord) - ID akun/kanal pribadi.
+# Bentuknya ada di data/tujuan.json.example (ID karangan). Lihat docs/adr/0023.
+data/tujuan.json
+
 # Kunci tulis CSV (validasi.kunci_berkas) dan jejak ubah/hapus buku.py - lihat docs/adr/0018
 data/*.lock
 data/riwayat-ubah.csv

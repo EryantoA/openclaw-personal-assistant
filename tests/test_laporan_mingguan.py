@@ -3,13 +3,16 @@
 
     python3 -m unittest tests/test_laporan_mingguan.py
 """
+import contextlib
 import importlib.util
+import io
 import json
 import sys
 import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from unittest import mock
 
 AKAR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(AKAR / "scripts"))
@@ -134,6 +137,43 @@ class LintasBulan(DenganBerkasKosong):
         self.assertIn("📅 Budget Okt: Rp 70.000 dari Rp 1.000.000 (7%)", pesan)  # 7 hari x 10.000, tanpa yang besar
         self.assertIn("📦 Di luar budget: Rp 4.000.000 (1 transaksi ≥ Rp 1.000.000)", pesan)
         self.assertNotIn("📦 Di luar budget", lm.susun(tiap_hari(mulai, akhir), mulai, akhir, True))
+
+
+class KirimBanyakTujuan(DenganBerkasKosong):
+    """Kode keluar --kirim: 0 bila semua tujuan menerima, 1 bila ada yang gagal atau tak ada tujuan."""
+
+    def setUp(self):
+        super().setUp()
+        self.asli_kirim = (lm.pengirim.tujuan_baku, lm.pengirim.kirim, lm.buku_kas.muat)
+        lm.buku_kas.muat = lambda: []
+
+    def tearDown(self):
+        lm.pengirim.tujuan_baku, lm.pengirim.kirim, lm.buku_kas.muat = self.asli_kirim
+        super().tearDown()
+
+    def jalankan(self, tujuan, kirim):
+        lm.pengirim.tujuan_baku = lambda: tujuan
+        lm.pengirim.kirim = kirim
+        argv = ["laporan-mingguan.py", "--kirim", "--pekan", "2026-10-19", "--hari-ini", "2026-10-26"]
+        with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()):
+            return lm.main()
+
+    def test_semua_tujuan_menerima_keluar_0(self):
+        self.assertEqual(self.jalankan([("whatsapp", "A"), ("telegram", "B")],
+                                       lambda pesan, kanal, ke: (True, "")), 0)
+
+    def test_satu_tujuan_gagal_keluar_1_dan_yang_lain_tetap_dikirimi(self):
+        dikirimi = []
+
+        def kirim(pesan, kanal, ke):
+            dikirimi.append(kanal)
+            return kanal != "whatsapp", "logout"
+
+        self.assertEqual(self.jalankan([("whatsapp", "A"), ("telegram", "B")], kirim), 1)
+        self.assertEqual(dikirimi, ["whatsapp", "telegram"])
+
+    def test_tanpa_tujuan_keluar_1(self):
+        self.assertEqual(self.jalankan([], lambda pesan, kanal, ke: (True, "")), 1)
 
 
 if __name__ == "__main__":

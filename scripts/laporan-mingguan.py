@@ -12,8 +12,8 @@ Aturan hitung sengaja dipinjam, bukan ditulis ulang:
   - Perkiraan       → perkiraan.absen (sama dengan Laporan Bulanan dan cek malam, ADR 0012)
   - Kewajiban       → kewajiban.belum_lunas (lunas = lunas_resi menunjuk baris yang ada)
   - Budget          → pengaturan (data/budget.json)
-  - Tujuan          → pengirim.tujuan_baku (nomor pemilik dari config)
-  - Kirim           → pengirim.kirim_ke_semua → kirim (3 percobaan, jeda 60 dtk — kirim WA gagal acak ±23%)
+  - Tujuan          → pengirim.tujuan_baku (nomor pemilik dari config + data/tujuan.json)
+  - Kirim           → pengirim.kirim_ke_semua → kirim (WA 3 percobaan, jeda 60 dtk — kirim WA gagal acak ±23%)
 
 "Pekan lalu" dihitung ulang dari catatan hari ini — tidak ada simpanan, tidak ada Koreksi.
 
@@ -256,7 +256,7 @@ def main():
         return 0
     tujuan = pengirim.tujuan_baku()
     if not tujuan:
-        print("\n❌ Tidak ada tujuan pengiriman (channels.whatsapp.allowFrom kosong).")
+        print("\n❌ Tidak ada tujuan pengiriman (WhatsApp di config OpenClaw dan data/tujuan.json sama-sama kosong).")
         return 1
     hasil = pengirim.kirim_ke_semua(laporan, tujuan)
     return 0 if all(ok for _, _, ok, _ in hasil) else 1

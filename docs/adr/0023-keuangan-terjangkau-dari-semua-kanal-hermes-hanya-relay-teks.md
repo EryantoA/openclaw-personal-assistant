@@ -66,6 +66,22 @@ tidak menyimpan data keuangan ke `MEMORY.md`; ia hanya meneruskan.
 Pencatat pada baris `*-via-hermes` bisa salah (mis. transaksi istri tercatat atas pemilik) kalau
 Pratinjau tidak diperhatikan. Penyaringan lewat kolom `channel` adalah satu-satunya jejaknya.
 
+Pelaksanaan pengiriman laporan (#39, 1 Nov 2026): config OpenClaw hanya menyimpan nomor
+WhatsApp, tidak ada ID tujuan Telegram atau Discord, jadi ID itu dibaca dari `data/tujuan.json`
+(di luar git, ADR-0004; bentuknya di `data/tujuan.json.example`). Memakai
+`channels.telegram.allowFrom` ditolak karena kunci itu juga menentukan siapa boleh mengirim DM
+ke bot yang sedang hidup. Waktu terburuk satu pengiriman: WhatsApp ±300 detik (3 percobaan,
+batas 60 detik, 2 jeda 60 detik), sedangkan ketiga cron laporan berbatas 420 detik. Bila semua
+tujuan diulang 3 kali, dua tujuan saja (2 x 300) sudah terpotong; karena itu hanya WhatsApp yang
+diulang dan Telegram serta Discord sekali coba (±60 detik terburuk masing-masing). Total
+terburuk tiga tujuan jadi ±420 detik: tepat di batas, tanpa margin untuk waktu mulai proses dan
+penyusunan laporan. Maka batas cron `laporan_mingguan`, `laporan_bulanan`, dan
+`cek_budget_malam` **perlu dinaikkan ke 600 detik; ini belum dilakukan di cron hidup** (butuh
+izin pemilik) dan harus selesai sebelum `data/tujuan.json` diisi.
+
+Peringatan penjaga kesehatan (`periksa-kesehatan.py`, ADR-0011) tetap hanya ke WhatsApp: ia
+sengaja punya `tujuan_baku` sendiri supaya berdiri sendiri, jadi tidak ikut Telegram atau Discord.
+
 Perlu diverifikasi saat membangun, karena baru dugaan di riset: pembatasan alat per agen di
 OpenClaw dan berbagi `AGENTS.md` antara dua agen (bila gagal, Relay jatuh ke `main` sebagai risiko
 yang diterima dan dicatat ulang di sini); `channel_prompts` Hermes untuk Discord; izin kanal

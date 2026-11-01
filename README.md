@@ -268,6 +268,12 @@ Edit `openclaw.json` → `channels.whatsapp.allowFrom` → isi nomor baru.
 ### Tambah anggota keluarga di Telegram
 Edit `openclaw.json` → `channels.telegram.allowFrom` → tambah username Telegram (opsional, default semua bisa).
 
+### Terima laporan otomatis di Telegram atau Discord
+Laporan Mingguan, Laporan Bulanan, dan cek budget malam selalu ke WhatsApp. Untuk menambah
+Telegram atau Discord, salin `data/tujuan.json.example` ke `data/tujuan.json` (di luar git) dan
+isi ID-nya; Kanal yang tidak diisi dilewati. Telegram dan Discord tidak diulang kalau gagal
+(WhatsApp 3 kali). Ketiga cron laporan perlu batas waktu 600 detik, bukan 420 (ADR-0023).
+
 ### Model utama error
 OpenClaw otomatis beralih ke model fallback. Tidak perlu setting manual.
 
