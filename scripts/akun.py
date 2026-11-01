@@ -59,7 +59,7 @@ def periksa(rows, cfg):
     if abs(tercatat - nyata) > 0.5:
         pesan.append(
             f"⚠️ saldo_global_saat_cutover ({rupiah(tercatat)}) TIDAK sama dengan "
-            f"Saldo global sungguhan pada {cutover} ({rupiah(nyata)}). "
+            f"Saldo Bersama sungguhan pada {cutover} ({rupiah(nyata)}). "
             f"Selisih {rupiah(tercatat - nyata)}."
         )
     if abs(total - tercatat) > 0.5:
@@ -115,14 +115,14 @@ def main():
         return 0 if ok else 1
 
     saldo, nama, tanpa = saldo_per_akun(rows, cfg)
-    print(f"\nSaldo per akun (sejak cutover {cfg['cutover']}):")
+    print(f"\nSaldo Akun (sejak cutover {cfg['cutover']}):")
     for i, s in saldo.items():
         print(f"  {nama[i]:14s} {rupiah(s):>18s}")
     print(f"  {'TOTAL':14s} {rupiah(sum(saldo.values())):>18s}")
 
     glob = buku_kas.saldo(rows, per=date.max)
     if abs(glob - sum(saldo.values())) > 0.5:
-        print(f"\n⚠️ Total akun tidak sama dengan Saldo global ({rupiah(glob)}). "
+        print(f"\n⚠️ Total akun tidak sama dengan Saldo Bersama ({rupiah(glob)}). "
               f"Selisih {rupiah(sum(saldo.values()) - glob)}.")
     if tanpa:
         print(f"\n⚠️ {tanpa} transaksi sejak cutover belum menyebut akun — "

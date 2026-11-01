@@ -245,6 +245,20 @@ class PetaPesan(unittest.TestCase):
                         "Fitur lain", "`ya`"):
             self.assertIn(rujukan, self.PETA)
 
+    def test_salinan_tanpa_format_tambahan(self):
+        # Pernah terjadi (31 Okt 2026): bot membungkus judul dengan **…**, yang di WhatsApp tampil
+        # sebagai tanda bintang mentah. WhatsApp memakai satu bintang untuk tebal.
+        peta = " ".join(self.PETA.split())  # prompt dibungkus per baris; frasa bisa terpotong
+        self.assertIn("jangan menambah huruf tebal", peta)
+        self.assertIn("`**…**`", peta)
+
+    def test_perintah_dijalankan_ulang_tiap_kali_bukan_dijawab_dari_ingatan(self):
+        # 31 Okt 2026: bot menjawab "sisa budget" dari hasil 30 menit sebelumnya tanpa menjalankan
+        # skrip. Angka bisa basi kalau ada pencatatan baru di antaranya.
+        peta = " ".join(self.PETA.split())
+        self.assertIn("Jalankan ulang perintahnya setiap kali", peta)
+        self.assertIn("jangan menjawab dari hasil sebelumnya", peta)
+
     def test_pesan_tak_dikenal_ditanyakan_bukan_ditebak(self):
         self.assertIn("Tanyakan maksudnya", self.PETA)
 
@@ -270,6 +284,12 @@ class AngkaDariSkripBukanModel(unittest.TestCase):
         self.assertNotIn("Saldo Bank Utama: Rp", SKILL)   # saldo karangan di konfirmasi transfer
         self.assertNotIn("✅ Transfer dicatat!", SKILL)   # kerangka konfirmasi hanya satu
         self.assertNotIn("food:          Rp 125.000", SKILL)  # contoh laporan harian buatan tangan
+
+    def test_cek_budget_memakai_bulan_transaksi_bukan_bulan_ini(self):
+        # 1 Nov 2026: pencatatan bertanggal Oktober dicek terhadap November, jadi Oktober 105% tak terdeteksi.
+        teks = " ".join(AGENTS.split())
+        self.assertIn("check-bills.py --mode budget --bulan", teks)
+        self.assertIn("bulan dari `tanggal` keluaran `OK tersimpan`", teks)
 
     def test_cek_budget_setelah_tersimpan_lewat_skrip(self):
         self.assertIn("Cek budget setelah tersimpan", AGENTS)

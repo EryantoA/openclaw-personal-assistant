@@ -106,8 +106,8 @@ data, bukan teks yang dibaca pengguna.
 > itu. Jangan pernah membuat baris baru dengan kategori ini, dan jangan pernah mengubah yang ada
 > tanpa diminta eksplisit.
 >
-> Saat membuat laporan: baris ini **ikut** menghitung **Saldo** (ia titik mulainya), tapi
-> **dikecualikan** dari **Total Pemasukan** dan **Arus Kas Bulan**. `scripts/export-excel.py`
+> Saat membuat laporan: baris ini **ikut** menghitung **Saldo Bersama** (ia titik mulainya), tapi
+> **dikecualikan** dari **Total Pemasukan** dan **Arus Kas Bulanan**. `scripts/export-excel.py`
 > sudah melakukannya otomatis — kalau kamu menghitung manual, jangan lupa. Lihat `docs/adr/0008`.
 
 ### Acuan Kategori
@@ -199,7 +199,7 @@ Untuk mengisi JSON dengan benar dan membaca data — bukan untuk menulis barisny
 
 - **`tipe`**: `pengeluaran` (default bila ragu; baris lama tanpa kolom ini dianggap begitu),
   `pemasukan`, atau `transfer` — pindah antar akun sendiri, **tidak pernah** ikut Pemasukan,
-  Pengeluaran, Arus Kas Bulan, Saldo, maupun budget. Catat dengan `akun` = asal, `akun_tujuan` =
+  Pengeluaran, Arus Kas Bulanan, Saldo Bersama, maupun budget. Catat dengan `akun` = asal, `akun_tujuan` =
   tujuan, dan item berkategori `transfer` (di luar `kategori_custom`; `catat.py` menolak transfer
   tanpa dua akun). Rincian di `{baseDir}/references/akun-transfer.md`.
 - **`channel`**: asal baris — `whatsapp`/`telegram` untuk pesan; impor massal memakai nama
@@ -332,6 +332,6 @@ Fitur yang jarang dipakai ada di `{baseDir}/references/`. Saat pengguna meminta 
 7. **Emoji** boleh digunakan untuk membuat pesan lebih menarik
 8. **Baca budget.json** di awal setiap sesi untuk memuat kategori custom
 9. **Jangan pernah hapus data massal** — hapus hanya lewat `buku.py hapus` untuk tepat satu Transaksi atau satu Item setelah Pratinjau, bukan reset semua
-10. **Transfer bukan belanja** — `tipe=transfer` tidak pernah masuk Total Pemasukan, Total Pengeluaran, Arus Kas Bulan, Saldo global, maupun budget. Kalau Saldo global berubah setelah mencatat transfer, itu bug — hentikan dan laporkan
-11. **Jangan tebak akun** — baris sebelum tanggal cutover memang berkolom `akun` kosong dan itu benar. Sesudah cutover, kalau pengguna tidak menyebut akunnya, **tanyakan**. Saldo per akun selalu disajikan dengan menyebut batas cutover-nya (ADR-0010)
+10. **Transfer bukan belanja** — `tipe=transfer` tidak pernah masuk Total Pemasukan, Total Pengeluaran, Arus Kas Bulanan, Saldo Bersama, maupun budget. Kalau Saldo Bersama berubah setelah mencatat transfer, itu bug — hentikan dan laporkan
+11. **Jangan tebak akun** — baris sebelum tanggal cutover memang berkolom `akun` kosong dan itu benar. Sesudah cutover, kalau pengguna tidak menyebut akunnya, **tanyakan**. Saldo Akun selalu disajikan dengan menyebut batas cutover-nya (ADR-0010)
 12. **Pembayaran tagihan ditautkan** — mencatat pembayaran atas tagihan di `data/kewajiban.json` berarti `lunas_resi` entri itu diisi `no_resi` baris barunya, kalau tidak pengingatnya terus berbunyi. Baca `{baseDir}/references/kewajiban-perkiraan.md` sebelum menautkan

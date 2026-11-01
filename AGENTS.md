@@ -11,7 +11,12 @@ keuangan. Setiap transaksi yang **sudah tersimpan** kamu konfirmasi dengan ringk
 Setiap pesan masuk cocok dengan **satu** baris di bawah. Cari barisnya dulu, baru bertindak.
 Kolom kanan yang berisi perintah = jalankan perintah itu dan **salin keluarannya utuh** sebagai
 balasan (pengguna di WhatsApp tidak melihat keluaran tool, hanya balasanmu). Jangan menghitung
-sendiri dan jangan membaca `data/bills.csv` untuk menjawab.
+sendiri dan jangan membaca `data/bills.csv` untuk menjawab. Salin **apa adanya**: jangan menambah
+huruf tebal (`**…**` tampil sebagai tanda bintang mentah di WhatsApp), judul, atau komentar. Tanda
+`*…*` yang sudah ada di keluaran skrip dibiarkan.
+
+**Jalankan ulang perintahnya setiap kali**, walau sudah pernah dijalankan di percakapan ini: angka
+berubah setiap ada catatan baru, jadi jangan menjawab dari hasil sebelumnya dan jangan merangkumnya.
 
 | Pesan | Jawaban |
 |---|---|
@@ -23,14 +28,14 @@ sendiri dan jangan membaca `data/bills.csv` untuk menjawab.
 | laporan minggu lalu, pekan lalu | `python3 scripts/laporan-mingguan.py` |
 | laporan bulan lalu, laporan bulanan | `python3 scripts/laporan-bulanan.py` |
 | laporan bulan tertentu (sudah tutup) | `python3 scripts/laporan-bulanan.py --bulan YYYY-MM` |
-| laporan bulan ini, pengeluaran bulan ini (bulan berjalan) | `python3 scripts/laporan-bulanan.py --bulan YYYY-MM` (isi dengan bulan sekarang) |
+| laporan bulan ini, pengeluaran bulan ini, saldo bersama, arus kas bulanan (bulan berjalan) | `python3 scripts/laporan-bulanan.py --bulan YYYY-MM` (isi dengan bulan sekarang) |
 | laporan / pengeluaran hari ini | `python3 scripts/laporan-harian.py` |
 | laporan / pengeluaran hari tertentu | `python3 scripts/laporan-harian.py --tanggal YYYY-MM-DD` |
 | pengeluaran per orang / per pembeli, pekan lalu | `python3 scripts/laporan-pembeli.py` |
 | pengeluaran per orang, pekan ini | `python3 scripts/laporan-pembeli.py --berjalan` |
 | pengeluaran per orang, bulan tertentu | `python3 scripts/laporan-pembeli.py --bulan YYYY-MM` |
 | sisa budget, cek budget, budget bulan ini | `python3 scripts/check-bills.py --mode status` |
-| saldo per akun, saldo bank/kas/tabungan | `python3 scripts/akun.py` |
+| saldo dompet / rekening / simpanan, saldo per akun | `python3 scripts/akun.py` |
 | cek tagihan, ada tagihan? | `python3 scripts/check-bills.py --mode all` |
 | cek resi `<no>`, "sudah dicatat?" | `python3 scripts/resi.py --check "<no_resi>"` — `DUPLICATE …` = sudah tercatat, tampilkan detail barisnya; `OK …` = belum |
 | cek duplikat, "ada data dobel?" | `python3 scripts/resi.py --find-dup` — laporkan grupnya, sarankan cek manual, **jangan hapus otomatis**; `OK …` = data bersih |
@@ -55,7 +60,7 @@ sendiri dan jangan membaca `data/bills.csv` untuk menjawab.
 | `scripts/laporan-pembeli.py` | Pengeluaran per Pembeli (Pekan atau bulan) |
 | `scripts/laporan-harian.py` | Pengeluaran satu hari per kategori |
 | `scripts/rekap-bulanan.py` | Rekap semua bulan: Pemasukan, Pengeluaran, Arus Kas, Saldo kumulatif |
-| `scripts/akun.py` | Saldo per akun (sejak cutover) |
+| `scripts/akun.py` | Saldo Akun (sejak cutover) |
 | `scripts/export-excel.py` | Ekspor CSV ke Excel |
 | `scripts/resi.py` | Utilitas nomor resi |
 | `scripts/backup.sh` | Backup harian CSV + Excel per bulan |
@@ -203,7 +208,9 @@ Detail:
 - `DUPLICATE` = beri tahu sudah tercatat, jangan tanya ulang.
 
 **Cek budget setelah tersimpan.** Sesudah kerangka `✅ Sudah dicatat!` (hanya bila keluarannya
-`OK tersimpan`), jalankan `python3 scripts/check-bills.py --mode budget`. Keluarannya `✅ Semua
+`OK tersimpan`), jalankan `python3 scripts/check-bills.py --mode budget --bulan YYYY-MM`, dengan
+`YYYY-MM` = bulan dari `tanggal` keluaran `OK tersimpan` (bukan bulan hari ini: transaksi yang
+dicatat mundur harus dicek terhadap bulannya sendiri). Keluarannya `✅ Semua
 lancar!` → jangan tambah apa-apa. Selain itu → salin utuh di bawah kerangka, dipisah satu baris
 kosong. Jangan menghitung persentase budget sendiri.
 
@@ -312,7 +319,7 @@ Perintahnya ada di **Peta pesan** di atas. Aturan tambahan:
 - **Jangan pernah menambah `--kirim`.** Flag itu khusus untuk cron; balasan chat sudah sampai.
 - Laporan bulan ini angkanya setengah jalan: skripnya sudah menandainya "berjalan"; jangan
   menyebutnya Laporan Bulanan dan jangan menambah angka sendiri.
-- Saldo per akun: salin keluaran `akun.py` apa adanya, termasuk batas cutover-nya. Skrip bilang
+- Saldo Akun: salin keluaran `akun.py` apa adanya, termasuk batas cutover-nya. Skrip bilang
   fiturnya belum aktif → sampaikan itu, jangan mengarang angka.
 - "Minggu" berarti **Pekan Senin–Minggu**, bukan "7 hari terakhir" (lihat `CONTEXT.md`).
 - Untuk pertanyaan lain yang bukan laporan (mis. "food minggu ini berapa?"), boleh dijawab

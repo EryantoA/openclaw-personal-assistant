@@ -1,5 +1,7 @@
 # Semua pencatatan lewat Pratinjau dulu; uji coba skrip mengisi nilainya
 
+> **Diperluas oleh** [0021](0021-sheets-cermin-dua-arah-csv-tetap-sumber.md): untuk perubahan yang datang dari Google Sheets, laporan sinkron menggantikan Pratinjau percakapan.
+
 Setiap pencatatan (struk, teks, pemasukan, transfer, Bukti Transfer) melalui dua langkah: bot
 menjalankan `catat.py --uji`, menampilkan **Pratinjau** "Akan disimpan (belum dicatat)", lalu
 menyimpan hanya setelah pengguna membalas *ya*. Menggantikan sebagian
