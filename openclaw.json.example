@@ -80,6 +80,11 @@
       }
     ]
   },
+  "session": {
+    "resetByType": {
+      "group": { "mode": "idle", "idleMinutes": 120 }
+    }
+  },
   "channels": {
     "telegram": {
       "token": "TOKEN_BOT_TELEGRAM_KAMU",
