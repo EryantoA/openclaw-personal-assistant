@@ -208,7 +208,9 @@ Detail:
 - `DUPLICATE` = beri tahu sudah tercatat, jangan tanya ulang.
 
 **Cek budget setelah tersimpan.** Sesudah kerangka `✅ Sudah dicatat!` (hanya bila keluarannya
-`OK tersimpan`), jalankan `python3 scripts/check-bills.py --mode budget`. Keluarannya `✅ Semua
+`OK tersimpan`), jalankan `python3 scripts/check-bills.py --mode budget --bulan YYYY-MM`, dengan
+`YYYY-MM` = bulan dari `tanggal` keluaran `OK tersimpan` (bukan bulan hari ini: transaksi yang
+dicatat mundur harus dicek terhadap bulannya sendiri). Keluarannya `✅ Semua
 lancar!` → jangan tambah apa-apa. Selain itu → salin utuh di bawah kerangka, dipisah satu baris
 kosong. Jangan menghitung persentase budget sendiri.
 
