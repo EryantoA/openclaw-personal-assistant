@@ -19,6 +19,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import periode  # noqa: E402
 import resi  # noqa: E402
 
 BILLS = Path(__file__).resolve().parent.parent / "data" / "bills.csv"
@@ -90,14 +91,61 @@ def saldo(rows: list[dict], per: date) -> int:
     return s
 
 
-def arus_kas_bulan(rows: list[dict], bulan: str) -> dict:
-    """{pemasukan, pengeluaran, saldo_awal} untuk bulan 'YYYY-MM'. Saldo Awal bukan Pemasukan."""
-    h = {"pemasukan": 0, "pengeluaran": 0, "saldo_awal": 0}
-    for tgl, a, r in _terhitung(rows):
-        if tgl.strftime("%Y-%m") != bulan:
+def ringkas(rows: list[dict], mulai: date, akhir: date) -> dict:
+    """Satu aturan hitung untuk rentang tanggal `mulai`..`akhir` (inklusif): hari, Pekan, atau bulan.
+
+    {pemasukan, pengeluaran, saldo_awal}: total uang. Transfer dilewati; Saldo Awal terpisah dari
+    Pemasukan (ADR-0008, ADR-0010).
+    {transaksi_pemasukan, transaksi_pengeluaran}: jumlah **Transaksi** = No Resi unik di antara
+    baris yang jatuh di rentang itu, bukan jumlah baris (ADR-0023). Baris tanpa No Resi dihitung
+    satu Transaksi per baris. Transfer dan Saldo Awal tidak dihitung.
+    per_kategori: total Pengeluaran per Kategori (slug huruf kecil; kosong jadi `other`).
+    """
+    h = {"pemasukan": 0, "pengeluaran": 0, "saldo_awal": 0,
+         "transaksi_pemasukan": 0, "transaksi_pengeluaran": 0, "per_kategori": {}}
+    resi = {"pemasukan": set(), "pengeluaran": set()}
+    for i, r in enumerate(rows):
+        tgl, a = tanggal(r), arah(r)
+        if tgl is None or a not in resi or not mulai <= tgl <= akhir:
             continue
         if saldo_awal(r):
             h["saldo_awal"] += jumlah(r)
-        else:
-            h[a] += jumlah(r)
+            continue
+        h[a] += jumlah(r)
+        resi[a].add((r.get("no_resi") or "").strip() or f"baris-{i}")
+        if a == "pengeluaran":
+            k = (r.get("kategori") or "").strip().lower() or "other"
+            h["per_kategori"][k] = h["per_kategori"].get(k, 0) + jumlah(r)
+    h["transaksi_pemasukan"] = len(resi["pemasukan"])
+    h["transaksi_pengeluaran"] = len(resi["pengeluaran"])
     return h
+
+
+def pengeluaran_besar(rows: list[dict], mulai: date, akhir: date, ambang: int) -> dict:
+    """Pengeluaran Besar: Transaksi (No Resi) yang jumlah seluruh Item-nya >= `ambang`, di antara
+    baris Pengeluaran pada rentang itu (ADR-0024). Dinilai per Transaksi, bukan per baris.
+
+    {jumlah, transaksi, per_kategori}: total uang, jumlah Transaksi, dan total per Kategori Item-nya.
+    """
+    per = {}
+    for i, r in enumerate(rows):
+        tgl = tanggal(r)
+        if tgl is None or arah(r) != "pengeluaran" or saldo_awal(r) or not mulai <= tgl <= akhir:
+            continue
+        per.setdefault((r.get("no_resi") or "").strip() or f"baris-{i}", []).append(r)
+    h = {"jumlah": 0, "transaksi": 0, "per_kategori": {}}
+    for items in per.values():
+        if sum(jumlah(r) for r in items) < ambang:
+            continue
+        h["transaksi"] += 1
+        for r in items:
+            k = (r.get("kategori") or "").strip().lower() or "other"
+            h["per_kategori"][k] = h["per_kategori"].get(k, 0) + jumlah(r)
+            h["jumlah"] += jumlah(r)
+    return h
+
+
+def arus_kas_bulan(rows: list[dict], bulan: str) -> dict:
+    """{pemasukan, pengeluaran, saldo_awal} untuk bulan 'YYYY-MM' — ringkas() satu bulan penuh."""
+    h = ringkas(rows, *periode.rentang_bulan(bulan))
+    return {k: h[k] for k in ("pemasukan", "pengeluaran", "saldo_awal")}

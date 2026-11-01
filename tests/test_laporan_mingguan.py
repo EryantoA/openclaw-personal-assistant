@@ -76,7 +76,7 @@ class Saldo(DenganBerkasKosong):
                 tx("2026-10-21", "transfer", 3_000_000, "other"),
                 tx("2026-10-26", "pengeluaran", 1_000_000)] + tiap_hari(SENIN, MINGGU)
         pesan = lm.susun(rows, SENIN, MINGGU, True)
-        self.assertIn("🏦 Saldo akhir Pekan: Rp 25.430.000", pesan)  # tanpa transfer & Senin depan
+        self.assertIn("🏦 Saldo Bersama akhir Pekan: Rp 25.430.000", pesan)  # tanpa transfer & Senin depan
 
     def test_pemasukan_pekan_tanpa_saldo_awal(self):
         rows = [tx("2026-10-20", "pemasukan", 20_500_000, "opening_balance"),
@@ -86,7 +86,7 @@ class Saldo(DenganBerkasKosong):
     def test_pekan_berjalan_saldo_per_hari_itu(self):
         rows = tiap_hari(SENIN, date(2026, 10, 21)) + [tx("2026-10-22", "pengeluaran", 5_000)]
         pesan = lm.susun(rows, SENIN, date(2026, 10, 21), False)
-        self.assertIn("🏦 Saldo per 21 Okt: Rp -30.000", pesan)  # 22 Okt belum ikut
+        self.assertIn("🏦 Saldo Bersama per 21 Okt: Rp -30.000", pesan)  # 22 Okt belum ikut
 
 
 class HariKosong(DenganBerkasKosong):
@@ -125,6 +125,15 @@ class LintasBulan(DenganBerkasKosong):
         self.assertIn("📅 Budget Sep (tutup): Rp 300.000 dari Rp 1.000.000 (30%)", pesan)
         self.assertIn("📅 Budget Okt: Rp 40.000 dari Rp 1.000.000 (4%)", pesan)
         self.assertIn("Pekan: Senin 28 Sep – Minggu 4 Okt 2026", pesan)
+
+    def test_pengeluaran_besar_tidak_dihitung_ke_budget_tapi_tampil(self):
+        mulai, akhir = date(2026, 10, 19), date(2026, 10, 25)
+        rows = tiap_hari(mulai, akhir) + [dict(tx("2026-10-21", "pengeluaran", 4_000_000, "transport"),
+                                               no_resi="STRUK-BESAR")]
+        pesan = lm.susun(rows, mulai, akhir, True)
+        self.assertIn("📅 Budget Okt: Rp 70.000 dari Rp 1.000.000 (7%)", pesan)  # 7 hari x 10.000, tanpa yang besar
+        self.assertIn("📦 Di luar budget: Rp 4.000.000 (1 transaksi ≥ Rp 1.000.000)", pesan)
+        self.assertNotIn("📦 Di luar budget", lm.susun(tiap_hari(mulai, akhir), mulai, akhir, True))
 
 
 if __name__ == "__main__":

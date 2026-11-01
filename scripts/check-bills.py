@@ -16,6 +16,7 @@ diam total di hari-hari biasa.
 
 Usage:
   python3 scripts/check-bills.py --mode budget
+  python3 scripts/check-bills.py --mode status        # sisa budget sesuai permintaan (chat)
   python3 scripts/check-bills.py --mode all
   python3 scripts/check-bills.py --mode all --kirim   # cron cek_budget_malam: kirim HANYA kalau ada isi
 """
@@ -31,6 +32,7 @@ from typing import Optional, List, Dict
 # ── Paths ────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR.resolve()))
+import budget  # noqa: E402
 import buku_kas  # noqa: E402
 import kewajiban  # noqa: E402
 import pengaturan  # noqa: E402
@@ -60,63 +62,15 @@ def parse_tanggal(value: str) -> Optional[date]:
 
 
 # ── Mode: Cek Budget ─────────────────────────────────────────
+# Perhitungan dan bunyi pesan ada di scripts/budget.py (ADR-0024); di sini hanya meneruskan.
+def status_budget(today: Optional[date] = None) -> str:
+    """Sisa budget sesuai permintaan: selalu menjawab, tidak menunggu ambang alert."""
+    return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=True)
+
+
 def check_budget(today: Optional[date] = None) -> str:
-    """Cek total pengeluaran bulan ini vs budget."""
-    budget_data = pengaturan.muat()
-    budget_bulanan = budget_data.get("budget_bulanan", 0)
-    alert_persen = budget_data.get("alert_persen", 80)
-
-    if budget_bulanan <= 0:
-        return ""  # Budget belum diset, tidak perlu alert
-
-    bills = load_bills()
-    today = today or date.today()
-    bulan_ini = today.strftime("%Y-%m")
-
-    total_bulan = 0
-    for row in bills:
-        tgl = buku_kas.tanggal(row)
-        if tgl is None or tgl.strftime("%Y-%m") != bulan_ini:
-            continue
-        # Budget hanya menghitung pengeluaran; pemasukan (income) dan transfer
-        # antar akun sendiri diabaikan. Transfer bukan belanja — memindahkan uang
-        # dari Bank ke Kas tidak boleh memakan jatah budget bulan itu.
-        if buku_kas.arah(row) != "pengeluaran":
-            continue
-        total_bulan += buku_kas.jumlah(row)
-
-    persen = (total_bulan / budget_bulanan) * 100
-
-    if persen < alert_persen:
-        return ""  # Belum mencapai threshold, tidak perlu alert
-
-    sisa = budget_bulanan - total_bulan
-    bulan_label = today.strftime("%B %Y")
-
-    # Progress bar (20 karakter)
-    bar_filled = min(20, int(persen / 5))
-    bar_empty = 20 - bar_filled
-    bar = "█" * bar_filled + "░" * bar_empty
-
-    if persen >= 100:
-        status = "🚨 BUDGET HABIS!"
-        pesan = f"Pengeluaran sudah melebihi budget bulan {bulan_label}!"
-    else:
-        status = "⚠️ PERINGATAN BUDGET!"
-        pesan = f"Pengeluaran bulan {bulan_label} sudah mencapai {persen:.0f}% dari budget"
-
-    lines = [
-        status,
-        pesan,
-        "",
-        f"📊 Budget:    {format_rupiah(budget_bulanan)}",
-        f"💸 Terpakai:  {format_rupiah(total_bulan)} ({persen:.0f}%)",
-        f"{'💚' if sisa > 0 else '🔴'} Sisa:      {format_rupiah(abs(sisa))}{'  (MINUS!)' if sisa < 0 else ''}",
-        "",
-        f"{bar}  {persen:.0f}%",
-    ]
-
-    return "\n".join(lines)
+    """Peringatan bila rutin sudah mencapai alert_persen; "" bila tidak, supaya cron malam diam."""
+    return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=False)
 
 
 # ── Mode: Cek Kewajiban ──────────────────────────────────────
@@ -227,7 +181,7 @@ def main():
     parser = argparse.ArgumentParser(description="Budget checker untuk Family Bill Tracker")
     parser.add_argument(
         "--mode",
-        choices=["budget", "all"],
+        choices=["budget", "status", "all"],
         default="all",
         help="Mode pengecekan",
     )
@@ -247,6 +201,12 @@ def main():
     today = parse_tanggal(args.tanggal) if args.tanggal else None
     if args.tanggal and today is None:
         parser.error(f"--tanggal tidak valid: {args.tanggal}")
+
+    if args.mode == "status":
+        if args.kirim:
+            parser.error("--mode status hanya menampilkan; tidak untuk --kirim")
+        print(status_budget(today))
+        return 0
 
     result = check_budget(today) if args.mode == "budget" else check_all(today)
 

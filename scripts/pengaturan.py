@@ -11,7 +11,8 @@ import json
 from pathlib import Path
 
 BUDGET_JSON = Path(__file__).resolve().parent.parent / "data" / "budget.json"
-BAWAAN = {"budget_bulanan": 0, "alert_persen": 80, "kategori_custom": []}
+BAWAAN = {"budget_bulanan": 0, "alert_persen": 80, "pengeluaran_besar_mulai": 1_000_000,
+          "kategori_custom": []}
 
 
 def muat(path: Path | None = None) -> dict:
