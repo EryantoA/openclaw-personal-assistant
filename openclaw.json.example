@@ -1,9 +1,5 @@
 {
-  "env": {
-    "GROQ_API_KEY": "gsk_...",
-    "DEEPSEEK_API_KEY": "sk-...",
-    "ANTHROPIC_API_KEY": "ISI_DENGAN_ANTHROPIC_API_KEY_KAMU"
-  },
+  "env": {},
   "agents": {
     "defaults": {
       "cliBackends": {
@@ -14,10 +10,9 @@
         }
       },
       "model": {
-        "primary": "groq/llama-3.3-70b-versatile",
+        "primary": "anthropic/claude-haiku-4-5",
         "fallbacks": [
-          "deepseek/deepseek-chat",
-          "anthropic/claude-sonnet-4-6"
+          "anthropic/claude-opus-4-7"
         ]
       },
       "systemPrompt": "Kamu adalah asisten pencatatan keuangan keluarga yang ramah dan teliti. Tugasmu adalah membantu mencatat pengeluaran belanja, menganalisis receipt/struk, dan membuat laporan keuangan. Selalu konfirmasi setiap pencatatan dengan ringkasan yang jelas. Gunakan Bahasa Indonesia.",
@@ -79,6 +74,11 @@
         "delivery": "none"
       }
     ]
+  },
+  "session": {
+    "resetByType": {
+      "group": { "mode": "idle", "idleMinutes": 120 }
+    }
   },
   "channels": {
     "telegram": {
