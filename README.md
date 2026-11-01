@@ -2,12 +2,12 @@
 
 Pencatatan pengeluaran keluarga via WhatsApp dan Telegram menggunakan **OpenClaw AI Gateway**.
 
-**Stack AI (3 provider, hemat & cepat):**
-- 🟢 **Groq** (primary) — gratis, super cepat, model `llama-3.3-70b-versatile`
-- 🟡 **DeepSeek** (fallback 1) — $2 top up tahan berbulan-bulan, model `deepseek-chat`
-- 🔵 **Claude / Anthropic** (fallback 2) — model `claude-sonnet-4-6` via Anthropic API
+**Stack AI:** Claude, lewat login Claude di Mac (`claude-cli`) — tanpa kunci API.
+- 🟢 **Primary:** `anthropic/claude-haiku-4-5`
+- 🔵 **Fallback:** `anthropic/claude-opus-4-7`
 
-OpenClaw otomatis fallback ke provider berikutnya jika primary error atau kena rate limit.
+OpenClaw otomatis beralih ke fallback jika primary error. Cek yang aktif dengan
+`openclaw models status`.
 
 ---
 
@@ -24,40 +24,20 @@ node -v   # harus v24.x.x ke atas
 
 ---
 
-### Step 2 — Dapatkan Groq API Key (GRATIS — PRIMARY)
+### Step 2 — Login Claude
 
-1. Buka [console.groq.com](https://console.groq.com)
-2. Daftar / login dengan Google
-3. Klik **API Keys** → **Create API Key**
-4. Copy key-nya (mulai dari `gsk_...`)
+Bot memakai akun Claude yang login di Mac ini, bukan kunci API. Di Terminal:
 
-> 💡 Groq gratis dengan limit 30 req/menit dan 500k token/hari — lebih dari cukup untuk keluarga.
+```bash
+claude            # ikuti petunjuk login
+claude auth status   # harus "loggedIn": true
+```
 
----
-
-### Step 3 — Dapatkan DeepSeek API Key (FALLBACK 1)
-
-1. Buka [platform.deepseek.com](https://platform.deepseek.com)
-2. Daftar → **Top Up** minimal $2 (≈ Rp32.000)
-3. Buka **API Keys** → buat key baru
-4. Copy key-nya (mulai dari `sk-...`)
-
-> 💡 $2 cukup untuk ~16 tahun pencatatan 10 transaksi/hari
+Kalau sesi login habis, bot berhenti membalas (lihat *Bot tidak membalas sama sekali* di bawah).
 
 ---
 
-### Step 4 — Dapatkan Anthropic API Key (FALLBACK 2)
-
-1. Buka [console.anthropic.com](https://console.anthropic.com)
-2. Login / daftar
-3. Klik **API Keys** → **Create Key**
-4. Copy key-nya (mulai dari `sk-ant-...`)
-
-> 💡 Claude digunakan sebagai last resort fallback. Hanya aktif jika Groq & DeepSeek error.
-
----
-
-### Step 5 — Buat Telegram Bot
+### Step 3 — Buat Telegram Bot
 
 1. Buka Telegram → cari **@BotFather**
 2. Ketik `/newbot`
@@ -66,34 +46,27 @@ node -v   # harus v24.x.x ke atas
 
 ---
 
-### Step 6 — Isi Konfigurasi
+### Step 4 — Isi Konfigurasi
 
-Salin `openclaw.json.example` menjadi `openclaw.json`, lalu isi dengan key/token asli kamu:
+Salin `openclaw.json.example` menjadi `openclaw.json`, lalu isi dengan token/nomor asli kamu:
 
 ```bash
 cp openclaw.json.example openclaw.json
 ```
 
-> ⚠️ `openclaw.json` berisi API key & token asli — file ini **tidak ikut ter-commit** (lihat `.gitignore`).
+> ⚠️ `openclaw.json` berisi token bot asli — file ini **tidak ikut ter-commit** (lihat `.gitignore`).
 > Jangan pernah push file ini ke repo publik.
 
 Edit file `openclaw.json`:
 
 ```json
 {
-  "env": {
-    "GROQ_API_KEY": "gsk_...",
-    "DEEPSEEK_API_KEY": "sk-...",
-    "ANTHROPIC_API_KEY": "sk-ant-..."
-  },
+  "env": {},
   "agents": {
     "defaults": {
       "model": {
-        "primary": "groq/llama-3.3-70b-versatile",
-        "fallbacks": [
-          "deepseek/deepseek-chat",
-          "anthropic/claude-sonnet-4-6"
-        ]
+        "primary": "anthropic/claude-haiku-4-5",
+        "fallbacks": ["anthropic/claude-opus-4-7"]
       }
     }
   },
@@ -111,15 +84,12 @@ Edit file `openclaw.json`:
 ```
 
 **Ganti:**
-- `GROQ_API_KEY` → key dari Step 2
-- `DEEPSEEK_API_KEY` → key dari Step 3
-- `ANTHROPIC_API_KEY` → key dari Step 4
-- `token` → token bot dari Step 5
+- `token` → token bot dari Step 3
 - `+628XXXXXXXXXX` → nomor HP WhatsApp kamu (format internasional)
 
 ---
 
-### Step 7 — Jalankan Setup (Reinstall)
+### Step 5 — Jalankan Setup (Reinstall)
 
 ```bash
 # Di folder project ini:
@@ -129,13 +99,13 @@ bash setup.sh
 Script ini akan:
 - ✅ Uninstall openclaw versi lama
 - ✅ Install openclaw versi terbaru
-- ✅ Cek semua API key (Groq, DeepSeek, Anthropic)
+- ✅ Cek token Telegram dan nomor WhatsApp (langkah *API Keys* di `setup.sh` masih menampilkan ✗/⚠ untuk kunci Groq/DeepSeek/Anthropic — abaikan, bot memakai login Claude)
 - ✅ Siapkan folder & data
 - ✅ Tampilkan model yang aktif
 
 ---
 
-### Step 8 — Jalankan Gateway
+### Step 6 — Jalankan Gateway
 
 ```bash
 openclaw start
@@ -148,27 +118,20 @@ Buka WhatsApp di HP → **Perangkat Tertaut** → **Tautkan Perangkat** → scan
 
 ## 🤖 Konfigurasi Model AI
 
-| Urutan | Provider | Model | Biaya |
-|--------|----------|-------|-------|
-| 🟢 Primary | Groq | `llama-3.3-70b-versatile` | **GRATIS** |
-| 🟡 Fallback 1 | DeepSeek | `deepseek-chat` | ~Rp170/bulan |
-| 🔵 Fallback 2 | Anthropic | `claude-sonnet-4-6` | Pay-as-you-go |
+| Urutan | Model |
+|--------|-------|
+| 🟢 Primary | `anthropic/claude-haiku-4-5` |
+| 🔵 Fallback | `anthropic/claude-opus-4-7` |
 
-Untuk mengganti model, edit bagian ini di `openclaw.json`:
+Untuk mengganti model, edit bagian ini di `openclaw.json` (atau `openclaw config set`):
 ```json
 "model": {
-  "primary": "groq/llama-3.3-70b-versatile",
-  "fallbacks": [
-    "deepseek/deepseek-chat",
-    "anthropic/claude-sonnet-4-6"
-  ]
+  "primary": "anthropic/claude-haiku-4-5",
+  "fallbacks": ["anthropic/claude-opus-4-7"]
 }
 ```
 
-Model lain yang bisa dipakai:
-- Groq: `groq/llama-3.1-8b-instant` (lebih cepat/hemat)
-- DeepSeek: `deepseek/deepseek-r1` (reasoning, lebih pintar)
-- Claude: `anthropic/claude-haiku-4-5-20251001` (lebih murah)
+Daftar model yang diizinkan dan yang aktif: `openclaw models status`.
 
 ---
 
@@ -272,7 +235,7 @@ bertambah, Gateway-nya yang bermasalah.
 
 ```
 openclaw-personal-assistant/
-├── openclaw.json              ← Konfigurasi utama (model, API keys, channels)
+├── openclaw.json              ← Konfigurasi utama (model, channels)
 ├── setup.sh                   ← Script reinstall & setup otomatis
 ├── README.md                  ← Panduan ini
 ├── skills/
@@ -305,8 +268,8 @@ Edit `openclaw.json` → `channels.whatsapp.allowFrom` → isi nomor baru.
 ### Tambah anggota keluarga di Telegram
 Edit `openclaw.json` → `channels.telegram.allowFrom` → tambah username Telegram (opsional, default semua bisa).
 
-### Groq limit / error
-OpenClaw otomatis fallback ke DeepSeek, lalu ke Claude. Tidak perlu setting manual.
+### Model utama error
+OpenClaw otomatis beralih ke model fallback. Tidak perlu setting manual.
 
 ### Ganti model AI
 Edit `openclaw.json` → `agents.defaults.model.primary` atau `.fallbacks`.
@@ -338,11 +301,8 @@ openclaw start --debug
 
 ## 💰 Estimasi Biaya
 
-| Provider | Biaya | Catatan |
-|----------|-------|---------|
-| Groq | **GRATIS** | Rate limit: 30 req/menit, 500k token/hari |
-| DeepSeek | ~Rp 170/bulan | 10 transaksi/hari, $2 top up ≈ 16 tahun |
-| Anthropic | Pay-as-you-go | ~$0.003/1k token (claude-sonnet) |
+Tidak ada kunci API terpisah: bot memakai login Claude di Mac. Biaya dan batas pakai mengikuti paket
+Claude pada akun yang login.
 
 ---
 
