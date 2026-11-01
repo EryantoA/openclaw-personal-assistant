@@ -129,8 +129,22 @@ menegaskan itu transaksi baru); **Audit** baris tersimpan yang sama di semua kol
 _Avoid_: dobel, kembar
 
 **Asal**:
-Dari mana sebuah baris berasal — pesan yang masuk, atau impor dari aplikasi lain.
+Dari mana sebuah baris berasal — Kanal tempat pesannya masuk (ditandai bila lewat Relay), atau
+impor dari aplikasi lain. Di data tersimpan di kolom `channel`.
 _Avoid_: channel, sumber
+
+**Kanal**:
+Layanan pesan tempat seseorang berbicara dengan asisten keuangan: WhatsApp, Telegram, atau
+Discord. Semua Kanal membaca dan menulis Buku Kas yang sama; tidak ada Kanal yang punya catatan
+sendiri.
+_Avoid_: channel, platform
+
+**Relay**:
+Jalur masuk tidak langsung: pesan keuangan diketik ke asisten lain, yang meneruskannya apa adanya
+ke asisten keuangan. Hanya teks — foto struk dan Bukti Transfer harus dikirim langsung. Pencatat
+pada Relay adalah klaim asisten peneruskan, bukan identitas yang terautentikasi, jadi Asal-nya
+ditandai agar baris yang lewat Relay bisa disaring dan diperiksa.
+_Avoid_: forward, proxy, jembatan
 
 **Pencatat**:
 Anggota keluarga yang mencatat transaksi. Belum tentu orang yang membelanjakan uangnya.
