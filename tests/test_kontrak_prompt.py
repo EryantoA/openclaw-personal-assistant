@@ -269,6 +269,29 @@ class PetaPesan(unittest.TestCase):
         self.assertNotIn("tabel *Laporan*", SKILL_DAN_REFERENSI)
 
 
+class NomorStrukTercetak(unittest.TestCase):
+    """Nomor di struk wajib jadi no_resi (1 Nov 2026: struk Tanama bernomor #3-349620 tercatat sebagai
+    TRX-… buatan skrip karena aturannya tertulis 'Opsional', lalu dicatat ulang dan jadi ganda)."""
+
+    TEKS = " ".join(AGENTS.split())
+
+    def test_nomor_struk_wajib_bukan_opsional(self):
+        self.assertIn("Nomor di struk WAJIB dibawa", self.TEKS)
+        self.assertNotIn("Opsional: `waktu` (jam di struk), `no_resi`", self.TEKS)
+
+    def test_contoh_pengubahan_nomor_menjadi_no_resi(self):
+        self.assertIn("`#3-349620` → `STRUK-3-349620`", self.TEKS)
+
+    def test_pemeriksaan_mandiri_dari_label_keluaran_uji(self):
+        # label 'Struk' hanya bila no_resi berawalan STRUK-: bila nomor terbaca tapi labelnya bukan
+        # Struk, no_resi belum terisi.
+        self.assertIn("nomor di struk tapi `label` keluaran uji bukan `Struk`", self.TEKS)
+
+    def test_agents_tidak_melewati_batas_pemotongan_openclaw(self):
+        # OpenClaw memotong berkas bootstrap di 20.000 karakter (bootstrapMaxChars); sisakan ruang.
+        self.assertLess(len(AGENTS), 19_500)
+
+
 class AngkaDariSkripBukanModel(unittest.TestCase):
     """Bot menyalin keluaran skrip; ia tidak menghitung angka dari CSV sendiri."""
 
