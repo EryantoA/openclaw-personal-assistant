@@ -92,8 +92,11 @@ EOF
   `transfer`. `kategori`: slug dari `data/budget.json` → `kategori_custom` (mis. `food`, bukan
   `Food`/`Makanan`). `pencatat`: nama pengirim pesan; alias (mis. "ryan", "istri") dibakukan
   skrip lewat `data/pembeli.json`, jadi tulis apa adanya dan pakai nama baku dari keluaran uji.
-  Opsional: `waktu` (jam di struk),
-  `no_resi` (nomor tercetak di struk → `STRUK-<nomor>`), `catatan` (cara bayar, dsb.).
+  Opsional: `waktu` (jam di struk), `catatan` (cara bayar, dsb.).
+- **Nomor di struk WAJIB dibawa.** Bila struk menampilkan nomor (Resi, No. Transaksi, No. Struk,
+  No. Nota, Ref; sering diawali `#`), isi `no_resi` = `STRUK-` + nomornya tanpa `#` dan spasi
+  (`#3-349620` → `STRUK-3-349620`) sejak uji pertama. Jangan dikosongkan: `TRX-…` buatan skrip
+  tidak akan cocok kalau struk yang sama dikirim ulang.
 - Satu struk berisi banyak barang = **satu** panggilan, semua barang di `items`.
 - Struk **tanpa nomor tercetak**: hitung dulu sidik jarinya (`python3 scripts/resi.py --fingerprint
   --merchant "<toko>" --date <YYYY-MM-DD> --total <total>`) dan isi sebagai `no_resi` sejak uji,
@@ -101,7 +104,8 @@ EOF
 - `DUPLICATE` = sudah tercatat: beri tahu pengguna dan **berhenti** (tidak ada Pratinjau).
   `ERROR`: perbaiki JSON-nya dan uji lagi.
 - Keluaran `OK lolos cek` memberi `no_resi`, `label`, `waktu`, `tanggal`, `pencatat`,
-  `nama_label`, `arah` — pakai itu di Pratinjau, jangan mengarang.
+  `nama_label`, `arah` — pakai itu di Pratinjau, jangan mengarang. Kalau kamu membaca nomor di
+  struk tapi `label` keluaran uji bukan `Struk`, `no_resi` belum terisi: uji ulang dengan `no_resi`.
 
 Balas **hanya** dengan kerangka ini (jangan jalankan `catat.py` tanpa `--uji` dulu):
 
