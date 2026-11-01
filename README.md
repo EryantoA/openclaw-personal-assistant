@@ -99,7 +99,8 @@ bash setup.sh
 Script ini akan:
 - ✅ Uninstall openclaw versi lama
 - ✅ Install openclaw versi terbaru
-- ✅ Cek token Telegram dan nomor WhatsApp (langkah *API Keys* di `setup.sh` masih menampilkan ✗/⚠ untuk kunci Groq/DeepSeek/Anthropic — abaikan, bot memakai login Claude)
+- ✅ Cek login Claude, token Telegram, dan nomor WhatsApp
+- ✅ Membuat `data/bills.csv` (12 kolom) hanya bila belum ada; Buku Kas yang sudah ada tidak diubah
 - ✅ Siapkan folder & data
 - ✅ Tampilkan model yang aktif
 
