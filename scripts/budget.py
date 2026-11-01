@@ -58,14 +58,17 @@ def _bar(persen: float) -> str:
     return "█" * isi + "░" * (20 - isi)
 
 
-def _saran(p: dict, hari_ini: date, alert: float) -> str:
+def _saran(p: dict, hari_ini: date, alert: float, tutup: bool = False) -> str:
     masih = p["batas"] - p["rutin"]
+    if tutup and p["persen"] < 100:
+        return f"💡 Saran: bulan sudah tutup di {p['persen']:.0f}% dari batas."
     if p["persen"] >= 100:
         kalimat = f"sudah lewat {rp(-masih)}."
         if p["per_kategori"]:
             k, v = max(p["per_kategori"].items(), key=lambda kv: kv[1])
-            kalimat += (f" Kategori terbesar bulan ini {k} ({rp(v)}, {v / p['rutin'] * 100:.0f}%)."
-                        " Tunda belanja yang bisa ditunda ke bulan depan.")
+            kalimat += f" Kategori terbesar bulan ini {k} ({rp(v)}, {v / p['rutin'] * 100:.0f}%)."
+            if not tutup:
+                kalimat += " Tunda belanja yang bisa ditunda ke bulan depan."
         return "💡 Saran: " + kalimat
     hari = periode.akhir_bulan(hari_ini.strftime("%Y-%m")).day - hari_ini.day + 1
     per_hari = rp(int(masih // hari))
@@ -76,10 +79,16 @@ def _saran(p: dict, hari_ini: date, alert: float) -> str:
     return f"💡 Saran: sisa {hari} hari, rata-rata sebaiknya tidak lebih dari {per_hari} per hari."
 
 
-def pesan(rows, hari_ini: date, atur: dict, selalu: bool) -> str:
-    """Pesan Budget bulan `hari_ini`. `selalu` False (cek malam, setelah pencatatan): "" kecuali
-    persen sudah mencapai `alert_persen`. True ("sisa budget" lewat chat): selalu menjawab."""
-    bulan = hari_ini.strftime("%Y-%m")
+def pesan(rows, hari_ini: date, atur: dict, selalu: bool, bulan: str | None = None) -> str:
+    """Pesan Budget untuk `bulan` ('YYYY-MM', bawaan bulan `hari_ini`).
+
+    `selalu` False (cek malam, setelah pencatatan): "" kecuali persen sudah mencapai `alert_persen`;
+    pada bulan yang sudah tutup (pencatatan mundur) hanya bila sudah lewat batas, karena sisa hari
+    dan peringatan "mendekati" tak berarti lagi. True ("sisa budget" lewat chat): selalu menjawab.
+    """
+    sekarang = hari_ini.strftime("%Y-%m")
+    bulan = bulan or sekarang
+    tutup = bulan < sekarang
     p = pemakaian(rows, *periode.rentang_bulan(bulan), atur)
     if p["persen"] is None:
         return ("⚠️ Budget belum diset!\nKetik: set budget [nominal]\nContoh: set budget 3 juta"
@@ -87,7 +96,7 @@ def pesan(rows, hari_ini: date, atur: dict, selalu: bool) -> str:
     alert = float(atur.get("alert_persen", 80))
     if p["persen"] >= 100:
         judul = "🚨 Lewat batas Budget"
-    elif p["persen"] >= alert:
+    elif p["persen"] >= alert and not tutup:
         judul = "⚠️ Mendekati batas Budget"
     elif selalu:
         judul = "💰 Status Budget"
@@ -97,7 +106,7 @@ def pesan(rows, hari_ini: date, atur: dict, selalu: bool) -> str:
     baris_masih = (f"💚 {'Masih bisa:':<{LEBAR}}{rp(masih)}" if masih >= 0
                    else f"🔴 {'Lewat:':<{LEBAR}}{rp(-masih)}")
     arus = p["pemasukan"] - p["pengeluaran"]
-    out = [f"{judul} — {nama_bulan(bulan)}", "",
+    out = [f"{judul} — {nama_bulan(bulan)}{' (sudah tutup)' if tutup else ''}", "",
            f"📊 {'Batas rutin:':<{LEBAR}}{rp(p['batas'])}",
            f"💸 {'Terpakai (rutin):':<{LEBAR}}{rp(p['rutin'])} ({p['persen']:.0f}%)",
            baris_masih,
@@ -105,7 +114,7 @@ def pesan(rows, hari_ini: date, atur: dict, selalu: bool) -> str:
            f"{_bar(p['persen'])}  {p['persen']:.0f}%", "",
            f"💰 Arus Kas Bulanan {nama_bulan(bulan).split()[0]}: {rp(arus)}",
            f"   (masuk {rp(p['pemasukan'])}, keluar {rp(p['pengeluaran'])})", "",
-           _saran(p, hari_ini, alert)]
+           _saran(p, hari_ini, alert, tutup)]
     if selalu:
         out += ["", "_Dihitung scripts/check-bills.py, tanpa model_"]
     return "\n".join(out)

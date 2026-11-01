@@ -58,6 +58,15 @@ class CekBudget(unittest.TestCase):
     def test_diam_bila_budget_belum_diset(self):
         self.assertEqual(jalankan(cb.check_budget, 0), "")
 
+    def test_bulan_transaksi_diteruskan(self):
+        atur = {"budget_bulanan": 1_000_000, "alert_persen": 80, "pengeluaran_besar_mulai": 1_000_000}
+        rows = [b("2026-09-10", "pengeluaran", 900_000), b("2026-10-10", "pengeluaran", 100_000)]
+        with mock.patch.object(cb.pengaturan, "muat", return_value=atur), \
+                mock.patch.object(cb, "load_bills", return_value=rows):
+            self.assertEqual(cb.check_budget(HARI, bulan="2026-10"), "")           # Oktober 10%: diam
+            self.assertEqual(cb.check_budget(HARI), "")                           # bulan ini (Okt) sama
+            self.assertEqual(cb.check_budget(date(2026, 10, 15), bulan="2026-09"), "")  # 90% tapi sudah tutup
+
 
 if __name__ == "__main__":
     unittest.main()
