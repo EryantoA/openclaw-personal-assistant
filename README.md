@@ -439,6 +439,7 @@ Sheets **bukan cadangan** — salah hapus ikut tersinkron; cadangan CSV harian t
 (ADR-0009; mengedit `openclaw.json` saja tidak cukup):
 ```bash
 openclaw cron add --name sinkron_sheets --cron "*/15 * * * *" --tz Asia/Jakarta --no-deliver \
+  --session isolated --timeout-seconds 300 \
   --command-cwd /Users/apple/Developments/openclaw-personal-assistant \
   --command "/usr/bin/python3 scripts/sinkron-sheets.py"
 openclaw cron list    # sinkron_sheets harus tampil

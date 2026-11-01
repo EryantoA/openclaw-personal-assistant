@@ -4,6 +4,7 @@
 """
 import contextlib
 import csv
+import fcntl
 import importlib.util
 import io
 import json
@@ -70,7 +71,6 @@ class DasarCLI(unittest.TestCase):
 
     def tulis_config(self):
         self.config.write_text(json.dumps({"spreadsheet_id": "X", "kunci_akun_layanan": "k.json"}))
-
 
 
 class CLI(DasarCLI):
@@ -226,7 +226,6 @@ class BerkasStatus(DasarCLI):
         self.assertFalse(self.status.exists())
 
     def test_sinkron_yang_dilewati_tidak_menimpa_status(self):
-        import fcntl
         self.tulis_config()
         self.jalan("--inisialisasi")
         sebelum = self.status.read_text()
@@ -245,6 +244,34 @@ class BerkasStatus(DasarCLI):
         self.jalan()
 
         self.assertNotIn(id_, self.status.read_text())
+
+    def test_konfigurasi_rusak_dicatat_gagal_supaya_penjaga_tahu(self):
+        for isi in ("{", "[]", '"teks"'):
+            with self.subTest(isi=isi):
+                self.config.write_text(isi)
+
+                kode, _ = self.jalan()
+
+                self.assertEqual(kode, 2)
+                self.assertEqual(self.baca_status()["hasil"], "gagal")
+                self.assertIn("sheets.json", self.baca_status()["pesan"])
+
+    def test_konfigurasi_yang_tidak_ada_bukan_kegagalan_yang_dicatat(self):
+        kode, _ = self.jalan()
+
+        self.assertEqual(kode, 2)
+        self.assertFalse(self.status.exists())  # belum dipakai: tidak mengotori status
+
+    def test_status_lama_yang_bukan_objek_tidak_menggagalkan_penulisan_status_baru(self):
+        self.tulis_config()
+        self.status.write_text("[]")
+        self.klien.gagal = True  # hasil bukan sukses → waktu_sukses lama dibaca dari berkas itu
+
+        kode, _ = self.jalan()
+
+        self.assertEqual(kode, 2)  # kode keluar sinkron, bukan traceback dari penulisan status
+        self.assertEqual(self.baca_status()["hasil"], "gagal")
+        self.assertIsNone(self.baca_status()["waktu_sukses"])
 
 
 if __name__ == "__main__":

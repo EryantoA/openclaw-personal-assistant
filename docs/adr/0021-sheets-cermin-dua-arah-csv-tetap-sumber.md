@@ -54,6 +54,11 @@ membuat pencatatan lewat WhatsApp bergantung pada internet dan Google. Maka Shee
   penguncian per sel, jadi celah beberapa detik antara baca-ulang dan tulis tetap ada;
   perlindungan Google (`warningOnly`) untuk kolom terkunci dan "Ringkasan" belum dipasang —
   penolakan di skrip yang menegakkannya; format kolom TEXT hanya dipasang ulang saat ada tulis;
+  satu kegagalan sesaat pada run tepat sebelum penjaga jalan (08/14/21) menimbulkan peringatan
+  KRITIS dari `periksa_cron` karena kode keluar 2 membuat cron berstatus error, walau sinkron pulih
+  sendiri — dipertahankan sebagai lapis kedua bila berkas status sendiri yang bermasalah; Mac yang
+  baru bangun dari tidur bisa memicu peringatan "mandek" sebelum sinkron menyusul (pesannya
+  menyebut itu);
   penjaga kesehatan berjalan di dalam gateway, jadi gateway yang mati total tetap tak terkabari
   (blind spot ADR-0011; `backup_harian` tetap sinyal cadangannya).
 - **Dependensi baru** (`google-auth`, `requests`) harus terpasang untuk interpreter yang dipakai

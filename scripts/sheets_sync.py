@@ -502,6 +502,8 @@ def tulis_status(path: Path, hasil: str, pesan: str = "", laporan: Laporan | Non
         lama = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         lama = {}
+    if not isinstance(lama, dict):
+        lama = {}
     status = {"waktu": sekarang, "hasil": hasil, "pesan": pesan[:300],
               "waktu_sukses": sekarang if hasil == "sukses" else lama.get("waktu_sukses")}
     if laporan is not None:

@@ -102,6 +102,34 @@ class SinyalSheets(unittest.TestCase):
         with mock.patch.object(pk, "jalankan", side_effect=AssertionError("tidak boleh memanggil proses")):
             self.assertEqual(self.periksa(), [])
 
+    def test_status_yang_bentuknya_salah_diperingatkan_bukan_menjatuhkan_penjaga(self):
+        for isi in ("[]", "null", "123", '{"waktu_sukses": 123}', '{"waktu_sukses": ["x"]}',
+                    '{"waktu_sukses": "2026-11-01T17:00:00+07:00"}', '{"waktu_sukses": "bukan tanggal"}'):
+            with self.subTest(isi=isi):
+                self.status.write_text(isi)
+
+                hasil = self.periksa()  # tidak boleh melempar
+
+                self.assertEqual(len(hasil), 1)
+                self.assertEqual(hasil[0][0], "PERINGATAN")
+
+    def test_waktu_sukses_di_masa_depan_diperingatkan_jam_sistem_dicurigai(self):
+        self.tulis_status(waktu_sukses=iso(-120))
+
+        (tingkat, _, rinci), = self.periksa()
+
+        self.assertEqual(tingkat, "PERINGATAN")
+        self.assertIn("masa depan", rinci)
+
+    def test_sukses_basi_tanpa_percobaan_baru_menjelaskan_kemungkinan_sebabnya(self):
+        self.tulis_status(hasil="sukses", waktu=iso(60 * 5), waktu_sukses=iso(60 * 5))
+
+        (_, _, rinci), = self.periksa()
+
+        self.assertNotIn("percobaan terakhir sukses", rinci)
+        self.assertIn("tidak ada sinkron baru", rinci)
+        self.assertIn("Mac", rinci)  # baru bangun dari tidur: sinkron menyusul
+
 
 if __name__ == "__main__":
     unittest.main()

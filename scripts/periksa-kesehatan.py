@@ -229,7 +229,8 @@ def periksa_bills():
 def periksa_sheets(sekarang=None):
     """Sinkron Google Sheets yang berhenti sukses. Dibaca dari berkas status saja (tanpa model,
     tanpa memanggil skrip lain): kegagalan sesaat tidak mengusik, tetapi sukses terakhir yang
-    lewat ambang — gagal, ditolak, atau tak pernah jalan — dilaporkan beserta sebab terakhirnya."""
+    lewat ambang — gagal, ditolak, atau tak pernah jalan — dilaporkan beserta sebab terakhirnya.
+    Tidak pernah melempar: berkas status yang aneh dilaporkan, bukan membungkam pemeriksaan lain."""
     if not CONFIG_SHEETS.exists():
         return []  # sinkron Sheets belum dipakai
     sekarang = sekarang or datetime.now()
@@ -242,17 +243,26 @@ def periksa_sheets(sekarang=None):
     except Exception as e:  # noqa: BLE001
         return [("PERINGATAN", "Status sinkron Google Sheets bermasalah",
                  f"berkas status tidak terbaca ({str(e)[:100]})")]
-    sebab = f"percobaan terakhir {st.get('hasil', '?')}: {st.get('pesan') or '-'}"
     try:
+        hasil = st.get("hasil", "?")
+        if hasil == "sukses":
+            sebab = ("tidak ada sinkron baru yang tercatat — cron tidak jalan atau sinkron macet "
+                     "(dilewati terus)? Kalau Mac baru bangun dari tidur, sinkron menyusul dalam 15 menit")
+        else:
+            sebab = f"percobaan terakhir {hasil}: {st.get('pesan') or '-'}"
         sukses = datetime.fromisoformat(st["waktu_sukses"]) if st.get("waktu_sukses") else None
-    except ValueError:
-        sukses = None
-    if sukses is None:
-        return [("PERINGATAN", judul, f"belum pernah sukses; {sebab}")]
-    umur = sekarang - sukses
-    if umur > timedelta(hours=SHEETS_MANDEK_JAM):
-        return [("PERINGATAN", judul, f"sukses terakhir {sukses:%d %b %H:%M} "
-                                      f"({int(umur.total_seconds() // 3600)} jam lalu); {sebab}")]
+        if sukses is None:
+            return [("PERINGATAN", judul, f"belum pernah sukses; {sebab}")]
+        umur = sekarang - sukses
+        if umur < timedelta(minutes=-5):
+            return [("PERINGATAN", judul, f"waktu sukses terakhir ({sukses:%d %b %H:%M}) ada di masa depan; "
+                                          "jam sistem salah?")]
+        if umur > timedelta(hours=SHEETS_MANDEK_JAM):
+            return [("PERINGATAN", judul, f"sukses terakhir {sukses:%d %b %H:%M} "
+                                          f"({int(umur.total_seconds() // 3600)} jam lalu); {sebab}")]
+    except Exception as e:  # noqa: BLE001  bentuk berkas salah: tipe, zona waktu, bukan objek
+        return [("PERINGATAN", "Status sinkron Google Sheets bermasalah",
+                 f"isi berkas status tidak terbaca ({type(e).__name__}: {str(e)[:80]})")]
     return []
 
 

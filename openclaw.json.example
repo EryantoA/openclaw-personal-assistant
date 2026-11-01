@@ -75,7 +75,8 @@
         "payload": {
           "kind": "command",
           "argv": ["sh", "-lc", "/usr/bin/python3 scripts/sinkron-sheets.py"],
-          "cwd": "/Users/apple/Developments/openclaw-personal-assistant"
+          "cwd": "/Users/apple/Developments/openclaw-personal-assistant",
+          "timeoutSeconds": 300
         },
         "delivery": "none"
       },

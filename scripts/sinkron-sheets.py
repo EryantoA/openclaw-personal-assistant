@@ -61,9 +61,13 @@ def main(argv=None) -> int:
 
     try:
         config = json.loads(CONFIG.read_text(encoding="utf-8"))
+        if not isinstance(config, dict):
+            raise ValueError("isinya harus objek JSON")
     except (OSError, ValueError) as e:
-        print(f"GAGAL membaca {CONFIG}: {e}\nSalin data/sheets.json.example ke data/sheets.json lalu isi.",
-              file=sys.stderr)
+        pesan = f"GAGAL membaca {CONFIG.name}: {e}"
+        print(f"{pesan}\nSalin data/sheets.json.example ke data/sheets.json lalu isi.", file=sys.stderr)
+        if not isinstance(e, FileNotFoundError):  # belum dikonfigurasi bukan kegagalan yang perlu dicatat
+            _catat(a, "gagal", pesan)
         return 2
     K, buku = sheets_sync.KOLOM, sheets_sync.SHEET_BUKU
     try:
