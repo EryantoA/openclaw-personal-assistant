@@ -51,3 +51,20 @@ def kirim(pesan, kanal, ke, coba=3, jeda=60):
             return True, ket
         print(f"(percobaan {i + 1}/{coba} gagal: {ket[:120]})", file=sys.stderr)
     return False, ket
+
+
+def kirim_ke_semua(pesan, tujuan, pakai=None):
+    """Kirim ke tiap tujuan, satu per satu; yang gagal tidak menghentikan yang berikutnya.
+
+    Mencetak satu baris per tujuan (dibaca log cron) dan mengembalikan
+    [(kanal, ke, ok, keterangan), ...] sesuai urutan. Penelepon yang memutuskan apa arti
+    "terkirim" dari hasil itu. `pakai` mengganti pengirim sekali jalan (tes laporan menimpa
+    `kirim` di modulnya); bawaannya `kirim` modul ini, dicari saat dipanggil.
+    """
+    pakai = pakai or kirim
+    hasil = []
+    for kanal, ke in tujuan:
+        ok, ket = pakai(pesan, kanal, ke)
+        print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
+        hasil.append((kanal, ke, ok, ket))
+    return hasil

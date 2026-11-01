@@ -227,12 +227,8 @@ def main(argv=None):
         print("\n❌ Tidak ada tujuan pengiriman.", file=sys.stderr)
         return 2
 
-    semua_ok = True
-    for kanal, ke in tujuan:
-        ok, ket = kirim(pesan, kanal, ke)
-        print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
-        semua_ok = semua_ok and ok
-    if not semua_ok:
+    hasil = pengirim.kirim_ke_semua(pesan, tujuan, kirim)
+    if not all(ok for _, _, ok, _ in hasil):
         print("Angka TIDAK disimpan — laporan ini belum diterima.", file=sys.stderr)
         return 1
 
