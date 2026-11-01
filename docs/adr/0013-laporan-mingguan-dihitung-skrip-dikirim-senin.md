@@ -2,7 +2,7 @@
 
 > **Dikoreksi oleh [0023](0023-keuangan-terjangkau-dari-semua-kanal-hermes-hanya-relay-teks.md)**
 > (1 Nov 2026): percobaan ulang 3 kali kini hanya untuk WhatsApp (Telegram dan Discord sekali
-> coba), dan batas waktu cron laporan perlu 600 detik, bukan 420 (belum diubah di cron hidup).
+> coba), dan batas waktu cron laporan kini 600 detik, bukan 420 (cron hidup sudah dinaikkan 1 Nov 2026).
 > Laporan Mingguan kini dikirim ke semua tujuan yang terkonfigurasi; kode keluar 1 bila ada yang
 > gagal. Selebihnya tetap berlaku.
 

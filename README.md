@@ -272,7 +272,7 @@ Edit `openclaw.json` → `channels.telegram.allowFrom` → tambah username Teleg
 Laporan Mingguan, Laporan Bulanan, dan cek budget malam selalu ke WhatsApp. Untuk menambah
 Telegram atau Discord, salin `data/tujuan.json.example` ke `data/tujuan.json` (di luar git) dan
 isi ID-nya; Kanal yang tidak diisi dilewati. Telegram dan Discord tidak diulang kalau gagal
-(WhatsApp 3 kali). Ketiga cron laporan perlu batas waktu 600 detik, bukan 420 (ADR-0023).
+(WhatsApp 3 kali). Ketiga cron laporan berbatas waktu 600 detik, bukan 420 (ADR-0023); jangan diturunkan lagi.
 
 ### Model utama error
 OpenClaw otomatis beralih ke model fallback. Tidak perlu setting manual.

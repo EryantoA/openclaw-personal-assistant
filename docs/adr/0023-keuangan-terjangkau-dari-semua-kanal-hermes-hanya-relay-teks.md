@@ -76,8 +76,9 @@ tujuan diulang 3 kali, dua tujuan saja (2 x 300) sudah terpotong; karena itu han
 diulang dan Telegram serta Discord sekali coba (±60 detik terburuk masing-masing). Total
 terburuk tiga tujuan jadi ±420 detik: tepat di batas, tanpa margin untuk waktu mulai proses dan
 penyusunan laporan. Maka batas cron `laporan_mingguan`, `laporan_bulanan`, dan
-`cek_budget_malam` **perlu dinaikkan ke 600 detik; ini belum dilakukan di cron hidup** (butuh
-izin pemilik) dan harus selesai sebelum `data/tujuan.json` diisi.
+`cek_budget_malam` dinaikkan ke 600 detik di cron hidup pada 1 Nov 2026 (`openclaw cron edit
+--timeout-seconds 600`; `penjaga_kesehatan` tetap 420). Ini harus mendahului pengisian
+`data/tujuan.json`.
 
 Peringatan penjaga kesehatan (`periksa-kesehatan.py`, ADR-0011) tetap hanya ke WhatsApp: ia
 sengaja punya `tujuan_baku` sendiri supaya berdiri sendiri, jadi tidak ikut Telegram atau Discord.
