@@ -128,6 +128,44 @@ class Pesan(unittest.TestCase):
                 self.assertNotIn(kata, t)
 
 
+class BulanTransaksi(unittest.TestCase):
+    """Cek setelah pencatatan memakai bulan transaksi, bukan bulan hari ini (pencatatan mundur)."""
+
+    NOV = date(2026, 11, 1)  # hari ini; transaksi yang baru dicatat bertanggal Oktober
+
+    def teks(self, rows, selalu=False, bulan="2026-10"):
+        return budget.pesan(rows, self.NOV, ATUR, selalu=selalu, bulan=bulan)
+
+    def test_oktober_lewat_batas_terdeteksi_walau_hari_ini_november(self):
+        t = self.teks(rutin(8_389_942))  # 105%
+        self.assertIn("🚨 Lewat batas Budget — Oktober 2026 (sudah tutup)", t)
+        self.assertIn("Lewat:", t)
+        self.assertIn("Rp 389.942", t)
+        self.assertIn("💡 Saran: sudah lewat Rp 389.942.", t)
+        self.assertNotIn("Tunda belanja", t)  # bulannya sudah lewat; tak ada yang bisa ditunda ke bulan depan
+        self.assertNotIn("sisa", t.lower().replace("terbesar", ""))  # tak ada "sisa N hari" untuk bulan tutup
+
+    def test_bulan_tutup_di_bawah_100_persen_diam(self):
+        self.assertEqual(self.teks(rutin(7_900_000)), "")  # 98%: tak ada gunanya memperingatkan bulan yang sudah lewat
+
+    def test_bulan_tutup_diminta_lewat_chat_dijawab_tanpa_saran_sisa_hari(self):
+        t = self.teks(rutin(7_200_000), selalu=True)
+        self.assertIn("💰 Status Budget — Oktober 2026 (sudah tutup)", t)
+        self.assertIn("💡 Saran: bulan sudah tutup di 90% dari batas.", t)
+        self.assertNotIn("Sisa", t)
+
+    def test_bulan_berjalan_tidak_berubah(self):
+        rows = rutin(7_754_771)
+        sama = budget.pesan(rows, AKHIR, ATUR, selalu=False)
+        self.assertEqual(sama, budget.pesan(rows, AKHIR, ATUR, selalu=False, bulan="2026-10"))
+        self.assertNotIn("sudah tutup", sama)
+
+    def test_bulan_lain_tidak_ikut_dihitung(self):
+        rows = rutin(8_389_942, tanggal="2026-10-10") + rutin(7_000_000, tanggal="2026-11-01")
+        self.assertIn("Rp 8.389.942", self.teks(rows))
+        self.assertIn("Rp 7.000.000", budget.pesan(rows, self.NOV, ATUR, selalu=True))
+
+
 class BarisLaporan(unittest.TestCase):
     def test_baris_budget_dan_di_luar_budget_untuk_laporan(self):
         rows = rutin(7_754_771) + [pengeluaran(4_000_000, "transport")]

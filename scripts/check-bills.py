@@ -25,7 +25,7 @@ import os
 import sys
 import argparse
 import importlib.util
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Optional, List, Dict
 
@@ -68,9 +68,12 @@ def status_budget(today: Optional[date] = None) -> str:
     return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=True)
 
 
-def check_budget(today: Optional[date] = None) -> str:
-    """Peringatan bila rutin sudah mencapai alert_persen; "" bila tidak, supaya cron malam diam."""
-    return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=False)
+def check_budget(today: Optional[date] = None, bulan: Optional[str] = None) -> str:
+    """Peringatan bila rutin sudah mencapai alert_persen; "" bila tidak, supaya cron malam diam.
+
+    `bulan` ('YYYY-MM'): bulan transaksi yang baru dicatat. Pencatatan mundur ke bulan yang sudah
+    tutup dicek terhadap bulannya sendiri, bukan bulan ini."""
+    return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=False, bulan=bulan)
 
 
 # ── Mode: Cek Kewajiban ──────────────────────────────────────
@@ -192,6 +195,12 @@ def main():
         "tidak dipakai cron.",
     )
     parser.add_argument(
+        "--bulan",
+        metavar="YYYY-MM",
+        help="hanya --mode budget: bulan yang dicek (bawaan bulan ini). Dipakai bot setelah "
+        "mencatat transaksi bertanggal bulan lain.",
+    )
+    parser.add_argument(
         "--kirim",
         action="store_true",
         help="kirim ke nomor pemilik kalau ada isi; gagal kirim = exit 1 (dipakai cron)",
@@ -208,12 +217,19 @@ def main():
         print(status_budget(today))
         return 0
 
-    result = check_budget(today) if args.mode == "budget" else check_all(today)
+    if args.bulan:
+        try:
+            datetime.strptime(args.bulan, "%Y-%m")
+        except ValueError:
+            parser.error(f"--bulan tidak valid: {args.bulan} (format YYYY-MM)")
+    if args.bulan and args.mode != "budget":
+        parser.error("--bulan hanya untuk --mode budget")
+    result = check_budget(today, args.bulan) if args.mode == "budget" else check_all(today)
 
     if args.kirim:
         # "Ada isi" diputuskan dari bagian-bagiannya, bukan dari teks "✅ Semua lancar" —
         # teks ramah itu boleh berubah tanpa membuat cron diam-diam mengirim tiap malam.
-        isi = check_budget(today) if args.mode == "budget" else temuan_all(today)
+        isi = check_budget(today, args.bulan) if args.mode == "budget" else temuan_all(today)
         print(isi or "✅ Semua lancar!")
         return kirim_kalau_ada(isi)
 

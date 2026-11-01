@@ -285,6 +285,12 @@ class AngkaDariSkripBukanModel(unittest.TestCase):
         self.assertNotIn("✅ Transfer dicatat!", SKILL)   # kerangka konfirmasi hanya satu
         self.assertNotIn("food:          Rp 125.000", SKILL)  # contoh laporan harian buatan tangan
 
+    def test_cek_budget_memakai_bulan_transaksi_bukan_bulan_ini(self):
+        # 1 Nov 2026: pencatatan bertanggal Oktober dicek terhadap November, jadi Oktober 105% tak terdeteksi.
+        teks = " ".join(AGENTS.split())
+        self.assertIn("check-bills.py --mode budget --bulan", teks)
+        self.assertIn("bulan dari `tanggal` keluaran `OK tersimpan`", teks)
+
     def test_cek_budget_setelah_tersimpan_lewat_skrip(self):
         self.assertIn("Cek budget setelah tersimpan", AGENTS)
         self.assertIn("Jangan menghitung persentase budget sendiri", AGENTS)
