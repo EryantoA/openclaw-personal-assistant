@@ -157,8 +157,8 @@ def kirim_kalau_ada(isi: str) -> int:
 
     Cron cek_budget_malam dulu giliran agent; 12 dari 53 malam gagal sebelum sempat mengecek
     (OAuth mati, kuota, timeout) dan peringatan 26 Agu 2026 tidak pernah terkirim. Sekarang
-    command payload, sama dengan Laporan Mingguan/Bulanan (docs/adr/0013). kirim() dari
-    scripts/pengirim.py. Dimuat di sini saja karena dulu laporan bulanan dan mingguan meminjam
+    command payload, sama dengan Laporan Mingguan/Bulanan (docs/adr/0013). kirim_ke_semua()
+    dari scripts/pengirim.py. Dimuat di sini saja karena dulu laporan bulanan dan mingguan meminjam
     fungsi cek dari file ini; sejak Perkiraan/Kewajiban pindah ke module sendiri tidak ada lagi
     yang meminjam, jadi ini boleh menjadi impor biasa.
     """
@@ -172,12 +172,8 @@ def kirim_kalau_ada(isi: str) -> int:
     if not tujuan:
         print("\n❌ Tidak ada tujuan pengiriman (channels.whatsapp.allowFrom kosong).")
         return 1
-    semua_ok = True
-    for kanal, ke in tujuan:
-        ok, ket = pengirim.kirim(isi, kanal, ke)
-        print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
-        semua_ok = semua_ok and ok
-    return 0 if semua_ok else 1
+    hasil = pengirim.kirim_ke_semua(isi, tujuan)
+    return 0 if all(ok for _, _, ok, _ in hasil) else 1
 
 
 def main():

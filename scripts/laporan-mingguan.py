@@ -13,7 +13,7 @@ Aturan hitung sengaja dipinjam, bukan ditulis ulang:
   - Kewajiban       → kewajiban.belum_lunas (lunas = lunas_resi menunjuk baris yang ada)
   - Budget          → pengaturan (data/budget.json)
   - Tujuan          → pengirim.tujuan_baku (nomor pemilik dari config)
-  - Kirim           → pengirim.kirim (3 percobaan, jeda 60 dtk — kirim WA gagal acak ±23%)
+  - Kirim           → pengirim.kirim_ke_semua → kirim (3 percobaan, jeda 60 dtk — kirim WA gagal acak ±23%)
 
 "Pekan lalu" dihitung ulang dari catatan hari ini — tidak ada simpanan, tidak ada Koreksi.
 
@@ -258,12 +258,8 @@ def main():
     if not tujuan:
         print("\n❌ Tidak ada tujuan pengiriman (channels.whatsapp.allowFrom kosong).")
         return 1
-    semua_ok = True
-    for kanal, ke in tujuan:
-        ok, ket = pengirim.kirim(laporan, kanal, ke)
-        print(f"\n{'✅ terkirim' if ok else '❌ GAGAL'} {kanal} -> {ke}" + (f": {ket}" if ket else ""))
-        semua_ok = semua_ok and ok
-    return 0 if semua_ok else 1
+    hasil = pengirim.kirim_ke_semua(laporan, tujuan)
+    return 0 if all(ok for _, _, ok, _ in hasil) else 1
 
 
 if __name__ == "__main__":
