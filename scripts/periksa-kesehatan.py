@@ -37,11 +37,14 @@ from pathlib import Path
 AKAR = Path(__file__).resolve().parent.parent
 BILLS = AKAR / "data" / "bills.csv"
 JEJAK = AKAR / "data" / "kesehatan-terakhir.json"
+CONFIG_SHEETS = AKAR / "data" / "sheets.json"          # ada = sinkron Google Sheets dipakai
+STATUS_SHEETS = AKAR / "data" / "sheets-status.json"   # ditulis scripts/sinkron-sheets.py
 OPENCLAW_JSON = Path.home() / ".openclaw" / "openclaw.json"
 AUTH_DB = Path.home() / ".openclaw" / "agents" / "main" / "agent" / "openclaw-agent.sqlite"
 
 CRON_MANDEK_JAM = 3        # cron dianggap mandek kalau lewat jadwal sekian jam
 BILLS_DIAM_HARI = 3        # buku kas tidak bertambah sekian hari = mencurigakan
+SHEETS_MANDEK_JAM = 3      # sinkron Sheets tak pernah sukses sekian jam = perlu dilihat manusia
 REDAM_JAM = 12             # jangan ulangi peringatan yang sama sebelum sekian jam
 KIRIM_COBA = 3             # kirim WA gagal acak ±23% (6–21 Sep 2026) walau channel "connected"
 KIRIM_JEDA = 60            # detik antar percobaan
@@ -223,6 +226,36 @@ def periksa_bills():
     return []
 
 
+def periksa_sheets(sekarang=None):
+    """Sinkron Google Sheets yang berhenti sukses. Dibaca dari berkas status saja (tanpa model,
+    tanpa memanggil skrip lain): kegagalan sesaat tidak mengusik, tetapi sukses terakhir yang
+    lewat ambang — gagal, ditolak, atau tak pernah jalan — dilaporkan beserta sebab terakhirnya."""
+    if not CONFIG_SHEETS.exists():
+        return []  # sinkron Sheets belum dipakai
+    sekarang = sekarang or datetime.now()
+    judul = "Sinkron Google Sheets mandek"
+    try:
+        st = json.loads(STATUS_SHEETS.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return [("PERINGATAN", judul, "belum pernah jalan; data/sheets.json ada tetapi "
+                                      "data/sheets-status.json belum terbentuk (cron terdaftar?)")]
+    except Exception as e:  # noqa: BLE001
+        return [("PERINGATAN", "Status sinkron Google Sheets bermasalah",
+                 f"berkas status tidak terbaca ({str(e)[:100]})")]
+    sebab = f"percobaan terakhir {st.get('hasil', '?')}: {st.get('pesan') or '-'}"
+    try:
+        sukses = datetime.fromisoformat(st["waktu_sukses"]) if st.get("waktu_sukses") else None
+    except ValueError:
+        sukses = None
+    if sukses is None:
+        return [("PERINGATAN", judul, f"belum pernah sukses; {sebab}")]
+    umur = sekarang - sukses
+    if umur > timedelta(hours=SHEETS_MANDEK_JAM):
+        return [("PERINGATAN", judul, f"sukses terakhir {sukses:%d %b %H:%M} "
+                                      f"({int(umur.total_seconds() // 3600)} jam lalu); {sebab}")]
+    return []
+
+
 # ── Peredam ulangan ───────────────────────────────────────────────────────
 def sidik(masalah):
     inti = "|".join(f"{t}:{j}" for t, j, _ in sorted(masalah))
@@ -315,7 +348,7 @@ def main():
             print(f"{'✅' if ok else '❌'} {kanal} -> {ke}: {ket or 'siap'}")
         return 0
 
-    masalah = periksa_cron() + periksa_oauth() + periksa_bills()
+    masalah = periksa_cron() + periksa_oauth() + periksa_bills() + periksa_sheets()
 
     if not masalah:
         print(f"✅ Sehat — {datetime.now():%d %b %H:%M}. Cron jalan, OAuth berlaku, buku kas hidup.")

@@ -21,7 +21,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass, field, replace
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -488,3 +488,24 @@ def teks_laporan(laporan: Laporan, uji: bool = False) -> str:
     baris += daftar("Dipulihkan ke Sheet", [f"{resi_(r)} Item {i}" for r, i in laporan.dipulihkan])
     baris += daftar("Tak terhitung", [f"{resi_(r)}: {a}" for r, a in laporan.tak_terhitung])
     return "\n".join(baris + laporan.peringatan)
+
+
+def tulis_status(path: Path, hasil: str, pesan: str = "", laporan: Laporan | None = None,
+                 sekarang: datetime | None = None) -> None:
+    """Catat hasil satu sinkron untuk penjaga kesehatan (scripts/periksa-kesehatan.py).
+
+    `hasil`: "sukses" | "tertunda" | "ditolak" | "gagal". `waktu_sukses` hanya maju pada "sukses"
+    dan dipertahankan selama percobaan berikutnya gagal — dari situlah penjaga tahu sudah berapa
+    lama sinkron mandek. Hanya hitungan dan pesan galat; tidak ada isi Transaksi."""
+    sekarang = (sekarang or datetime.now()).isoformat(timespec="seconds")
+    try:
+        lama = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        lama = {}
+    status = {"waktu": sekarang, "hasil": hasil, "pesan": pesan[:300],
+              "waktu_sukses": sekarang if hasil == "sukses" else lama.get("waktu_sukses")}
+    if laporan is not None:
+        status.update(didorong=laporan.didorong, diterima=len(laporan.diterima),
+                      ditambah=len(laporan.ditambah), ditolak=len(laporan.ditolak),
+                      dipulihkan=len(laporan.dipulihkan))
+    _tulis_atomik(Path(path), json.dumps(status, ensure_ascii=False, indent=1))

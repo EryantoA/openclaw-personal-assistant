@@ -64,6 +64,7 @@ berubah setiap ada catatan baru, jadi jangan menjawab dari hasil sebelumnya dan 
 | `scripts/export-excel.py` | Ekspor CSV ke Excel |
 | `scripts/resi.py` | Utilitas nomor resi |
 | `scripts/backup.sh` | Backup harian CSV + Excel per bulan |
+| `scripts/sinkron-sheets.py` | Sinkron Buku Kas ↔ Google Sheets (cron tiap 15 menit; **bot tidak menjalankannya**). Hasilnya di `data/sheets-status.json` |
 
 Detail format pencatatan, parsing angka, dan kategori ada di skill `bill-tracker`
 (`skills/bill-tracker/SKILL.md`).

@@ -435,6 +435,18 @@ python3 scripts/sinkron-sheets.py                  # sinkron biasa
 Kode keluar: `0` selesai, `1` ditolak (mis. Sheet berisi data tapi belum pernah disinkronkan), `2` gagal.
 Sheets **bukan cadangan** — salah hapus ikut tersinkron; cadangan CSV harian tetap yang utama.
 
+**Berjalan sendiri (cron).** Setelah satu sinkron biasa sukses dari *checkout utama*, daftarkan ke gateway
+(ADR-0009; mengedit `openclaw.json` saja tidak cukup):
+```bash
+openclaw cron add --name sinkron_sheets --cron "*/15 * * * *" --tz Asia/Jakarta --no-deliver \
+  --command-cwd /Users/apple/Developments/openclaw-personal-assistant \
+  --command "/usr/bin/python3 scripts/sinkron-sheets.py"
+openclaw cron list    # sinkron_sheets harus tampil
+```
+Pakai `/usr/bin/python3` (di situlah `google-auth` terpasang) dan checkout utama (kunci `*.lock` yang sama dengan bot).
+Tiap sinkron mencatat hasilnya di `data/sheets-status.json`; penjaga kesehatan (`scripts/periksa-kesehatan.py`)
+memperingatkan bila sinkron tidak pernah sukses selama 3 jam — tanpa model, jadi tetap hidup saat model mati.
+
 ### 📊 Backup & Export Excel per bulan
 
 Backup harian (atau `bash scripts/backup.sh` manual) menghasilkan file di `data/backups/`:

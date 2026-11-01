@@ -223,6 +223,12 @@ Dasar diff tiga arah: dibandingkan dengan Cermin sekarang dan Buku Kas sekarang 
 mengubah apa. Bukan Transaksi dan tidak ikut hitungan apa pun.
 _Avoid_: cache, backup Sheets
 
+**Status Sinkron**:
+Hasil sinkron terakhir (`data/sheets-status.json`, tidak masuk git): sukses/tertunda/ditolak/gagal, kapan, dan kapan
+terakhir sukses. Dibaca penjaga kesehatan untuk memperingatkan sinkron yang mandek; hanya hitungan dan pesan galat,
+tidak pernah isi Transaksi.
+_Avoid_: log sinkron
+
 ### Waktu
 
 **Pekan**:

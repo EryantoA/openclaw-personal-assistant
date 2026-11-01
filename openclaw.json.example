@@ -68,6 +68,18 @@
         "delivery": "none"
       },
       {
+        "id": "sinkron_sheets",
+        "schedule": "*/15 * * * *",
+        "tz": "Asia/Jakarta",
+        "_keterangan": "Command payload, tanpa model (ADR-0021). Sinkron dua arah Buku Kas <-> Google Sheets. Pakai /usr/bin/python3 karena google-auth hanya terpasang untuk interpreter itu (pip install --user), dan HARUS jalan dari checkout utama supaya kunci *.lock sama dengan catat/buku. Mencatat hasilnya di data/sheets-status.json; penjaga kesehatan memperingatkan bila sukses terakhir lebih dari 3 jam. Didaftarkan dengan `openclaw cron add --command` (ADR-0009), bukan lewat file ini. Kode keluar 2 = gagal -> cron tercatat error; delivery 'none' (tidak mengirim pesan sendiri).",
+        "payload": {
+          "kind": "command",
+          "argv": ["sh", "-lc", "/usr/bin/python3 scripts/sinkron-sheets.py"],
+          "cwd": "/Users/apple/Developments/openclaw-personal-assistant"
+        },
+        "delivery": "none"
+      },
+      {
         "id": "laporan_bulanan",
         "schedule": "0 9 6 * *",
         "tz": "Asia/Jakarta",
