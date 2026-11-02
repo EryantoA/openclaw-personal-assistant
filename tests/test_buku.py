@@ -4,7 +4,9 @@
 
 Satu seam: jalankan(...) / cari(...) terhadap CSV sementara (pola tests/test_catat.py).
 """
+import contextlib
 import csv
+import io
 import json
 import re
 import sys
@@ -489,6 +491,50 @@ class Skema(Dasar):
             self.assertEqual(kode, 2)
             self.assertIn("append-only", pesan)
         self.assertEqual(bk.cari(jejak, kata="hapus")[0], 0)
+
+
+class UbahHapusLewatArgumen(Dasar):
+    """`--json` menggantikan stdin untuk ubah dan hapus (ADR-0023)."""
+
+    def cli(self, argv, stdin=""):
+        keluar, asli_stdin, asli_skema = io.StringIO(), sys.stdin, bk.SKEMA
+        sys.stdin = io.StringIO(stdin)
+        bk.SKEMA = {"bills": lambda: self.skema}
+        try:
+            with contextlib.redirect_stdout(keluar):
+                kode = bk.main(argv)
+        finally:
+            sys.stdin, bk.SKEMA = asli_stdin, asli_skema
+        return kode, keluar.getvalue()
+
+    def test_hapus_dua_langkah_lewat_argumen(self):
+        req = {"no_resi": "STRUK-A", "oleh": "ryan"}
+        kode, out = self.cli(["hapus", "--uji", "--json", json.dumps(req)])
+        self.assertEqual(kode, 0, out)
+        self.assertIn("STRUK-A", self.mentah().decode())  # uji tidak menulis
+        sidik = re.search(r"sidik (\w+)", out).group(1)
+        kode, out = self.cli(["hapus", "--json", json.dumps({**req, "sidik": sidik})])
+        self.assertEqual(kode, 0, out)
+        self.assertNotIn("STRUK-A", self.mentah().decode())
+
+    def test_ubah_lewat_argumen(self):
+        req = {"no_resi": "STRUK-A", "item_ke": 1, "set": {"jumlah": 26000}, "oleh": "ryan"}
+        kode, out = self.cli(["ubah", "--uji", "--json", json.dumps(req)])
+        self.assertEqual(kode, 0, out)
+        sidik = re.search(r"sidik (\w+)", out).group(1)
+        kode, out = self.cli(["ubah", "--json", json.dumps({**req, "sidik": sidik})])
+        self.assertEqual(kode, 0, out)
+        self.assertIn(",26000,", self.mentah().decode())
+
+    def test_json_argumen_rusak_ditolak(self):
+        kode, out = self.cli(["hapus", "--json", "{rusak"])
+        self.assertEqual(kode, 2)
+        self.assertIn("ERROR JSON tidak valid", out)
+
+    def test_tanpa_json_stdin_tetap_dipakai(self):
+        req = {"no_resi": "STRUK-A", "oleh": "ryan"}
+        kode, out = self.cli(["hapus", "--uji"], stdin=json.dumps(req))
+        self.assertEqual(kode, 0, out)
 
 
 if __name__ == "__main__":

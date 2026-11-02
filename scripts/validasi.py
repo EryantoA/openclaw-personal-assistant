@@ -74,7 +74,9 @@ def cek_baris(b: dict, sah: set[str], awalan: str = "", ubah: set | None = None)
             if tipe != kategori:
                 raise Tolak(f"{awalan}tipe=transfer wajib berkategori transfer, dan sebaliknya")
         elif sah and perlu("kategori") and kategori not in sah:
-            raise Tolak(f"{awalan}kategori {kategori!r} tidak ada di budget.json kategori_custom")
+            pilihan = ", ".join(sorted(sah - {"opening_balance"}))
+            raise Tolak(f"{awalan}kategori {kategori!r} tidak ada di budget.json kategori_custom "
+                        f"(pilihan: {pilihan})")
     item = str(b.get("item") or "").strip()
     if perlu("item") and not item:
         raise Tolak(f"{awalan}`item` kosong")

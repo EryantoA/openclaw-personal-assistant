@@ -1,0 +1,15 @@
+{
+  "_keterangan": "Dokumen exec approvals untuk agen `keuangan` (pasang dengan `openclaw approvals set --file`; ia MENGGANTI seluruh dokumen, jadi gabungkan dulu dengan `openclaw approvals get --json`). argPattern wajib berjangkar: tanpa ^, `python3 -c \"…# scripts/catat.py\"` ikut lolos (spike #38). Pengalihan stdin, pipa, `;` dan `$(…)` ditolak, maka skrip tulis dipanggil dengan --json. `--kirim` (kirim pesan), `--backfill`/`--gen` (resi.py) dan `--paksa` (lewati cek duplikat) ditolak: bukan urusan agen Relay.",
+  "version": 1,
+  "defaults": {},
+  "agents": {
+    "keuangan": {
+      "allowlist": [
+        {
+          "pattern": "python3",
+          "argPattern": "^scripts/(catat|buku|laporan-[a-z]+|check-bills|akun|resi|rekap-bulanan)\\.py(?!.*--(kirim|backfill|gen|paksa)( |$))( |$)"
+        }
+      ]
+    }
+  }
+}

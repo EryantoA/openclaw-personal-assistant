@@ -23,7 +23,7 @@ di OpenClaw, dan semua Kanal membaca serta menulis `bills.csv` yang sama lewat s
   membahas uang. Telegram tidak ikut jalur B. Foto tidak diteruskan (A2A OpenClaw hanya
   menerima teks dan JSON); Hermes menjawab "kirim fotonya ke bot OpenClaw".
 - **Agen `keuangan` terpisah** menerima Relay: workspace dan `AGENTS.md` yang sama dengan `main`
-  tetapi alatnya dibatasi ke skrip bill-tracker dan pembacaan berkas. Tugas A2A mewarisi alat
+  tetapi alatnya dibatasi ke skrip bill-tracker (tanpa `read`, lihat pelaksanaan #40). Tugas A2A mewarisi alat
   agen tujuannya, dan `main` jalan dengan `bypassPermissions`; model gratis tidak boleh
   berada di depan izin sepenuh itu.
 - **Pencatat pada Relay hanya klaim.** Satu peer `hermes`; nama pengirim ikut di teks, jadi
@@ -86,6 +86,17 @@ sengaja punya `tujuan_baku` sendiri supaya berdiri sendiri, jadi tidak ikut Tele
 Urutan pembangunan: Jalur A dulu (bot Discord OpenClaw, tujuan laporan tambahan), lalu Jalur B.
 Izin kanal Discord hanya untuk pemilik dan istri (isi `bills.csv` memuat gaji) masih harus
 dipastikan saat membangun.
+
+Pelaksanaan agen `keuangan` (#40, 2 Nov 2026): kode dan contoh sudah di repo, pemasangan ke
+gateway hidup (token, config, approvals, restart) langkah pemilik, ada di README. Tiga keputusan
+dari hasil spike: (1) `catat.py` dan `buku.py ubah|hapus` menerima `--json` sebagai ganti stdin,
+karena agen berallowlist menolak pengalihan; apostrof ditulis `\u0027`. (2) Allowlist hanya
+untuk skrip bill-tracker, tanpa `--kirim` (kirim pesan), `--backfill`, `--gen`, dan `--paksa`,
+supaya larangan alat `message` tidak bisa dilewati lewat subprocess dan cek duplikat tidak
+dilewati agen berkepala klaim. (3) Karena `read` ditolak, agen Relay mengambil slug kategori dari
+galat `catat.py --uji` (kini memuat `pilihan:`) dan nama akun dari `akun.py`; fitur lain (set
+budget, kategori, backup, ekspor, transaksi berulang) tidak tersedia lewat Relay. Belum diuji
+terhadap filter exec: JSON dalam kutip tunggal yang memuat `$` atau kutip ganda.
 
 ## Hasil spike #38 (2 Nov 2026)
 

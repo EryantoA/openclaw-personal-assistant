@@ -27,6 +27,20 @@
         "message"
       ]
     },
+    "entries": {
+      "keuangan": {
+        "_keterangan": "Penerima Relay Hermes (ADR-0023, spike #38). Workspace sama dengan agen utama, jadi AGENTS.md sama. Alat: hanya exec, dibatasi allowlist per agen (exec-approvals.keuangan.json.example); read ditolak karena bisa membaca di luar workspace. Beri nama final sejak awal: ID agen yang pernah dihapus tidak bisa dipakai ulang di gateway yang sama.",
+        "name": "Keuangan",
+        "workspace": "/Users/apple/Developments/openclaw-personal-assistant",
+        "agentDir": "/Users/apple/.openclaw/agents/keuangan/agent",
+        "model": "anthropic/claude-haiku-4-5",
+        "tools": {
+          "allow": ["exec"],
+          "deny": ["read", "write", "edit", "apply_patch", "browser", "canvas", "nodes", "cron", "web_search", "web_fetch", "message"],
+          "exec": { "mode": "allowlist" }
+        }
+      }
+    },
     "crons": [
       {
         "id": "laporan_mingguan",
@@ -75,12 +89,25 @@
       }
     ]
   },
+  "bindings": [
+    {
+      "_keterangan": "Wajib ada SEBELUM token hermes dipakai: peer A2A tanpa binding dijawab agen utama dengan exec penuh (terbukti di spike #38).",
+      "agentId": "keuangan",
+      "match": { "channel": "a2a", "accountId": "*", "peer": { "kind": "direct", "id": "hermes" } }
+    }
+  ],
   "session": {
     "resetByType": {
       "group": { "mode": "idle", "idleMinutes": 120 }
     }
   },
   "channels": {
+    "a2a": {
+      "_keterangan": "Token peer di lingkungan gateway (A2A_HERMES_TOKEN, ~/.openclaw/.env), bukan di berkas ini. exposeAgents membatasi Agent Card publik. Gateway hanya mendengar di loopback.",
+      "enabled": true,
+      "exposeAgents": ["keuangan"],
+      "peers": { "hermes": { "token": "${A2A_HERMES_TOKEN}" } }
+    },
     "telegram": {
       "token": "TOKEN_BOT_TELEGRAM_KAMU",
       "allowFrom": []
