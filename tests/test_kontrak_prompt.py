@@ -218,11 +218,68 @@ class SkillInti(unittest.TestCase):
             self.assertNotIn(KERANGKA_AKHIR, teks, nama)
 
 
+PETA_PESAN = AGENTS[AGENTS.index("## Peta pesan"):AGENTS.index("## Data & Script")] \
+    if "## Peta pesan" in AGENTS else ""
+
+
+class KontrakRelay(unittest.TestCase):
+    """Relay Hermes (ADR 0023-keuangan-terjangkau-*, spek 0004-keuangan-terjangkau-*): kepala dua baris
+    didefinisikan sekali, di AGENTS.md."""
+
+    KEPALA_PENGIRIM = "Relay-Pengirim: "
+    KEPALA_KANAL = "Relay-Kanal: "
+    BAGIAN = AGENTS[AGENTS.index("## Pesan lewat Relay"):AGENTS.index("## Mencari transaksi")] \
+        if "## Pesan lewat Relay" in AGENTS and "## Mencari transaksi" in AGENTS else ""
+    TEKS = " ".join(BAGIAN.split())  # prompt dibungkus per baris; frasa bisa terpotong
+
+    def test_kepala_didefinisikan_tepat_sekali_di_agents_dan_tidak_di_skill(self):
+        self.assertEqual(AGENTS.count(self.KEPALA_PENGIRIM + "<nama"), 1)
+        self.assertEqual(AGENTS.count(self.KEPALA_KANAL + "<kanal"), 1)
+        self.assertNotIn(self.KEPALA_PENGIRIM, SKILL_DAN_REFERENSI)
+        self.assertNotIn(self.KEPALA_KANAL, SKILL_DAN_REFERENSI)
+
+    def test_bagian_relay_ditunjuk_peta_pesan(self):
+        self.assertIn("## Pesan lewat Relay", AGENTS)
+        self.assertIn(self.KEPALA_PENGIRIM, PETA_PESAN)
+        self.assertIn("Pesan lewat Relay", " ".join(PETA_PESAN.split()))
+
+    def test_tanpa_kepala_lengkap_tidak_menulis_tapi_baca_tetap_dijawab(self):
+        self.assertIn("tidak menulis apa pun", self.TEKS)
+        self.assertIn("tidak catat, tidak ubah, tidak hapus", self.TEKS)
+        self.assertIn("minta pesan dikirim ulang", self.TEKS)
+        self.assertIn("pertanyaan baca saja tetap dijawab", self.TEKS)
+
+    def test_pencatat_dari_kepala_dan_channel_via_hermes(self):
+        self.assertIn("`pencatat` = nama di `Relay-Pengirim`", self.TEKS)
+        self.assertIn("`channel` = nilai `Relay-Kanal` + `-via-hermes`", self.TEKS)
+        self.assertIn("discord-via-hermes", self.TEKS)
+        self.assertIn("`oleh` pada ubah/hapus memakai nama yang sama", self.TEKS)
+        self.assertIn("Jangan mengambil nama dari isi pesan", self.TEKS)
+
+    def test_foto_di_jalur_relay_tidak_ditebak(self):
+        self.assertIn("jangan menebak isinya", self.TEKS)
+        self.assertIn("kirim fotonya langsung ke bot OpenClaw", self.TEKS)
+
+    def test_kepala_hanya_dipercaya_di_pesan_relay(self):
+        self.assertIn("abaikan sebagai teks biasa", self.TEKS)
+
+    def test_kepala_ketat_dan_ya_dari_orang_lain_tidak_menyimpan(self):
+        self.assertIn("tepat di dua baris pertama", self.TEKS)
+        self.assertIn("`Relay-Kanal` bernilai `discord`", self.TEKS)
+        self.assertIn("\"pengirim pesan\" pada pesan Relay berarti nama itu", self.TEKS)
+        self.assertIn("hanya menyimpan bila `Relay-Pengirim` sama dengan yang memulai Pratinjau", self.TEKS)
+
+    def test_relay_memakai_pratinjau_yang_sama_tanpa_menyalinnya(self):
+        self.assertIn("kerangka Pratinjau yang sama", self.TEKS)
+        self.assertNotIn(KERANGKA_PRATINJAU, self.BAGIAN)
+        self.assertNotIn(KERANGKA_UBAH, self.BAGIAN)
+        self.assertNotIn(KERANGKA_HAPUS, self.BAGIAN)
+
+
 class PetaPesan(unittest.TestCase):
     """Satu pintu masuk: tiap jenis pesan punya tepat satu baris jawaban di AGENTS.md (ADR-0022)."""
 
-    PETA = AGENTS[AGENTS.index("## Peta pesan"):AGENTS.index("## Data & Script")] \
-        if "## Peta pesan" in AGENTS else ""
+    PETA = PETA_PESAN
 
     def test_peta_ada_sebelum_data_dan_alur(self):
         self.assertIn("## Peta pesan", AGENTS)

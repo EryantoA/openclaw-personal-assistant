@@ -171,7 +171,9 @@ _Avoid_: channel, platform
 Jalur masuk tidak langsung: pesan keuangan diketik ke asisten lain, yang meneruskannya apa adanya
 ke asisten keuangan. Hanya teks — foto struk dan Bukti Transfer harus dikirim langsung. Pencatat
 pada Relay adalah klaim asisten peneruskan, bukan identitas yang terautentikasi, jadi Asal-nya
-ditandai agar baris yang lewat Relay bisa disaring dan diperiksa.
+ditandai agar baris yang lewat Relay bisa disaring dan diperiksa. Pesan Relay diawali **kepala**
+dua baris (pengirim dan Kanal asal) yang dibuat asisten peneruskan; tanpa kepala yang lengkap,
+asisten keuangan tidak menulis.
 _Avoid_: forward, proxy, jembatan
 
 **Pencatat**:
