@@ -50,7 +50,7 @@ Relay**), lalu cocokkan isinya dengan satu baris di bawah.
 | Path | Isi |
 |---|---|
 | `data/bills.csv` | Catatan transaksi (pengeluaran & pemasukan); `budget.json`, `kewajiban.json`, `perkiraan.json` di folder yang sama |
-| `scripts/catat.py` | **Satu-satunya** cara menambah transaksi ke `bills.csv` (JSON di stdin atau `--json`; isi waktu, no resi, cek duplikat) — jangan tulis baris dengan Edit/Write |
+| `scripts/catat.py` | **Satu-satunya** cara menambah transaksi ke `bills.csv` (JSON di stdin atau `--json`; isi waktu, no resi, cek duplikat) |
 | `scripts/buku.py` | Mencari (`cari`), mengubah (`ubah`), dan menghapus (`hapus`) transaksi yang **sudah tercatat** — ubah/hapus lewat Pratinjau (ADR-0018). Jangan edit `bills.csv` dengan Edit/Write |
 | `data/riwayat-ubah.csv` | Jejak ubah/hapus (append-only, diisi `buku.py`) |
 | `scripts/check-bills.py` | Cek budget, kewajiban, perkiraan (`--mode all`); `--mode status` = sisa budget — read-only |
@@ -75,7 +75,7 @@ jumlah, diskon, PPN, biaya layanan, cara bayar, total tercetak. Pembeli = pengir
 
 ```bash
 python3 scripts/catat.py --uji <<'EOF'
-{"tanggal": "2026-09-21", "tipe": "pengeluaran", "channel": "whatsapp", "pencatat": "Eryanto",
+{"tanggal": "2026-09-21", "tipe": "pengeluaran", "channel": "<kanal>", "pencatat": "Eryanto",
  "items": [{"kategori": "food", "item": "Nasi goreng - Warung Ani", "jumlah": 25000}]}
 EOF
 ```
@@ -86,7 +86,7 @@ Lewat Relay, pakai `--json` (bagian **Pesan lewat Relay**).
   `transfer`. `kategori`: slug dari `data/budget.json` → `kategori_custom` (mis. `food`, bukan
   `Food`/`Makanan`). `pencatat`: nama pengirim pesan; alias (mis. "ryan", "istri") dibakukan
   skrip lewat `data/pembeli.json`, jadi tulis apa adanya dan pakai nama baku dari keluaran uji.
-  Opsional: `waktu` (jam di struk), `catatan` (cara bayar, dsb.).
+  `channel` = Kanal pesan masuk (`whatsapp`, `telegram`, `discord`). Opsional: `waktu` (jam di struk), `catatan` (cara bayar, dsb.).
 - **Nomor di struk WAJIB dibawa.** Bila struk menampilkan nomor (Resi, No. Transaksi, No. Struk,
   No. Nota, Ref; sering diawali `#`), isi `no_resi` = `STRUK-` + nomornya tanpa `#` dan spasi
   (`#3-349620` → `STRUK-3-349620`) sejak uji pertama. Jangan dikosongkan: `TRX-…` buatan skrip

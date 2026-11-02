@@ -275,6 +275,32 @@ Telegram atau Discord, salin `data/tujuan.json.example` ke `data/tujuan.json` (d
 isi ID-nya; Kanal yang tidak diisi dilewati. Telegram dan Discord tidak diulang kalau gagal
 (WhatsApp 3 kali). Ketiga cron laporan berbatas waktu 600 detik, bukan 420 (ADR-0023); jangan diturunkan lagi.
 
+### Pasang bot Discord OpenClaw (jalur langsung)
+Pemilik dan istri mencatat, bertanya, mengubah, dan menghapus dari satu kanal keuangan privat di
+Discord (ADR-0023, jalur A). Ini bot **baru** dengan token baru, terpisah dari bot Hermes. Foto
+struk juga bisa dikirim di sini. Langkah (1–4 kamu kerjakan sendiri di Discord):
+
+1. [Developer Portal](https://discord.com/developers/applications) → *New Application* → *Bot* →
+   *Reset Token* (simpan, jangan kirim di chat). Aktifkan **Message Content Intent**.
+2. *OAuth2 → URL Generator*: scope `bot`; izin *View Channels*, *Send Messages*, *Send Messages in
+   Threads*, *Read Message History*, *Attach Files*. Buka URL-nya untuk mengundang bot ke server.
+3. Buat satu kanal teks **privat** (mis. `#keuangan`): matikan *View Channel* untuk `@everyone`,
+   izinkan hanya pemilik, istri, dan bot. Peran yang punya izin *Administrator* tetap melihat semua
+   kanal: pastikan tidak ada anggota lain di server dengan peran itu, karena isi Buku Kas memuat gaji.
+4. Aktifkan *Developer Mode* (Pengaturan → Lanjutan), lalu *Salin ID* untuk server, kanal, pemilik,
+   dan istri. Token masuk `.env` tanpa tampil di layar:
+   `read -rs T && echo "DISCORD_BOT_TOKEN=$T" >> ~/.openclaw/.env; unset T`.
+5. Tambahkan `channels.discord` dan binding `discord` → `main` dari `openclaw.json.example` ke
+   config hidup, dengan ID asli (tanpa kunci `_keterangan`), lewat `openclaw config patch
+   --dry-run` lalu tanpa `--dry-run`. `bindings` diganti utuh: gabungkan dengan yang sudah ada.
+6. `openclaw gateway restart`, lalu `openclaw channels status` harus menyebut Discord tersambung.
+7. Uji terima: tanpa @mention bot diam (juga di thread dan untuk jawaban "ya"); kanal lain dan
+   orang lain diabaikan; catat → Pratinjau → `@bot ya` → `@bot cari …` menemukannya; foto struk
+   dicatat dengan Pratinjau; baris tersimpan bernilai `channel` `discord`.
+
+Hanya `AGENTS.md` yang dibaca agen untuk kontraknya, jadi percakapan di Discord sama dengan di
+WhatsApp. WhatsApp, Telegram, dan bot helpdesk tidak berubah.
+
 ### Pasang agen `keuangan` untuk Relay Hermes
 Agen kedua yang menerima pesan keuangan dari Hermes lewat A2A (ADR-0023). Workspace dan
 `AGENTS.md`-nya sama dengan agen utama, tetapi alatnya hanya skrip bill-tracker. Satu kali pasang:

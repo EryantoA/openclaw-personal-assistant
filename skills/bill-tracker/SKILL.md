@@ -202,7 +202,7 @@ Untuk mengisi JSON dengan benar dan membaca data — bukan untuk menulis barisny
   Pengeluaran, Arus Kas Bulanan, Saldo Bersama, maupun budget. Catat dengan `akun` = asal, `akun_tujuan` =
   tujuan, dan item berkategori `transfer` (di luar `kategori_custom`; `catat.py` menolak transfer
   tanpa dua akun). Rincian di `{baseDir}/references/akun-transfer.md`.
-- **`channel`**: asal baris — `whatsapp`/`telegram` untuk pesan; impor massal memakai nama
+- **`channel`**: asal baris — `whatsapp`/`telegram`/`discord` untuk pesan (lewat Relay Hermes: `discord-via-hermes`); impor massal memakai nama
   aplikasi sumbernya (mis. `keuangan-keluarga`), supaya mudah disaring.
 - **`item`**: apa yang dibeli, apa adanya. **Nama toko ikut di sini**, setelah tanda pisah —
   `Susu UHT + Yakult - Budiman Swalayan`. Tidak ada kolom `tempat` (ADR-0007). Tak ada tokonya
