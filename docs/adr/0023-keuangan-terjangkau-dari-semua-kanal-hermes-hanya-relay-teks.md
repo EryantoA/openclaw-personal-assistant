@@ -98,6 +98,19 @@ galat `catat.py --uji` (kini memuat `pilihan:`) dan nama akun dari `akun.py`; fi
 budget, kategori, backup, ekspor, transaksi berulang) tidak tersedia lewat Relay. Belum diuji
 terhadap filter exec: JSON dalam kutip tunggal yang memuat `$` atau kutip ganda.
 
+Uji hidup Relay (2 Nov 2026, setelah pemasangan): agen `keuangan` ber-Haiku **tidak pernah memanggil
+alat**; ia menulis perintahnya lalu meminta `/approve`. Dengan Sonnet 5 Pratinjau muncul benar,
+`channel` `discord-via-hermes` dan Pencatat dari kepala. Karena itu modelnya Sonnet. Kepatuhan
+terhadap kontrak masih sebagian: `Relay-Kanal: telegram` lolos dan kepala tidak lengkap hanya
+tertahan oleh allowlist, bukan oleh kontrak, jadi kontrak diberi langkah "periksa kepala dulu"
+dengan kalimat penolakan baku. Uji "ya" yang menulis ke Buku Kas, "ya" dari pengirim lain, dan
+`contextId` dua langkah belum dijalankan.
+
+`AGENTS.md` dibatasi OpenClaw 20.000 karakter per berkas (`bootstrapMaxChars`); bagian Relay
+membuatnya 22.988 dan memotong "Mengubah dan menghapus" serta "Laporan" untuk bot hidup. Bagian
+Relay ditulis ringkas dan berkas dipangkas ke bawah 19.500 (tes `NomorStrukTercetak`). Setiap
+penambahan kontrak berikutnya harus muat di batas itu.
+
 ## Hasil spike #38 (2 Nov 2026)
 
 Dicoba di mesin ini (OpenClaw 2026.10.9, Hermes 0.22.2) dengan agen `spike38` dan peer A2A
