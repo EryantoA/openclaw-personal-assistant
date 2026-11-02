@@ -91,7 +91,8 @@ dipastikan saat membangun.
 
 Dicoba di mesin ini (OpenClaw 2026.10.9, Hermes 0.22.2) dengan agen `spike38` dan peer A2A
 `spike38peer` sementara, lalu dihapus; config dan approvals kembali identik dengan cadangan.
-Pembatasan alat, workspace bersama, dan `contextId` terbukti; dua hal lain belum, lihat bawah.
+Pembatasan alat, workspace bersama, dan `contextId` (juga lewat restart gateway) terbukti;
+`channel_prompts` di Discord sungguhan belum, lihat butir 3.
 
 **1. Pembatasan alat per agen: bisa, dengan tiga syarat.** Agen kedua dibatasi lewat
 `tools.allow/deny`, `tools.exec.mode: allowlist`, dan allowlist per agen di approvals
@@ -123,16 +124,25 @@ dijalankan karena interpreter Hermes dibangun launchernya sendiri). Belum diuji 
 sungguhan karena butuh ID kanal dan bot yang di-@mention: itu bagian #42/#43. Catatan:
 `DISCORD_THREAD_REQUIRE_MENTION` belum ada di `~/.hermes/.env`; setel eksplisit di #42.
 
-**4. `contextId` A2A: menjaga percakapan; restart belum diuji.** Dua pesan dengan `contextId`
-sama berbagi ingatan (kode yang disebut di pesan pertama dijawab di pesan kedua); `contextId` lain
-menjawab "tidak tahu". Sesi berkunci `agent:<id>:a2a:default:direct:<peer>:<contextId>` dan
-tersimpan di SQLite agen di disk, jadi seharusnya selamat dari restart gateway, tetapi restart
-tidak dicoba karena mengganggu bot WhatsApp dan Telegram yang sedang hidup. Masuk uji terima
-#43 (Pratinjau menggantung lintas restart). Hal lain yang berlaku untuk #40:
+**4. `contextId` A2A: menjaga percakapan, juga lewat restart gateway.** Dua pesan dengan
+`contextId` sama berbagi ingatan (kode yang disebut di pesan pertama dijawab di pesan kedua);
+`contextId` lain menjawab "tidak tahu". Sesi berkunci
+`agent:<id>:a2a:default:direct:<peer>:<contextId>` dan disimpan di SQLite agen di disk. Dicoba
+dengan restart gateway sungguhan (`openclaw gateway restart`, 2 Nov 2026): kode yang ditanam
+sebelum restart tetap dijawab sesudahnya, `contextId` lain tetap terpisah, dan WhatsApp serta
+Telegram pulih sehat dalam hitungan detik. Uji itu memakai peer yang jatuh ke `main` (lihat
+bawah), bukan agen `keuangan`; yang diuji adalah penyimpanan sesi, yang tidak bergantung pada
+agennya. Objek tugas A2A (`GetTask`) lintas restart tidak diuji; konteks percakapannya yang
+selamat. Hal lain yang berlaku untuk #40:
 - Agen tujuan ditentukan hanya oleh binding peer (`resolveAgentRoute`); `metadata` pesan tidak
-  ikut memilih. Peer `hermes` harus diikat ke `keuangan` **sebelum** tokennya dipakai: dari
-  sumber, peer tanpa binding kemungkinan jatuh ke agen default (`main`, exec penuh); ini belum
-  dicoba, jadi uji dulu di #40.
+  ikut memilih. **Peer tanpa binding terbukti dijawab `main` dengan exec penuh** (dicoba: peer
+  sementara tanpa binding menjalankan `echo` dan menyebut dirinya `main`). Maka peer `hermes`
+  harus diikat ke `keuangan` **sebelum** tokennya dipakai, dan #40 perlu tes bahwa pesan dari
+  `hermes` memang dijawab `keuangan` (lewat kunci sesi `agent:keuangan:a2a:…`).
+- ID agen yang pernah dihapus (`openclaw agents delete`) tidak bisa dipakai ulang di gateway yang
+  sama: pesan ke ID itu gagal "agent database is unavailable while agent … is deleted", dan
+  penulisan approvals tertahan "agent deletion in progress". Beri `keuangan` nama final sejak
+  awal; jangan buat-hapus-buat ulang. Untuk uji sementara pakai ID baru tiap kali.
 - Agent Card (`/.well-known/agent-card.json`) publik dan mendaftar semua ID agen (`main`,
   `helpdesk`); setel `channels.a2a.exposeAgents: ["keuangan"]`. Gateway hanya mendengar di
   loopback (`bind: loopback`), jadi kartu itu hanya terjangkau dari mesin ini selama tidak
