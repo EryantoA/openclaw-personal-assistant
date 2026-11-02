@@ -40,6 +40,10 @@ class AgenKeuanganRelay(unittest.TestCase):
                      "message", "cron", "nodes", "canvas"):
             self.assertIn(alat, KEUANGAN["tools"]["deny"])
 
+    def test_model_sonnet_karena_haiku_tidak_memanggil_alat(self):
+        # Uji hidup 2 Nov 2026: Haiku menulis perintah lalu minta /approve tanpa memanggil alat.
+        self.assertEqual(KEUANGAN["model"], "anthropic/claude-sonnet-5")
+
     def test_peer_hermes_dengan_token_dari_lingkungan_bukan_literal(self):
         a2a = CONTOH["channels"]["a2a"]
         self.assertEqual(a2a["peers"]["hermes"]["token"], "${A2A_HERMES_TOKEN}")

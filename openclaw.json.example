@@ -29,11 +29,11 @@
     },
     "entries": {
       "keuangan": {
-        "_keterangan": "Penerima Relay Hermes (ADR-0023, spike #38). Workspace sama dengan agen utama, jadi AGENTS.md sama. Alat: hanya exec, dibatasi allowlist per agen (exec-approvals.keuangan.json.example); read ditolak karena bisa membaca di luar workspace. Beri nama final sejak awal: ID agen yang pernah dihapus tidak bisa dipakai ulang di gateway yang sama.",
+        "_keterangan": "Penerima Relay Hermes (ADR-0023, spike #38). Workspace sama dengan agen utama, jadi AGENTS.md sama. Alat: hanya exec, dibatasi allowlist per agen (exec-approvals.keuangan.json.example); read ditolak karena bisa membaca di luar workspace. Modelnya Sonnet, bukan Haiku: pada uji hidup 2 Nov 2026 Haiku menulis perintah lalu minta /approve tanpa memanggil alat. Beri nama final sejak awal: ID agen yang pernah dihapus tidak bisa dipakai ulang di gateway yang sama.",
         "name": "Keuangan",
         "workspace": "/Users/apple/Developments/openclaw-personal-assistant",
         "agentDir": "/Users/apple/.openclaw/agents/keuangan/agent",
-        "model": "anthropic/claude-haiku-4-5",
+        "model": "anthropic/claude-sonnet-5",
         "tools": {
           "allow": ["exec"],
           "deny": ["read", "write", "edit", "apply_patch", "browser", "canvas", "nodes", "cron", "web_search", "web_fetch", "message"],

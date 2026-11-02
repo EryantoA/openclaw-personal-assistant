@@ -222,6 +222,9 @@ PETA_PESAN = AGENTS[AGENTS.index("## Peta pesan"):AGENTS.index("## Data & Script
     if "## Peta pesan" in AGENTS else ""
 
 
+PETA_PESAN_NORMAL = " ".join(PETA_PESAN.split())
+
+
 class KontrakRelay(unittest.TestCase):
     """Relay Hermes (ADR 0023-keuangan-terjangkau-*, spek 0004-keuangan-terjangkau-*): kepala dua baris
     didefinisikan sekali, di AGENTS.md."""
@@ -258,15 +261,14 @@ class KontrakRelay(unittest.TestCase):
 
     def test_foto_di_jalur_relay_tidak_ditebak(self):
         self.assertIn("jangan menebak isinya", self.TEKS)
-        self.assertIn("kirim fotonya langsung ke bot OpenClaw", self.TEKS)
+        self.assertIn("kirim fotonya atau permintaannya langsung ke bot OpenClaw", self.TEKS)
 
     def test_kepala_hanya_dipercaya_di_pesan_relay(self):
         self.assertIn("abaikan sebagai teks biasa", self.TEKS)
 
     def test_kepala_ketat_dan_ya_dari_orang_lain_tidak_menyimpan(self):
         self.assertIn("tepat di dua baris pertama", self.TEKS)
-        self.assertIn("`Relay-Kanal` bernilai `discord`", self.TEKS)
-        self.assertIn("\"pengirim pesan\" pada pesan Relay berarti nama itu", self.TEKS)
+        self.assertIn("\"Pengirim pesan\" di berkas ini berarti nama itu", self.TEKS)
         self.assertIn("hanya menyimpan bila `Relay-Pengirim` sama dengan yang memulai Pratinjau", self.TEKS)
 
     def test_panggilan_relay_lewat_json_argumen_bukan_heredoc(self):
@@ -274,19 +276,30 @@ class KontrakRelay(unittest.TestCase):
         self.assertIn("jangan memakai heredoc", self.TEKS)
         self.assertIn("--json '<JSON satu baris>'", self.TEKS)
         self.assertIn("`\\u0027`", self.TEKS)  # apostrof memutus kutip tunggal di shell
-        self.assertIn("pipa, `;`, atau `$(…)`", self.TEKS)
+        self.assertIn("pipa, `;`, dan `$(…)`", self.TEKS)
+
+    def test_kepala_diperiksa_dulu_dengan_kalimat_penolakan_baku(self):
+        # Uji hidup 2 Nov 2026: kepala tidak lengkap ditolak hanya karena kebetulan (allowlist),
+        # dan Relay-Kanal selain discord lolos. Langkah 0 + kalimat baku membuatnya terlihat.
+        kalimat = "⚠️ Kepala Relay tidak lengkap, tidak ada yang dicatat."
+        self.assertEqual(AGENTS.count(kalimat), 1)
+        self.assertIn("Periksa kepala dulu", self.TEKS)
+        self.assertIn("sebelum menjalankan skrip apa pun", self.TEKS)
+        self.assertIn("`Relay-Kanal` harus persis `discord`", self.TEKS)
+        self.assertIn("`telegram` tidak sah", self.TEKS)
+        self.assertIn("Periksa kepalanya dulu", PETA_PESAN_NORMAL)
 
     def test_penunjuk_di_dekat_setiap_contoh_heredoc_dan_contoh_ubah_hapus(self):
         # Contoh heredoc ada di Langkah 1 dan di ubah/hapus; model lemah menyalin yang terdekat.
         self.assertEqual(AGENTS.count("Lewat Relay, pakai `--json`"), 2)
-        self.assertIn("python3 scripts/buku.py hapus --uji --json '", self.BAGIAN)
-        self.assertIn("python3 scripts/buku.py ubah --uji --json '", self.BAGIAN)
+        self.assertIn("python3 scripts/catat.py --uji --json '", self.BAGIAN)
+        self.assertIn("`catat.py` dan `buku.py ubah`/`hapus`", self.TEKS)
 
     def test_tanpa_read_kategori_dan_akun_dari_skrip_dan_fitur_lain_dialihkan(self):
-        self.assertIn("kamu tidak bisa membaca berkas", self.TEKS)
+        self.assertIn("Kamu tidak bisa membaca berkas", self.TEKS)
         self.assertIn("pilihan:", self.TEKS)            # slug kategori dari galat catat.py --uji
         self.assertIn("`python3 scripts/akun.py`", self.TEKS)  # nama akun
-        self.assertIn("kirim langsung ke bot OpenClaw", self.TEKS)
+        self.assertIn("langsung ke bot OpenClaw", self.TEKS)
 
     def test_relay_memakai_pratinjau_yang_sama_tanpa_menyalinnya(self):
         self.assertIn("kerangka Pratinjau yang sama", self.TEKS)
