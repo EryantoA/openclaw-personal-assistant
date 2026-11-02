@@ -77,6 +77,19 @@ class KontrakPratinjau(unittest.TestCase):
         self.assertNotIn("memakai kerangka yang sama", AGENTS)
 
 
+class KontrakChannel(unittest.TestCase):
+    """Nilai `channel` mengikuti Kanal pesan masuk (spek 0004: baris Discord bernilai `discord`)."""
+
+    def test_channel_mengikuti_kanal_bukan_selalu_whatsapp(self):
+        teks = " ".join(AGENTS.split())
+        self.assertIn("`channel` = Kanal pesan masuk (`whatsapp`, `telegram`, `discord`)", teks)
+        # Contoh JSON utama tidak boleh mengajarkan nilai tetap yang disalin model.
+        contoh = AGENTS[AGENTS.index("python3 scripts/catat.py --uji <<'EOF'"):]
+        contoh = contoh[:contoh.index("EOF\n```", 10)]
+        self.assertIn('"channel": "<kanal>"', contoh)
+        self.assertNotIn('"channel": "whatsapp"', contoh)
+
+
 class KontrakPembeli(unittest.TestCase):
     def test_alias_dibakukan_skrip_bukan_model(self):
         self.assertIn("data/pembeli.json", AGENTS)

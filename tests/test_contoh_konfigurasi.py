@@ -60,6 +60,39 @@ class AgenKeuanganRelay(unittest.TestCase):
         self.assertNotRegex(teks, r'"token"\s*:\s*"[0-9a-f]{32,}"')
 
 
+class DiscordLangsung(unittest.TestCase):
+    """Bot Discord OpenClaw di satu kanal keuangan privat (ADR-0023, jalur A)."""
+
+    D = CONTOH["channels"]["discord"]
+    SERVER = next(iter(D["guilds"].values()))
+
+    def test_token_dari_lingkungan_bukan_literal(self):
+        self.assertEqual(self.D["token"], "${DISCORD_BOT_TOKEN}")
+
+    def test_dm_dan_server_hanya_untuk_dua_orang(self):
+        self.assertEqual(self.D["dmPolicy"], "allowlist")
+        self.assertEqual(self.D["groupPolicy"], "allowlist")
+        self.assertEqual(len(self.D["allowFrom"]), 2)
+        self.assertEqual(sorted(self.SERVER["users"]), sorted(self.D["allowFrom"]))
+
+    def test_satu_kanal_dan_mention_wajib_juga_di_thread(self):
+        self.assertEqual(len(self.SERVER["channels"]), 1)  # kanal lain ditolak
+        kanal = next(iter(self.SERVER["channels"].values()))
+        self.assertTrue(kanal["enabled"])
+        self.assertTrue(self.SERVER["requireMention"])
+        self.assertTrue(self.SERVER["requireMentionInBotThreads"])  # "ya" juga wajib @mention
+        self.assertTrue(self.D["intents"]["messageContent"])
+
+    def test_id_di_contoh_karangan_bukan_id_asli(self):
+        teks = json.dumps(self.D)
+        for angka in re.findall(r"\d{15,}", teks):
+            self.assertTrue(set(angka) <= set("0123456789") and angka.startswith(("1234567890", "9876543210")), angka)
+
+    def test_discord_dilayani_agen_utama(self):
+        cocok = [b for b in CONTOH["bindings"] if b["match"]["channel"] == "discord"]
+        self.assertEqual([b["agentId"] for b in cocok], ["main"])
+
+
 class AllowlistKeuangan(unittest.TestCase):
     ATURAN = APPROVALS["agents"]["keuangan"]["allowlist"]
 

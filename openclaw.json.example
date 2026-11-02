@@ -104,6 +104,10 @@
   },
   "bindings": [
     {
+      "agentId": "main",
+      "match": { "channel": "discord", "accountId": "*" }
+    },
+    {
       "_keterangan": "Wajib ada SEBELUM token hermes dipakai: peer A2A tanpa binding dijawab agen utama dengan exec penuh (terbukti di spike #38).",
       "agentId": "keuangan",
       "match": { "channel": "a2a", "accountId": "*", "peer": { "kind": "direct", "id": "hermes" } }
@@ -120,6 +124,25 @@
       "enabled": true,
       "exposeAgents": ["keuangan"],
       "peers": { "hermes": { "token": "${A2A_HERMES_TOKEN}" } }
+    },
+    "discord": {
+      "_keterangan": "Jalur langsung (ADR-0023): bot OpenClaw BARU dengan token baru, terpisah dari bot Hermes. Token di ~/.openclaw/.env (DISCORD_BOT_TOKEN), bukan di berkas ini. Semua ID di bawah KARANGAN; ganti dengan ID Discord pemilik dan istri, server, dan satu kanal keuangan privat. Kanal lain dan orang lain diabaikan. requireMentionInBotThreads true: di thread pun, termasuk jawaban 'ya', wajib @mention. Butuh Message Content Intent di Developer Portal.",
+      "enabled": true,
+      "token": "${DISCORD_BOT_TOKEN}",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["123456789012345678", "987654321098765432"],
+      "groupPolicy": "allowlist",
+      "intents": { "messageContent": true },
+      "guilds": {
+        "1234567890123456789": {
+          "requireMention": true,
+          "requireMentionInBotThreads": true,
+          "users": ["123456789012345678", "987654321098765432"],
+          "channels": {
+            "1234567890987654321": { "enabled": true, "requireMention": true }
+          }
+        }
+      }
     },
     "telegram": {
       "token": "TOKEN_BOT_TELEGRAM_KAMU",

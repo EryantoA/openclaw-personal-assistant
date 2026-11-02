@@ -111,6 +111,11 @@ membuatnya 22.988 dan memotong "Mengubah dan menghapus" serta "Laporan" untuk bo
 Relay ditulis ringkas dan berkas dipangkas ke bawah 19.500 (tes `NomorStrukTercetak`). Setiap
 penambahan kontrak berikutnya harus muat di batas itu.
 
+Pelaksanaan jalur A (#36): contoh config dan langkah pasang di README; token dan ID tidak di repo.
+Nilai `channel` baris Discord ditentukan oleh agen, bukan skrip, dan contoh JSON di `AGENTS.md`
+dulu memuat `"channel": "whatsapp"` literal yang bisa disalin model (Buku Kas belum pernah memuat
+baris `telegram`), jadi contohnya kini `<kanal>` dengan satu aturan `channel` = Kanal pesan masuk.
+
 ## Hasil spike #38 (2 Nov 2026)
 
 Dicoba di mesin ini (OpenClaw 2026.10.9, Hermes 0.22.2) dengan agen `spike38` dan peer A2A
