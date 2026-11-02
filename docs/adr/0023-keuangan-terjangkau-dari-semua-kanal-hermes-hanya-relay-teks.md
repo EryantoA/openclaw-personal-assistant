@@ -83,8 +83,57 @@ penyusunan laporan. Maka batas cron `laporan_mingguan`, `laporan_bulanan`, dan
 Peringatan penjaga kesehatan (`periksa-kesehatan.py`, ADR-0011) tetap hanya ke WhatsApp: ia
 sengaja punya `tujuan_baku` sendiri supaya berdiri sendiri, jadi tidak ikut Telegram atau Discord.
 
-Perlu diverifikasi saat membangun, karena baru dugaan di riset: pembatasan alat per agen di
-OpenClaw dan berbagi `AGENTS.md` antara dua agen (bila gagal, Relay jatuh ke `main` sebagai risiko
-yang diterima dan dicatat ulang di sini); `channel_prompts` Hermes untuk Discord; izin kanal
-Discord hanya untuk pemilik dan istri (isi `bills.csv` memuat gaji). Urutan pembangunan: Jalur A
-dulu (bot Discord OpenClaw, tujuan laporan tambahan), lalu Jalur B.
+Urutan pembangunan: Jalur A dulu (bot Discord OpenClaw, tujuan laporan tambahan), lalu Jalur B.
+Izin kanal Discord hanya untuk pemilik dan istri (isi `bills.csv` memuat gaji) masih harus
+dipastikan saat membangun.
+
+## Hasil spike #38 (2 Nov 2026)
+
+Dicoba di mesin ini (OpenClaw 2026.10.9, Hermes 0.22.2) dengan agen `spike38` dan peer A2A
+`spike38peer` sementara, lalu dihapus; config dan approvals kembali identik dengan cadangan.
+Pembatasan alat, workspace bersama, dan `contextId` terbukti; dua hal lain belum, lihat bawah.
+
+**1. Pembatasan alat per agen: bisa, dengan tiga syarat.** Agen kedua dibatasi lewat
+`tools.allow/deny`, `tools.exec.mode: allowlist`, dan allowlist per agen di approvals
+(`pattern: python3` + `argPattern`). `echo` dan `date` ditolak (`allowlist miss`), `python3
+scripts/buku.py cari` jalan. Yang harus benar:
+- **`argPattern` wajib dijangkarkan.** Tanpa jangkar (`scripts/(catat|buku)\.py`), `python3 -c
+  "…# scripts/catat.py"` ikut jalan, artinya eksekusi Python bebas. Dengan
+  `^scripts/(catat|buku)\.py( |$)` itu ditolak, begitu juga rantai `;`, `$(…)`, dan pipa.
+- **Alat `read` harus ditolak.** Ia membaca `/etc/hosts`, di luar workspace; workspace bukan
+  sandbox. `AGENTS.md` tetap sampai ke agen lewat konteks. Tolak juga `write`, `edit`,
+  `apply_patch`, `browser`, `web_*`, `message`, `cron`.
+- **JSON tidak bisa lewat stdin.** Pengalihan stdin (heredoc dan `< /dev/null`) ditolak sebagai
+  `allowlist miss`, padahal `catat.py` dan `buku.py ubah|hapus` hanya menerima JSON dari stdin
+  dan kontrak Pratinjau memakai heredoc. Argumen berisi kutip dan kurung kurawal lolos. Maka
+  tiket #40 perlu jalur masuk lewat argumen (mis. `--json '<teks>'`) di kedua skrip, dengan
+  penanganan apostrof pada nama item, dan `AGENTS.md` perlu bentuk panggilan yang cocok dengan
+  allowlist. Agen `main` tidak terpengaruh (exec penuh).
+
+**2. Berbagi workspace dan `AGENTS.md`: bisa.** Agen kedua dengan workspace yang sama memuat
+`AGENTS.md` yang sama (baris pertama dikutip benar) dan menjalankan skrip dari workspace itu;
+sesinya terpisah di `agentDir` sendiri. `openclaw agents delete` mempertahankan workspace yang
+dipakai bersama (`workspaceRetained`), jadi agen `keuangan` bisa dibuang tanpa mengusik `main`.
+Fallback ke `main` tidak diperlukan.
+
+**3. `channel_prompts` Hermes: ada, belum dicoba hidup.** Hermes 0.22.2 punya
+`discord.channel_prompts` yang dikunci ID kanal; thread jatuh ke ID kanal induk; prompt bersifat
+sementara per giliran (dokumentasi dan `resolve_channel_prompt` di sumber, dibaca, tidak
+dijalankan karena interpreter Hermes dibangun launchernya sendiri). Belum diuji di Discord
+sungguhan karena butuh ID kanal dan bot yang di-@mention: itu bagian #42/#43. Catatan:
+`DISCORD_THREAD_REQUIRE_MENTION` belum ada di `~/.hermes/.env`; setel eksplisit di #42.
+
+**4. `contextId` A2A: menjaga percakapan; restart belum diuji.** Dua pesan dengan `contextId`
+sama berbagi ingatan (kode yang disebut di pesan pertama dijawab di pesan kedua); `contextId` lain
+menjawab "tidak tahu". Sesi berkunci `agent:<id>:a2a:default:direct:<peer>:<contextId>` dan
+tersimpan di SQLite agen di disk, jadi seharusnya selamat dari restart gateway, tetapi restart
+tidak dicoba karena mengganggu bot WhatsApp dan Telegram yang sedang hidup. Masuk uji terima
+#43 (Pratinjau menggantung lintas restart). Hal lain yang berlaku untuk #40:
+- Agen tujuan ditentukan hanya oleh binding peer (`resolveAgentRoute`); `metadata` pesan tidak
+  ikut memilih. Peer `hermes` harus diikat ke `keuangan` **sebelum** tokennya dipakai: dari
+  sumber, peer tanpa binding kemungkinan jatuh ke agen default (`main`, exec penuh); ini belum
+  dicoba, jadi uji dulu di #40.
+- Agent Card (`/.well-known/agent-card.json`) publik dan mendaftar semua ID agen (`main`,
+  `helpdesk`); setel `channels.a2a.exposeAgents: ["keuangan"]`. Gateway hanya mendengar di
+  loopback (`bind: loopback`), jadi kartu itu hanya terjangkau dari mesin ini selama tidak
+  dibuka lewat ngrok.
