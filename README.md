@@ -278,6 +278,10 @@ isi ID-nya; Kanal yang tidak diisi dilewati. Telegram dan Discord tidak diulang 
 Agen kedua yang menerima pesan keuangan dari Hermes lewat A2A (ADR-0023). Workspace dan
 `AGENTS.md`-nya sama dengan agen utama, tetapi alatnya hanya skrip bill-tracker. Satu kali pasang:
 
+0. Agen membaca `AGENTS.md` dan skrip dari workspace-nya, yaitu checkout utama, bukan dari cabang
+   lain: pastikan perubahan Relay sudah di-merge ke `master` dan checkout utama sudah di-`git pull`.
+   Sebelum itu agen tetap memakai heredoc dan menulis `channel` tanpa `-via-hermes` (terbukti
+   pada uji pasang pertama, 2 Nov 2026).
 1. Buat token dan simpan di luar repo: `echo "A2A_HERMES_TOKEN=$(openssl rand -hex 24)" >>
    ~/.openclaw/.env && chmod 600 ~/.openclaw/.env`.
 2. Tambahkan ke config hidup blok `agents.entries.keuangan`, `channels.a2a`, dan satu binding
