@@ -1,5 +1,12 @@
 # Laporan Bulanan dihitung skrip, dikirim tanggal 6, dan mengingat angkanya sendiri
 
+> **Dikoreksi oleh [0023](0023-keuangan-terjangkau-dari-semua-kanal-hermes-hanya-relay-teks.md)**
+> (1 Nov 2026), soal arti "terkirim". Dengan lebih dari satu tujuan, angka disimpan bila
+> **minimal satu** tujuan menerima laporan; hanya bila semuanya gagal angka tidak disimpan.
+> Kode keluar tetap 1 selama ada tujuan yang gagal. Percobaan ulang 3 kali kini hanya untuk
+> WhatsApp (Telegram dan Discord sekali coba), dan batas waktu cron laporan kini 600 detik,
+> bukan 420 (cron hidup sudah dinaikkan 1 Nov 2026). Bagian lain ADR ini tetap berlaku.
+
 **Laporan Bulanan** (lihat `CONTEXT.md`) melaporkan bulan yang **sudah tutup**, dikirim
 **tanggal 6 pukul 09:00 WIB**, dan disusun seluruhnya oleh skrip sebagai **command payload**
 di cron Gateway — bukan oleh giliran agent. Angka yang dilaporkan disimpan, dan Laporan

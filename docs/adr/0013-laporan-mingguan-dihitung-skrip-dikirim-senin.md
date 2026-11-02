@@ -1,5 +1,11 @@
 # Laporan Mingguan dihitung skrip, untuk Pekan yang sudah tutup, dikirim Senin 07:00
 
+> **Dikoreksi oleh [0023](0023-keuangan-terjangkau-dari-semua-kanal-hermes-hanya-relay-teks.md)**
+> (1 Nov 2026): percobaan ulang 3 kali kini hanya untuk WhatsApp (Telegram dan Discord sekali
+> coba), dan batas waktu cron laporan kini 600 detik, bukan 420 (cron hidup sudah dinaikkan 1 Nov 2026).
+> Laporan Mingguan kini dikirim ke semua tujuan yang terkonfigurasi; kode keluar 1 bila ada yang
+> gagal. Selebihnya tetap berlaku.
+
 **Laporan Mingguan** (lihat `CONTEXT.md`) disusun seluruhnya oleh `scripts/laporan-mingguan.py`
 sebagai **command payload** di cron Gateway, bukan oleh giliran agent. Ia melaporkan satu
 **Pekan** (Senin 00:00 – Minggu 23:59 WIB) yang sudah tutup, dikirim **Senin 07:00**, lewat

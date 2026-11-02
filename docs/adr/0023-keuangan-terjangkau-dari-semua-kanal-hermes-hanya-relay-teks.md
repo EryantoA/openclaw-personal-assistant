@@ -23,7 +23,7 @@ di OpenClaw, dan semua Kanal membaca serta menulis `bills.csv` yang sama lewat s
   membahas uang. Telegram tidak ikut jalur B. Foto tidak diteruskan (A2A OpenClaw hanya
   menerima teks dan JSON); Hermes menjawab "kirim fotonya ke bot OpenClaw".
 - **Agen `keuangan` terpisah** menerima Relay: workspace dan `AGENTS.md` yang sama dengan `main`
-  tetapi alatnya dibatasi ke skrip bill-tracker dan pembacaan berkas. Tugas A2A mewarisi alat
+  tetapi alatnya dibatasi ke skrip bill-tracker (tanpa `read`, lihat pelaksanaan #40). Tugas A2A mewarisi alat
   agen tujuannya, dan `main` jalan dengan `bypassPermissions`; model gratis tidak boleh
   berada di depan izin sepenuh itu.
 - **Pencatat pada Relay hanya klaim.** Satu peer `hermes`; nama pengirim ikut di teks, jadi
@@ -66,8 +66,95 @@ tidak menyimpan data keuangan ke `MEMORY.md`; ia hanya meneruskan.
 Pencatat pada baris `*-via-hermes` bisa salah (mis. transaksi istri tercatat atas pemilik) kalau
 Pratinjau tidak diperhatikan. Penyaringan lewat kolom `channel` adalah satu-satunya jejaknya.
 
-Perlu diverifikasi saat membangun, karena baru dugaan di riset: pembatasan alat per agen di
-OpenClaw dan berbagi `AGENTS.md` antara dua agen (bila gagal, Relay jatuh ke `main` sebagai risiko
-yang diterima dan dicatat ulang di sini); `channel_prompts` Hermes untuk Discord; izin kanal
-Discord hanya untuk pemilik dan istri (isi `bills.csv` memuat gaji). Urutan pembangunan: Jalur A
-dulu (bot Discord OpenClaw, tujuan laporan tambahan), lalu Jalur B.
+Pelaksanaan pengiriman laporan (#39, 1 Nov 2026): config OpenClaw hanya menyimpan nomor
+WhatsApp, tidak ada ID tujuan Telegram atau Discord, jadi ID itu dibaca dari `data/tujuan.json`
+(di luar git, ADR-0004; bentuknya di `data/tujuan.json.example`). Memakai
+`channels.telegram.allowFrom` ditolak karena kunci itu juga menentukan siapa boleh mengirim DM
+ke bot yang sedang hidup. Waktu terburuk satu pengiriman: WhatsApp ±300 detik (3 percobaan,
+batas 60 detik, 2 jeda 60 detik), sedangkan ketiga cron laporan berbatas 420 detik. Bila semua
+tujuan diulang 3 kali, dua tujuan saja (2 x 300) sudah terpotong; karena itu hanya WhatsApp yang
+diulang dan Telegram serta Discord sekali coba (±60 detik terburuk masing-masing). Total
+terburuk tiga tujuan jadi ±420 detik: tepat di batas, tanpa margin untuk waktu mulai proses dan
+penyusunan laporan. Maka batas cron `laporan_mingguan`, `laporan_bulanan`, dan
+`cek_budget_malam` dinaikkan ke 600 detik di cron hidup pada 1 Nov 2026 (`openclaw cron edit
+--timeout-seconds 600`; `penjaga_kesehatan` tetap 420). Ini harus mendahului pengisian
+`data/tujuan.json`.
+
+Peringatan penjaga kesehatan (`periksa-kesehatan.py`, ADR-0011) tetap hanya ke WhatsApp: ia
+sengaja punya `tujuan_baku` sendiri supaya berdiri sendiri, jadi tidak ikut Telegram atau Discord.
+
+Urutan pembangunan: Jalur A dulu (bot Discord OpenClaw, tujuan laporan tambahan), lalu Jalur B.
+Izin kanal Discord hanya untuk pemilik dan istri (isi `bills.csv` memuat gaji) masih harus
+dipastikan saat membangun.
+
+Pelaksanaan agen `keuangan` (#40, 2 Nov 2026): kode dan contoh sudah di repo, pemasangan ke
+gateway hidup (token, config, approvals, restart) langkah pemilik, ada di README. Tiga keputusan
+dari hasil spike: (1) `catat.py` dan `buku.py ubah|hapus` menerima `--json` sebagai ganti stdin,
+karena agen berallowlist menolak pengalihan; apostrof ditulis `\u0027`. (2) Allowlist hanya
+untuk skrip bill-tracker, tanpa `--kirim` (kirim pesan), `--backfill`, `--gen`, dan `--paksa`,
+supaya larangan alat `message` tidak bisa dilewati lewat subprocess dan cek duplikat tidak
+dilewati agen berkepala klaim. (3) Karena `read` ditolak, agen Relay mengambil slug kategori dari
+galat `catat.py --uji` (kini memuat `pilihan:`) dan nama akun dari `akun.py`; fitur lain (set
+budget, kategori, backup, ekspor, transaksi berulang) tidak tersedia lewat Relay. Belum diuji
+terhadap filter exec: JSON dalam kutip tunggal yang memuat `$` atau kutip ganda.
+
+## Hasil spike #38 (2 Nov 2026)
+
+Dicoba di mesin ini (OpenClaw 2026.10.9, Hermes 0.22.2) dengan agen `spike38` dan peer A2A
+`spike38peer` sementara, lalu dihapus; config dan approvals kembali identik dengan cadangan.
+Pembatasan alat, workspace bersama, dan `contextId` (juga lewat restart gateway) terbukti;
+`channel_prompts` di Discord sungguhan belum, lihat butir 3.
+
+**1. Pembatasan alat per agen: bisa, dengan tiga syarat.** Agen kedua dibatasi lewat
+`tools.allow/deny`, `tools.exec.mode: allowlist`, dan allowlist per agen di approvals
+(`pattern: python3` + `argPattern`). `echo` dan `date` ditolak (`allowlist miss`), `python3
+scripts/buku.py cari` jalan. Yang harus benar:
+- **`argPattern` wajib dijangkarkan.** Tanpa jangkar (`scripts/(catat|buku)\.py`), `python3 -c
+  "…# scripts/catat.py"` ikut jalan, artinya eksekusi Python bebas. Dengan
+  `^scripts/(catat|buku)\.py( |$)` itu ditolak, begitu juga rantai `;`, `$(…)`, dan pipa.
+- **Alat `read` harus ditolak.** Ia membaca `/etc/hosts`, di luar workspace; workspace bukan
+  sandbox. `AGENTS.md` tetap sampai ke agen lewat konteks. Tolak juga `write`, `edit`,
+  `apply_patch`, `browser`, `web_*`, `message`, `cron`.
+- **JSON tidak bisa lewat stdin.** Pengalihan stdin (heredoc dan `< /dev/null`) ditolak sebagai
+  `allowlist miss`, padahal `catat.py` dan `buku.py ubah|hapus` hanya menerima JSON dari stdin
+  dan kontrak Pratinjau memakai heredoc. Argumen berisi kutip dan kurung kurawal lolos. Maka
+  tiket #40 perlu jalur masuk lewat argumen (mis. `--json '<teks>'`) di kedua skrip, dengan
+  penanganan apostrof pada nama item, dan `AGENTS.md` perlu bentuk panggilan yang cocok dengan
+  allowlist. Agen `main` tidak terpengaruh (exec penuh).
+
+**2. Berbagi workspace dan `AGENTS.md`: bisa.** Agen kedua dengan workspace yang sama memuat
+`AGENTS.md` yang sama (baris pertama dikutip benar) dan menjalankan skrip dari workspace itu;
+sesinya terpisah di `agentDir` sendiri. `openclaw agents delete` mempertahankan workspace yang
+dipakai bersama (`workspaceRetained`), jadi agen `keuangan` bisa dibuang tanpa mengusik `main`.
+Fallback ke `main` tidak diperlukan.
+
+**3. `channel_prompts` Hermes: ada, belum dicoba hidup.** Hermes 0.22.2 punya
+`discord.channel_prompts` yang dikunci ID kanal; thread jatuh ke ID kanal induk; prompt bersifat
+sementara per giliran (dokumentasi dan `resolve_channel_prompt` di sumber, dibaca, tidak
+dijalankan karena interpreter Hermes dibangun launchernya sendiri). Belum diuji di Discord
+sungguhan karena butuh ID kanal dan bot yang di-@mention: itu bagian #42/#43. Catatan:
+`DISCORD_THREAD_REQUIRE_MENTION` belum ada di `~/.hermes/.env`; setel eksplisit di #42.
+
+**4. `contextId` A2A: menjaga percakapan, juga lewat restart gateway.** Dua pesan dengan
+`contextId` sama berbagi ingatan (kode yang disebut di pesan pertama dijawab di pesan kedua);
+`contextId` lain menjawab "tidak tahu". Sesi berkunci
+`agent:<id>:a2a:default:direct:<peer>:<contextId>` dan disimpan di SQLite agen di disk. Dicoba
+dengan restart gateway sungguhan (`openclaw gateway restart`, 2 Nov 2026): kode yang ditanam
+sebelum restart tetap dijawab sesudahnya, `contextId` lain tetap terpisah, dan WhatsApp serta
+Telegram pulih sehat dalam hitungan detik. Uji itu memakai peer yang jatuh ke `main` (lihat
+bawah), bukan agen `keuangan`; yang diuji adalah penyimpanan sesi, yang tidak bergantung pada
+agennya. Objek tugas A2A (`GetTask`) lintas restart tidak diuji; konteks percakapannya yang
+selamat. Hal lain yang berlaku untuk #40:
+- Agen tujuan ditentukan hanya oleh binding peer (`resolveAgentRoute`); `metadata` pesan tidak
+  ikut memilih. **Peer tanpa binding terbukti dijawab `main` dengan exec penuh** (dicoba: peer
+  sementara tanpa binding menjalankan `echo` dan menyebut dirinya `main`). Maka peer `hermes`
+  harus diikat ke `keuangan` **sebelum** tokennya dipakai, dan #40 perlu tes bahwa pesan dari
+  `hermes` memang dijawab `keuangan` (lewat kunci sesi `agent:keuangan:a2a:…`).
+- ID agen yang pernah dihapus (`openclaw agents delete`) tidak bisa dipakai ulang di gateway yang
+  sama: pesan ke ID itu gagal "agent database is unavailable while agent … is deleted", dan
+  penulisan approvals tertahan "agent deletion in progress". Beri `keuangan` nama final sejak
+  awal; jangan buat-hapus-buat ulang. Untuk uji sementara pakai ID baru tiap kali.
+- Agent Card (`/.well-known/agent-card.json`) publik dan mendaftar semua ID agen (`main`,
+  `helpdesk`); setel `channels.a2a.exposeAgents: ["keuangan"]`. Gateway hanya mendengar di
+  loopback (`bind: loopback`), jadi kartu itu hanya terjangkau dari mesin ini selama tidak
+  dibuka lewat ngrok.

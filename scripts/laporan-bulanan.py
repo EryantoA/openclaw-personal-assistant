@@ -10,9 +10,11 @@ meminta `laporan bulan lalu` lewat chat: angkanya identik dengan versi tanggal 6
 menghabiskan Koreksi yang belum sempat disebut laporan resmi.
 
 Dengan --kirim, angka yang dilaporkan disimpan di data/laporan-bulanan.json HANYA setelah
-pesannya terkirim. Kalau pengiriman gagal, skrip keluar dengan kode 1 supaya cron tercatat
-`error` dan penjaga kesehatan menangkapnya — dan tidak ada yang disimpan, supaya Koreksi bulan
-depan tidak dihitung terhadap angka yang tak pernah diterima siapa pun.
+pesannya sampai ke minimal satu tujuan. Kalau semua tujuan gagal, skrip keluar dengan kode 1
+supaya cron tercatat `error` dan penjaga kesehatan menangkapnya — dan tidak ada yang disimpan,
+supaya Koreksi bulan depan tidak dihitung terhadap angka yang tak pernah diterima siapa pun.
+Kalau hanya sebagian yang gagal, angka tetap disimpan (seseorang sudah menerimanya) dan kode
+keluarnya tetap 1 supaya kegagalan itu terlihat.
 
 Aturan hitung (Transfer, Saldo Awal, baris tanpa tanggal/tipe tak dikenal) ada di
 scripts/buku_kas.py, satu untuk semua laporan.
@@ -228,12 +230,18 @@ def main(argv=None):
         return 2
 
     hasil = pengirim.kirim_ke_semua(pesan, tujuan, kirim)
-    if not all(ok for _, _, ok, _ in hasil):
+    terkirim = [ok for _, _, ok, _ in hasil]
+    if not any(terkirim):
         print("Angka TIDAK disimpan — laporan ini belum diterima.", file=sys.stderr)
         return 1
 
     SIMPANAN.write_text(json.dumps(simpanan_baru(simpanan, bulan, baris),
                                    indent=2, ensure_ascii=False), encoding="utf-8")
+    if not all(terkirim):
+        gagal = ", ".join(kanal for kanal, _, ok, _ in hasil if not ok)
+        print(f"Angka disimpan: sebagian tujuan menerima. Tidak menerima laporan ini, gagal: {gagal}.",
+              file=sys.stderr)
+        return 1
     return 0
 
 

@@ -2,8 +2,10 @@
 
     python3 -m unittest tests/test_laporan_bulanan.py
 """
+import contextlib
 import csv
 import importlib.util
+import io
 import json
 import tempfile
 import unittest
@@ -158,6 +160,28 @@ class AturanSimpan(unittest.TestCase):
         disimpan = json.loads(lb.SIMPANAN.read_text())["bulan"]["2026-08"]
         self.assertEqual(disimpan["pengeluaran"], 500_000)
         self.assertEqual(disimpan["saldo_akhir"], 29_900_000)
+
+    def test_banyak_tujuan_semua_berhasil_menyimpan_dan_keluar_0(self):
+        lb.tujuan_baku = lambda: [("whatsapp", "+0"), ("telegram", "1")]
+        lb.kirim = lambda pesan, kanal, ke: (True, "")
+        self.assertEqual(lb.main(["--bulan", "2026-08", "--kirim"]), 0)
+        self.assertTrue(lb.SIMPANAN.exists())
+
+    def test_sebagian_tujuan_gagal_tetap_menyimpan_tapi_keluar_1(self):
+        # Satu Kanal mati tidak boleh menahan Koreksi: laporan sudah sampai ke seseorang.
+        lb.tujuan_baku = lambda: [("whatsapp", "+0"), ("telegram", "1")]
+        lb.kirim = lambda pesan, kanal, ke: (kanal != "whatsapp", "logout")
+        galat = io.StringIO()
+        with contextlib.redirect_stderr(galat), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(lb.main(["--bulan", "2026-08", "--kirim"]), 1)
+        self.assertEqual(json.loads(lb.SIMPANAN.read_text())["bulan"]["2026-08"]["pengeluaran"], 500_000)
+        self.assertIn("gagal: whatsapp", galat.getvalue())  # yang gagal disebut, bukan hanya "sebagian"
+
+    def test_semua_tujuan_gagal_tidak_menyimpan(self):
+        lb.tujuan_baku = lambda: [("whatsapp", "+0"), ("telegram", "1")]
+        lb.kirim = lambda pesan, kanal, ke: (False, "putus")
+        self.assertEqual(lb.main(["--bulan", "2026-08", "--kirim"]), 1)
+        self.assertFalse(lb.SIMPANAN.exists())
 
     def test_bulan_berjalan_ditandai_dan_tidak_bisa_dikirim(self):
         lb.kirim = lambda pesan, kanal, ke: (True, "")

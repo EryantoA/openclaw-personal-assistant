@@ -269,6 +269,34 @@ Edit `openclaw.json` → `channels.whatsapp.allowFrom` → isi nomor baru.
 ### Tambah anggota keluarga di Telegram
 Edit `openclaw.json` → `channels.telegram.allowFrom` → tambah username Telegram (opsional, default semua bisa).
 
+### Terima laporan otomatis di Telegram atau Discord
+Laporan Mingguan, Laporan Bulanan, dan cek budget malam selalu ke WhatsApp. Untuk menambah
+Telegram atau Discord, salin `data/tujuan.json.example` ke `data/tujuan.json` (di luar git) dan
+isi ID-nya; Kanal yang tidak diisi dilewati. Telegram dan Discord tidak diulang kalau gagal
+(WhatsApp 3 kali). Ketiga cron laporan berbatas waktu 600 detik, bukan 420 (ADR-0023); jangan diturunkan lagi.
+
+### Pasang agen `keuangan` untuk Relay Hermes
+Agen kedua yang menerima pesan keuangan dari Hermes lewat A2A (ADR-0023). Workspace dan
+`AGENTS.md`-nya sama dengan agen utama, tetapi alatnya hanya skrip bill-tracker. Satu kali pasang:
+
+0. Agen membaca `AGENTS.md` dan skrip dari workspace-nya, yaitu checkout utama, bukan dari cabang
+   lain: pastikan perubahan Relay sudah di-merge ke `master` dan checkout utama sudah di-`git pull`.
+   Sebelum itu agen tetap memakai heredoc dan menulis `channel` tanpa `-via-hermes` (terbukti
+   pada uji pasang pertama, 2 Nov 2026).
+1. Buat token dan simpan di luar repo: `echo "A2A_HERMES_TOKEN=$(openssl rand -hex 24)" >>
+   ~/.openclaw/.env && chmod 600 ~/.openclaw/.env`.
+2. Tambahkan ke config hidup blok `agents.entries.keuangan`, `channels.a2a`, dan satu binding
+   `a2a`/`hermes` → `keuangan` dari `openclaw.json.example` (tanpa kunci `_keterangan`), lewat
+   `openclaw config patch --dry-run` lalu tanpa `--dry-run`. `bindings` diganti utuh: gabungkan
+   dengan binding yang sudah ada. Binding wajib ada **sebelum** token dipakai; peer tanpa binding
+   dijawab agen utama yang ber-exec penuh.
+3. Pasang allowlist: gabungkan `agents.keuangan` dari `exec-approvals.keuangan.json.example` ke
+   hasil `openclaw approvals get --json` (bagian `file`), lalu `openclaw approvals set --file`.
+   Perintah ini mengganti seluruh dokumen.
+4. `openclaw gateway restart` (agar `.env` terbaca). WhatsApp dan Telegram pulih dalam hitungan detik.
+5. Cek: `curl -s http://127.0.0.1:18789/.well-known/agent-card.json` hanya menyebut `keuangan`;
+   tugas A2A tanpa token ditolak. Jangan memakai nama agen yang pernah dihapus.
+
 ### Model utama error
 OpenClaw otomatis beralih ke model fallback. Tidak perlu setting manual.
 

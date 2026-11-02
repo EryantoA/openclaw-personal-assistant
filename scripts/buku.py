@@ -17,6 +17,9 @@ eksekusi hanya jalan bila `sidik` yang sama dikirim kembali.
     {"no_resi": "STRUK-000123", "oleh": "Eryanto"}        # tanpa item_ke = seluruh Transaksi
     EOF
 
+  Ubah dan hapus juga menerima `--json '<JSON satu baris>'` sebagai ganti stdin (jalur Relay,
+  ADR-0023); apostrof di dalam JSON ditulis \\u0027.
+
   Masukan ubah : no_resi, set {kolom: nilai}, oleh (wajib); item_ke (angka | "semua"), sidik
   Masukan hapus: no_resi, oleh (wajib); item_ke (angka), sidik
   `sidik` wajib tanpa --uji dan harus berasal dari --uji dengan masukan yang sama.
@@ -586,8 +589,10 @@ def main(argv=None) -> int:
     c.add_argument("--batas", type=int, default=10)
     c.add_argument("--terakhir", action="store_true", help="urut berdasarkan yang terakhir dicatat")
     for nama in ("ubah", "hapus"):
-        u = sub.add_parser(nama, help=f"{nama.capitalize()} (JSON di stdin)")
+        u = sub.add_parser(nama, help=f"{nama.capitalize()} (JSON di stdin atau --json)")
         u.add_argument("--uji", action="store_true", help="Pratinjau saja, tidak menulis")
+        u.add_argument("--json", help="Permintaan sebagai argumen, menggantikan stdin (untuk agen "
+                                      "yang tidak boleh memakai pengalihan; apostrof ditulis \\u0027)")
     a = p.parse_args(argv)
     skema = SKEMA[a.berkas]()
 
@@ -599,7 +604,7 @@ def main(argv=None) -> int:
         return kode
 
     try:
-        req = json.loads(sys.stdin.read())
+        req = json.loads(a.json if a.json is not None else sys.stdin.read())
     except json.JSONDecodeError as e:
         kode, pesan = 2, f"ERROR JSON tidak valid: {e}"
     else:

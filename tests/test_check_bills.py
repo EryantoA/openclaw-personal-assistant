@@ -68,5 +68,11 @@ class CekBudget(unittest.TestCase):
             self.assertEqual(cb.check_budget(date(2026, 10, 15), bulan="2026-09"), "")  # 90% tapi sudah tutup
 
 
+class KirimKalauAda(unittest.TestCase):
+    def test_tanpa_isi_tidak_mengirim_ke_tujuan_mana_pun(self):
+        with mock.patch("subprocess.run", side_effect=AssertionError("tidak boleh mengirim")):
+            self.assertEqual(cb.kirim_kalau_ada(""), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,8 +2,10 @@
 
     python3 -m unittest tests/test_catat.py
 """
+import contextlib
 import csv
 import importlib.util
+import io
 import json
 import sys
 import tempfile
@@ -210,6 +212,69 @@ class LabelResi(unittest.TestCase):
     def test_kosong_tidak_error(self):
         for no_resi in ("", None):
             self.assertEqual(resi.label_resi(no_resi), "No Resi")
+
+
+class PilihanKategoriDiGalat(unittest.TestCase):
+    """Agen Relay tidak boleh membaca budget.json; galatnya yang menyebut pilihan (ADR-0023)."""
+    setUp, tearDown = Catat.setUp, Catat.tearDown
+
+    def test_kategori_salah_menyebut_pilihan_yang_sah(self):
+        kode, pesan = ct.catat(tx(items=[{"kategori": "makanan", "item": "x", "jumlah": 1000}]), uji=True)
+        self.assertEqual(kode, 2)
+        self.assertIn("'makanan'", pesan)
+        self.assertIn("pilihan: food, transport", pesan)  # opening_balance tidak ditawarkan
+
+
+class MasukanLewatArgumen(unittest.TestCase):
+    """`--json` menggantikan stdin: agen berallowlist tidak boleh memakai pengalihan (ADR-0023)."""
+    setUp, tearDown, baris = Catat.setUp, Catat.tearDown, Catat.baris
+
+    def cli(self, argv, stdin=""):
+        keluar, asli_stdin = io.StringIO(), sys.stdin
+        sys.stdin = io.StringIO(stdin)
+        try:
+            with contextlib.redirect_stdout(keluar):
+                kode = ct.main(argv)
+        finally:
+            sys.stdin = asli_stdin
+        return kode, keluar.getvalue()
+
+    def test_json_argumen_menyimpan_sama_seperti_stdin(self):
+        kode, out = self.cli(["--json", json.dumps(tx())])
+        self.assertEqual(kode, 0, out)
+        self.assertTrue(out.startswith("OK tersimpan"), out)
+        self.assertEqual(len(self.baris()), 3)
+
+    def test_json_argumen_dengan_uji_tidak_menulis(self):
+        kode, out = self.cli(["--uji", "--json", json.dumps(tx())])
+        self.assertEqual(kode, 0, out)
+        self.assertTrue(out.startswith("OK lolos cek"), out)
+        self.assertEqual(len(self.baris()), 2)
+
+    def test_json_argumen_menang_atas_stdin(self):
+        kode, out = self.cli(["--json", json.dumps(tx())], stdin="bukan json")
+        self.assertEqual(kode, 0, out)
+
+    def test_tanpa_json_stdin_tetap_dipakai(self):
+        kode, out = self.cli([], stdin=json.dumps(tx()))
+        self.assertEqual(kode, 0, out)
+        self.assertEqual(len(self.baris()), 3)
+
+    def test_json_argumen_rusak_ditolak_tanpa_menulis(self):
+        kode, out = self.cli(["--json", "{rusak"])
+        self.assertEqual(kode, 2)
+        self.assertIn("ERROR JSON tidak valid", out)
+        self.assertEqual(len(self.baris()), 2)
+
+    def test_apostrof_ditulis_u0027_di_dalam_kutip_tunggal(self):
+        # Di shell, apostrof memutus kutip tunggal; \u0027 adalah JSON sah untuk karakter itu.
+        mentah = '{"tanggal": "2026-09-21", "tipe": "pengeluaran", "channel": "whatsapp", ' \
+                 '"pencatat": "Eryanto", "items": [{"kategori": "food", "item": "Mie Ani\\u0027s", ' \
+                 '"jumlah": 12000}]}'
+        self.assertNotIn("'", mentah)
+        kode, out = self.cli(["--json", mentah])
+        self.assertEqual(kode, 0, out)
+        self.assertEqual(self.baris()[-1][3], "Mie Ani's")
 
 
 if __name__ == "__main__":

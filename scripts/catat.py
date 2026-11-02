@@ -7,7 +7,9 @@ Bot dulu menulis baris CSV dengan tangan (tool Edit/Write). Hasilnya: no_resi ka
 model menyalin pola `,,,,` dari baris lama. Skrip ini mengambil alih semua yang mekanis:
 waktu default, no_resi (resi.py), cek duplikat dua lapis, validasi, dan penulisan 12 kolom.
 
-Masukan: satu objek JSON di stdin = SATU transaksi (satu no_resi), boleh banyak item:
+Masukan: satu objek JSON di stdin = SATU transaksi (satu no_resi), boleh banyak item. Agen yang
+exec-nya menolak pengalihan (jalur Relay, ADR-0023) memakai `--json '<JSON satu baris>'` sebagai
+ganti stdin; apostrof di dalam JSON ditulis \\u0027:
 
     python3 scripts/catat.py <<'EOF'
     {"tanggal": "2026-09-21", "tipe": "pengeluaran", "channel": "whatsapp", "pencatat": "Eryanto",
@@ -143,13 +145,15 @@ def _arah(b: dict) -> str:
     return f" | nama_label {resi.label_nama(b)} | arah {resi.arah_tampil(b)}"
 
 
-def main() -> int:
-    p = argparse.ArgumentParser(description="Catat satu transaksi (JSON di stdin) ke bills.csv")
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(description="Catat satu transaksi (JSON di stdin atau --json) ke bills.csv")
     p.add_argument("--paksa", action="store_true", help="Lewati cek duplikat Lapis 2")
     p.add_argument("--uji", action="store_true", help="Validasi + cek duplikat saja")
-    args = p.parse_args()
+    p.add_argument("--json", help="Transaksi sebagai argumen, menggantikan stdin (untuk agen "
+                                  "yang tidak boleh memakai pengalihan; apostrof ditulis \\u0027)")
+    args = p.parse_args(argv)
     try:
-        tx = json.loads(sys.stdin.read())
+        tx = json.loads(args.json if args.json is not None else sys.stdin.read())
     except json.JSONDecodeError as e:
         kode, pesan = 2, f"ERROR JSON tidak valid: {e}"
     else:
