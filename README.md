@@ -294,9 +294,14 @@ struk juga bisa dikirim di sini. Langkah (1–4 kamu kerjakan sendiri di Discord
    config hidup, dengan ID asli (tanpa kunci `_keterangan`), lewat `openclaw config patch
    --dry-run` lalu tanpa `--dry-run`. `bindings` diganti utuh: gabungkan dengan yang sudah ada.
 6. `openclaw gateway restart`, lalu `openclaw channels status` harus menyebut Discord tersambung.
-7. Uji terima: tanpa @mention bot diam (juga di thread dan untuk jawaban "ya"); kanal lain dan
-   orang lain diabaikan; catat → Pratinjau → `@bot ya` → `@bot cari …` menemukannya; foto struk
-   dicatat dengan Pratinjau; baris tersimpan bernilai `channel` `discord`.
+   Contoh config memasang `historyLimit: 0`; jangan dihapus. Bawaannya (20) membuat pesan tanpa
+   @mention ikut jadi konteks dan tergabung ke Pratinjau berikutnya (temuan uji hidup 2 Nov 2026).
+7. Uji terima (butir bertanda ✅ sudah teruji hidup 2 Nov 2026, sisanya belum):
+   - ✅ tanpa @mention bot diam; ✅ catat → Pratinjau → `@bot ya` → tersimpan, `channel` `discord`;
+     ✅ duplikat terdeteksi;
+   - belum: wajib @mention di thread dan untuk jawaban "ya"; kanal lain dan orang lain diabaikan;
+     `@bot cari …` menemukan baris tadi; foto struk dicatat dengan Pratinjau; Pembeli istri
+     tercatat atas namanya; kanal hanya terlihat pemilik dan istri.
 
 Hanya `AGENTS.md` yang dibaca agen untuk kontraknya, jadi percakapan di Discord sama dengan di
 WhatsApp. WhatsApp, Telegram, dan bot helpdesk tidak berubah.

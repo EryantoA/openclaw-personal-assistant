@@ -126,10 +126,11 @@
       "peers": { "hermes": { "token": "${A2A_HERMES_TOKEN}" } }
     },
     "discord": {
-      "_keterangan": "Jalur langsung (ADR-0023): bot OpenClaw BARU dengan token baru, terpisah dari bot Hermes. Token di ~/.openclaw/.env (DISCORD_BOT_TOKEN), bukan di berkas ini. Semua ID di bawah KARANGAN; ganti dengan ID Discord pemilik dan istri, server, dan satu kanal keuangan privat. Kanal lain dan orang lain diabaikan. requireMentionInBotThreads true: di thread pun, termasuk jawaban 'ya', wajib @mention. Butuh Message Content Intent di Developer Portal.",
+      "_keterangan": "Jalur langsung (ADR-0023): bot OpenClaw BARU dengan token baru, terpisah dari bot Hermes. Token di ~/.openclaw/.env (DISCORD_BOT_TOKEN), bukan di berkas ini. Semua ID di bawah KARANGAN; ganti dengan ID Discord pemilik dan istri, server, dan satu kanal keuangan privat. Kanal lain dan orang lain diabaikan. requireMentionInBotThreads true: di thread pun, termasuk jawaban 'ya', wajib @mention. Butuh Message Content Intent di Developer Portal. historyLimit 0: pesan tanpa @mention tidak ikut jadi konteks (bawaan 20 menggabungkannya ke Pratinjau berikutnya, temuan uji hidup #36).",
       "enabled": true,
       "token": "${DISCORD_BOT_TOKEN}",
       "dmPolicy": "allowlist",
+      "historyLimit": 0,
       "allowFrom": ["123456789012345678", "987654321098765432"],
       "groupPolicy": "allowlist",
       "intents": { "messageContent": true },

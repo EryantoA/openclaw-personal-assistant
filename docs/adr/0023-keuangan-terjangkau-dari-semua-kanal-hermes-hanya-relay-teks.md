@@ -116,6 +116,11 @@ Nilai `channel` baris Discord ditentukan oleh agen, bukan skrip, dan contoh JSON
 dulu memuat `"channel": "whatsapp"` literal yang bisa disalin model (Buku Kas belum pernah memuat
 baris `telegram`), jadi contohnya kini `<kanal>` dengan satu aturan `channel` = Kanal pesan masuk.
 
+Uji hidup jalur A (#36, 2 Nov 2026): bot diam tanpa @mention, siklus catat → Pratinjau → ya →
+tersimpan dan deteksi duplikat teruji. Temuan: pesan tanpa @mention ikut sebagai konteks
+(`historyLimit` bawaan 20) dan tergabung ke Pratinjau berikutnya, jadi contoh config memasang
+`historyLimit: 0`. Belum teruji: @mention di thread, foto struk, pengguna/kanal lain, alias Pembeli istri.
+
 ## Hasil spike #38 (2 Nov 2026)
 
 Dicoba di mesin ini (OpenClaw 2026.10.9, Hermes 0.22.2) dengan agen `spike38` dan peer A2A
