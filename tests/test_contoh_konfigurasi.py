@@ -83,6 +83,9 @@ class DiscordLangsung(unittest.TestCase):
         self.assertTrue(self.SERVER["requireMentionInBotThreads"])  # "ya" juga wajib @mention
         self.assertTrue(self.D["intents"]["messageContent"])
 
+    def test_pesan_tanpa_mention_tidak_jadi_konteks(self):
+        self.assertEqual(self.D["historyLimit"], 0)  # bawaan 20 menggabungkannya ke Pratinjau
+
     def test_id_di_contoh_karangan_bukan_id_asli(self):
         teks = json.dumps(self.D)
         for angka in re.findall(r"\d{15,}", teks):
