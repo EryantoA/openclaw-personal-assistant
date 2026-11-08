@@ -2,10 +2,13 @@
 
     python3 -m unittest tests/test_check_bills.py
 """
+import contextlib
 import importlib.util
+import io
 import unittest
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 AKAR = Path(__file__).resolve().parent.parent
@@ -72,6 +75,36 @@ class KirimKalauAda(unittest.TestCase):
     def test_tanpa_isi_tidak_mengirim_ke_tujuan_mana_pun(self):
         with mock.patch("subprocess.run", side_effect=AssertionError("tidak boleh mengirim")):
             self.assertEqual(cb.kirim_kalau_ada(""), 0)
+
+    @staticmethod
+    def pengirim(tujuan, hasil_ok):
+        """Pengirim palsu: hasil_ok = {kanal: bool}; mencatat siapa saja yang dikirimi."""
+        dikirimi = []
+
+        def kirim_ke_semua(pesan, daftar):
+            dikirimi.extend(k for k, _ in daftar)
+            return [(k, ke, hasil_ok[k], "") for k, ke in daftar]
+
+        return SimpleNamespace(tujuan_baku=lambda: tujuan, kirim_ke_semua=kirim_ke_semua), dikirimi
+
+    def test_semua_tujuan_menerima_keluar_0(self):
+        p, dikirimi = self.pengirim([("whatsapp", "A"), ("telegram", "B")], {"whatsapp": True, "telegram": True})
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cb.kirim_kalau_ada("Budget 92%", p), 0)
+        self.assertEqual(dikirimi, ["whatsapp", "telegram"])
+
+    def test_satu_tujuan_gagal_keluar_1_dan_yang_lain_tetap_dikirimi(self):
+        p, dikirimi = self.pengirim([("whatsapp", "A"), ("telegram", "B"), ("discord", "C")],
+                                    {"whatsapp": False, "telegram": True, "discord": True})
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cb.kirim_kalau_ada("Budget 92%", p), 1)
+        self.assertEqual(dikirimi, ["whatsapp", "telegram", "discord"])
+
+    def test_tanpa_tujuan_keluar_1(self):
+        p, dikirimi = self.pengirim([], {})
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cb.kirim_kalau_ada("Budget 92%", p), 1)
+        self.assertEqual(dikirimi, [])
 
 
 if __name__ == "__main__":
