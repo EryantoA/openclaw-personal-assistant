@@ -16,13 +16,14 @@ yang lazim.
 dua arah tetap. Yang berubah hanya cara Cermin menyajikan dan membaca balik.
 
 **Worksheet "Buku Kas" (bisa disunting)**, 14 kolom berurutan:
-Tanggal · Waktu · No. Bukti · Keterangan · Kategori · Akun · Akun Tujuan · Masuk · Keluar ·
-Transfer · Saldo · Catatan · Pencatat · Channel.
+Tanggal · Waktu · No Resi · Item · Kategori · Akun · Akun Tujuan · Pemasukan · Pengeluaran ·
+Transfer · Saldo Bersama · Catatan · Pencatat · Asal.
 
-- **Masuk / Keluar / Transfer menggantikan `tipe` + `jumlah`.** Tiap baris mengisi tepat satu;
+- **Pemasukan / Pengeluaran / Transfer menggantikan `tipe` + `jumlah`.** Tiap baris mengisi tepat satu;
   tipe dibaca dari kolom yang terisi. Nol atau lebih dari satu → ditolak dan dilaporkan. Isian
-  tidak bisa lagi saling bertentangan (tipe `pemasukan` dengan angka di sisi keluar).
-- **Saldo berjalan** dihitung skrip per baris Item, urut tanggal → waktu → No. Bukti, mulai dari
+  tidak bisa lagi saling bertentangan (tipe `pemasukan` dengan angka di sisi keluar). Header-nya
+  persis tiga nilai Arah, kata yang sama dengan Pratinjau dan balasan bot (ADR-0019).
+- **Kolom Saldo Bersama** berisi Saldo Bersama setelah tiap Item, dihitung skrip, urut tanggal → waktu → No Resi, mulai dari
   `opening_balance`, transfer tidak menggeser (ADR-0001, ADR-0010). Hanya-baca, ditimpa.
 - **Kategori tampil sebagai Label Kategori** Bahasa Indonesia dengan dropdown. Peta slug → label
   di `budget.json` (`label_kategori`); label wajib unik agar bisa dipetakan balik ke tepat satu
@@ -31,19 +32,26 @@ Transfer · Saldo · Catatan · Pencatat · Channel.
   ketikan `5/9/2026` dibaca hari/bulan. Dibaca balik sebagai nomor seri lalu diubah ke ISO untuk
   CSV. Waktu tetap teks `HH:MM`. Uang berformat `Rp #,##0`.
 - **Urutan kronologis, terlama di atas**, seperti buku kas cetak; baris yang diketik di bawah tetap
-  di bawah dan saldo berjalan terbaca dari atas.
-- **"No. Bukti" adalah nama tampil No Resi**, istilah akuntansi untuk nomor referensi. Nilai dan
-  aturannya tetap No Resi (ADR-0023).
-- Baris 1 dan kolom Tanggal–Keterangan dibekukan; Waktu dan Channel dalam grup kolom tertutup.
+  di bawah dan kolom Saldo Bersama terbaca dari atas.
+- **Header memakai kata yang sama dengan bot dan glosarium**, bukan istilah akuntansi cetak: "No Resi"
+  (bukan "No. Bukti"; bot menulis `No Resi:` di setiap balasan), "Item" (bukan "Keterangan", yang
+  hampir bersinonim dengan Catatan dan mengundang salah isi yang tidak bisa ditangkap sinkron), dan
+  tiga nilai Arah untuk kolom uang, serta "Asal" untuk kolom `channel`. Satu-satunya nama tampil yang berbeda dari data adalah Label
+  Kategori, karena slug-nya Inggris.
+- Baris 1 dan kolom Tanggal–Item dibekukan; Waktu dan Asal dalam grup kolom tertutup.
 
 **Worksheet laporan (hanya-baca, dihitung skrip, ditimpa tiap sinkron)**, urutan tab:
 Ringkasan Bulanan → Per Kategori `<tahun>` → Budget `<tahun>` → Saldo per Akun → Buku Kas.
 
-- **Ringkasan Bulanan** menggantikan "Ringkasan" (isi sama, judul dan bulan Indonesia, format Rp).
+- **Ringkasan Bulanan** menggantikan "Ringkasan": Bulan · Jumlah Transaksi · Pemasukan ·
+  Pengeluaran · Arus Kas Bulanan · Saldo Awal · Saldo Bersama Akhir Bulan — header memakai istilah
+  glosarium, bukan nama lama ("Arus Kas Bulan", "Saldo Akhir"). Jumlah Transaksi menghitung No Resi
+  unik tanpa Transfer dan Saldo Awal (ADR-0023); Ringkasan lama menghitung baris, jadi struk
+  12 barang terbaca 12 transaksi.
 - **Per Kategori `<tahun>`**: kolom Jan–Des + Total Tahun, Pemasukan lalu Pengeluaran per label,
-  baris total dan Surplus/Defisit. Saldo Awal dan transfer tidak ikut. Bulan pertama pencatatan
+  baris total dan Arus Kas Bulanan. Saldo Awal dan transfer tidak ikut. Bulan pertama pencatatan
   ditandai parsial. Satu tab per tahun, dibuat otomatis saat Transaksi pertama tahun itu ada.
-- **Budget `<tahun>`**: belanja rutin vs batas, persen, Di luar budget, status — angka dari
+- **Budget `<tahun>`**: Pengeluaran rutin vs Budget, persen, Di luar budget, status — angka dari
   `scripts/budget.py`, sama dengan peringatan bot. Semua bulan dibandingkan dengan **batas yang
   berlaku sekarang**, dengan keterangan di atas tabel (lihat Ditolak).
 - **Saldo per Akun** hanya berisi pemberitahuan "belum aktif" selama `akun.json` belum lengkap;
@@ -51,7 +59,7 @@ Ringkasan Bulanan → Per Kategori `<tahun>` → Budget `<tahun>` → Saldo per 
   "Buku Kas" tetap teks bebas sampai itu selesai.
 
 **Bagian hanya-baca ditandai dua kali:** latar abu-abu + catatan header, dan perlindungan Google
-`warningOnly` (No. Bukti, Saldo, Channel, semua tab laporan). Ini peringatan sebelum menyunting,
+`warningOnly` (No Resi, Saldo Bersama, Asal, semua tab laporan). Ini peringatan sebelum menyunting,
 bukan larangan; penolakan di skrip tetap penegak utamanya. Menutup satu batas yang diketahui di
 ADR-0021.
 
@@ -86,5 +94,5 @@ disebut di laporan migrasi.
   keputusan terpisah.
 - **Inisialisasi ulang manual / spreadsheet baru untuk peralihan:** yang pertama bisa membuang
   suntingan Sheet yang belum tersinkron; yang kedua mengganti tautan dan izin yang sudah dibagikan.
-- **Terbaru di atas:** saldo berjalan terbaca terbalik dan baris yang baru diketik "pindah" ke atas
+- **Terbaru di atas:** kolom Saldo Bersama terbaca terbalik dan baris yang baru diketik "pindah" ke atas
   setelah sinkron.

@@ -58,8 +58,9 @@ Seluruh uang keluarga di semua Akun — Dompet, Rekening, maupun Simpanan, milik
 digabung jadi satu angka. Selalu kumulatif, dibawa terus dari bulan ke bulan. **Bukan** uang tunai
 yang bisa dipegang. Memindahkan uang antar Akun (menabung, setor ke rekening) tidak dicatat sebagai
 Transaksi dan karenanya tidak mengubah Saldo Bersama. Saldo Bersama = jumlah semua Saldo Akun.
+Di Cermin tampil per Item di kolom "Saldo Bersama" (ADR-0026).
 Di kode dan ADR lama disebut `saldo` / "Saldo".
-_Avoid_: sisa, selisih, balance, uang tunai, saldo bulanan
+_Avoid_: sisa, selisih, balance, uang tunai, saldo bulanan, saldo berjalan
 
 **Arus Kas Bulanan**:
 Pemasukan dikurangi pengeluaran dalam satu bulan, berdiri sendiri tanpa membawa bulan lalu; bulan
@@ -136,17 +137,17 @@ bisa diubah atau dihapus lewat chat (ADR-0018).
 _Avoid_: log, audit, riwayat edit
 
 **Pembeli**:
-Orang yang berbelanja, sama dengan `pencatat` di data: nama pengirim pesan. Tampil di balasan
-konfirmasi (ADR-0015), tetapi hanya untuk Pengeluaran; pada Pemasukan dan Transfer nama yang
+Sebutan Pencatat di balasan Pengeluaran (ADR-0015) — bukan fakta yang tersimpan sendiri. Data
+hanya menyimpan Pencatat; bila seseorang mencatat belanja orang lain, Pembeli yang tampil keliru.
+Hanya untuk Pengeluaran; pada Pemasukan dan Transfer nama yang
 sama tampil sebagai Pencatat, karena tidak ada yang dibeli (ADR-0019). Satu orang bisa punya banyak alias (nama panggilan, peran
 seperti "istri", beda huruf besar-kecil); semuanya dibakukan ke satu nama baku (ADR-0017).
 Bukan penerima transfer.
 _Avoid_: buyer, pembayar
 
 **No Resi**:
-Penanda unik satu transaksi, sekaligus dasar deteksi duplikat. Di Cermin tampil dengan header
-"No. Bukti" (ADR-0026) — nama tampil, bukan istilah kedua.
-_Avoid_: nomor struk, id, referensi
+Penanda unik satu transaksi, sekaligus dasar deteksi duplikat.
+_Avoid_: nomor struk, id, referensi, no. bukti
 
 **Bukti Transfer**:
 Gambar mutasi bank atau e-wallet yang menjadi sumber satu Transaksi. Seperti semua
@@ -232,10 +233,6 @@ Budget `<tahun>`, Saldo per Akun (ADR-0026). Ditimpa tiap sinkron; suntingan di 
 Kebalikannya worksheet "Buku Kas", satu-satunya tab Cermin yang bisa disunting.
 _Avoid_: dashboard, pivot
 
-**Saldo Berjalan**:
-Kolom Saldo di worksheet "Buku Kas": Saldo Bersama setelah tiap baris Item, urut tanggal → waktu
-→ No Resi. Hanya-baca; transfer tidak menggesernya (ADR-0026).
-_Avoid_: running balance, saldo baris
 
 **Snapshot Sinkron**:
 Isi Cermin yang terakhir disepakati dengan Buku Kas (`data/sheets-snapshot.json`, tidak masuk git).

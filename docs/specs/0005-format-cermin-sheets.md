@@ -8,14 +8,14 @@ Memperluas spec [0004](0004-sinkron-google-sheets.md) dan [ADR-0021](../adr/0021
 Cermin Google Sheets menyalin 12 kolom `bills.csv` mentah: slug Inggris, tanggal teks ISO, satu
 kolom `jumlah` yang artinya bergantung pada `tipe`, dan satu worksheet "Ringkasan". Keluarga yang
 membukanya di HP melihat berkas data, bukan buku kas. Tidak ada tampilan per kategori, budget,
-atau saldo berjalan, dan bagian yang tidak boleh disunting baru ketahuan setelah suntingannya
+atau Saldo Bersama per baris, dan bagian yang tidak boleh disunting baru ketahuan setelah suntingannya
 ditimpa.
 
 ## Solution
 
 Buku Kas (`bills.csv`) dan jalan tulisnya tidak berubah. Cermin disajikan ulang:
 
-- Worksheet **"Buku Kas"** dengan 14 kolom gaya buku kas (Masuk / Keluar / Transfer / Saldo),
+- Worksheet **"Buku Kas"** dengan 14 kolom gaya buku kas (Pemasukan / Pengeluaran / Transfer / Saldo Bersama),
   Label Kategori Indonesia dengan dropdown, tanggal sungguhan, format Rupiah, kronologis.
 - Empat **Tab Laporan** hanya-baca: Ringkasan Bulanan, Per Kategori `<tahun>`, Budget `<tahun>`,
   Saldo per Akun.
@@ -26,10 +26,10 @@ Buku Kas (`bills.csv`) dan jalan tulisnya tidak berubah. Cermin disajikan ulang:
 
 1. Sebagai anggota keluarga, saya ingin melihat uang masuk dan keluar di kolom terpisah, supaya
    arah uang terbaca sekilas tanpa membaca kolom tipe.
-2. Sebagai anggota keluarga, saya ingin kolom Saldo berjalan di tiap baris, supaya saya tahu
+2. Sebagai anggota keluarga, saya ingin kolom Saldo Bersama di tiap baris, supaya saya tahu
    saldo setelah tiap transaksi seperti di buku kas cetak.
 3. Sebagai pemilik, saya ingin menambah atau mengubah transaksi dengan mengisi tepat satu dari
-   Masuk/Keluar/Transfer, dan baris yang mengisi nol atau lebih dari satu ditolak dengan alasan
+   Pemasukan/Pengeluaran/Transfer, dan baris yang mengisi nol atau lebih dari satu ditolak dengan alasan
    jelas, supaya tipe tidak bisa salah.
 4. Sebagai anggota keluarga, saya ingin kategori tampil dalam Bahasa Indonesia dan dipilih dari
    dropdown, supaya tidak perlu hafal slug dan tidak salah ketik.
@@ -42,13 +42,17 @@ Buku Kas (`bills.csv`) dan jalan tulisnya tidak berubah. Cermin disajikan ulang:
 8. Sebagai pemilik, saya ingin tanggal yang diketik `5/9/2026` dibaca 5 September, dan tanggal
    yang tak terbaca ditolak dan dilaporkan.
 9. Sebagai anggota keluarga, saya ingin angka uang tampil `Rp 1.250.000`.
-10. Sebagai pemilik, saya ingin baris diurutkan terlama di atas, supaya saldo berjalan terbaca
+10. Sebagai pemilik, saya ingin baris diurutkan terlama di atas, supaya kolom Saldo Bersama terbaca
     dari atas dan baris yang saya ketik di bawah tetap di bawah.
-11. Sebagai anggota keluarga di HP, saya ingin header dan kolom Tanggal–Keterangan dibekukan dan
-    Waktu/Channel terlipat, supaya tabel tetap terbaca saat digeser.
-12. Sebagai anggota keluarga, saya ingin tab Ringkasan Bulanan dengan bulan dan judul Indonesia.
+11. Sebagai anggota keluarga di HP, saya ingin header dan kolom Tanggal–Item dibekukan dan
+    Waktu/Asal terlipat, supaya tabel tetap terbaca saat digeser.
+12. Sebagai anggota keluarga, saya ingin tab Ringkasan Bulanan dengan bulan Indonesia dan header
+    Bulan · Jumlah Transaksi · Pemasukan · Pengeluaran · Arus Kas Bulanan · Saldo Awal · Saldo
+    Bersama Akhir Bulan, supaya istilahnya sama dengan laporan bot.
+12a. Sebagai pemilik, saya ingin Jumlah Transaksi di Ringkasan Bulanan sama dengan laporan bot (No
+    Resi unik, tanpa Transfer dan Saldo Awal), bukan jumlah baris.
 13. Sebagai pemilik, saya ingin tab Per Kategori per tahun (Jan–Des + Total Tahun, Pemasukan dan
-    Pengeluaran per label, Surplus/Defisit), supaya saya tahu uangnya ke mana.
+    Pengeluaran per label, Arus Kas Bulanan), supaya saya tahu uangnya ke mana.
 14. Sebagai pemilik, saya ingin bulan pertama pencatatan (Mar 2026) ditandai parsial.
 15. Sebagai pemilik, saya ingin tab Budget per tahun dengan angka yang sama dengan peringatan
     bot, dibandingkan dengan batas yang berlaku sekarang dan diberi keterangan.
@@ -74,8 +78,10 @@ Buku Kas (`bills.csv`) dan jalan tulisnya tidak berubah. Cermin disajikan ulang:
   label/format tidak terbaca sebagai suntingan.
 - **Snapshot** menyimpan grid ternormalisasi format baru plus penanda versi format. Snapshot tanpa
   penanda = format lama → hanya `--migrasi-format` yang menerimanya.
-- **Saldo Berjalan** dihitung dari fungsi saldo yang sama dengan laporan (`buku_kas`), tidak
+- **Kolom Saldo Bersama** dihitung dari fungsi saldo yang sama dengan laporan (`buku_kas`), tidak
   dihitung ulang dengan aturan sendiri.
+- **Jumlah Transaksi** memakai hitungan yang sama dengan laporan (ADR-0023), menggantikan hitungan
+  baris di `grid_ringkasan`.
 - **Tab Laporan** dirakit dari fungsi yang sudah ada (`buku_kas`, `budget.pemakaian`); tidak ada
   definisi angka baru.
 - **`budget.json` → `label_kategori`** (objek slug → label). Validasi keunikan di jalur simpan
@@ -94,11 +100,11 @@ Buku Kas (`bills.csv`) dan jalan tulisnya tidak berubah. Cermin disajikan ulang:
 
 - Tes perilaku lewat antarmuka publik `sinkron()` dengan klien Sheets palsu, seperti tes yang ada.
 - Kasus wajib: tepat satu kolom uang (0, 1, 2, 3 terisi); label → slug, slug langsung, label tak
-  dikenal, slug tanpa label; tanggal seri, teks `5/9/2026`, teks tak terbaca; Saldo Berjalan
-  dengan multi-Item, transfer, dan `opening_balance`; suntingan di kolom Saldo/tab laporan
+  dikenal, slug tanpa label; tanggal seri, teks `5/9/2026`, teks tak terbaca; kolom Saldo Bersama
+  dengan multi-Item, transfer, dan `opening_balance`; suntingan di kolom Saldo Bersama/tab laporan
   diabaikan; ganti label tidak menghasilkan suntingan; idempoten; migrasi dari snapshot lama
   (suntingan tertunda masuk dulu), `--uji` tidak menulis, cron menolak sebelum migrasi; tab tahun
-  baru dibuat; Saldo per Akun "belum aktif" saat `akun.json` tak lengkap.
+  baru dibuat; Jumlah Transaksi struk multi-Item = 1 dan tanpa Transfer/Saldo Awal; Saldo per Akun "belum aktif" saat `akun.json` tak lengkap.
 - Tes yang ada untuk sinkron dan klien Google diperbarui ke format baru, bukan dihapus.
 
 ## Out of Scope
