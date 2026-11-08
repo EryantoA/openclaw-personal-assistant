@@ -4,6 +4,9 @@
 > [0018](0018-ubah-hapus-lewat-skrip-copy-lalu-ganti.md), dan **menjawab sebagian** konsekuensi
 > [0004](0004-data-transaksi-tidak-masuk-git.md) ("cadangan luar-mesin perlu diatur terpisah").
 > Spec: issue #20.
+>
+> **Diubah sebagian oleh [0026](0026-cermin-sheets-berformat-buku-kas-dan-tab-laporan.md):**
+> header "Buku Kas", worksheet "Ringkasan", dan perlindungan `warningOnly`.
 
 Pemilik ingin Buku Kas juga ada di Google Sheets dan bisa diubah dari kedua sisi. Bot, laporan,
 Duplikat, dan Saldo semuanya membaca `bills.csv`; memindahkan sumbernya ke Sheets berarti menulis

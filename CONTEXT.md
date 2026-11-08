@@ -110,6 +110,12 @@ _Avoid_: config, budget (untuk seluruh berkas)
 Pengelompokan transaksi. Selalu slug Inggris huruf kecil, tidak pernah Bahasa Indonesia.
 _Avoid_: jenis, tipe belanja
 
+**Label Kategori**:
+Nama tampil Bahasa Indonesia sebuah Kategori (`personal_care` → Perawatan Diri), disimpan di
+`budget.json` → `label_kategori`. Hanya tampilan — data tetap slug (ADR-0002). Unik: satu label
+menunjuk tepat satu slug, supaya yang diketik di Cermin bisa dipetakan balik (ADR-0026).
+_Avoid_: nama kategori, kategori Indonesia
+
 **Item**:
 Satu baris di Buku Kas; satu Transaksi punya satu Item atau lebih. Apa yang dibeli, ditulis apa adanya. Kalau ada tokonya, namanya ikut di belakang setelah
 tanda pisah — `Susu UHT + Yakult - Budiman Swalayan`. Toko tidak punya kolom sendiri: ia
@@ -138,7 +144,8 @@ Bukan penerima transfer.
 _Avoid_: buyer, pembayar
 
 **No Resi**:
-Penanda unik satu transaksi, sekaligus dasar deteksi duplikat.
+Penanda unik satu transaksi, sekaligus dasar deteksi duplikat. Di Cermin tampil dengan header
+"No. Bukti" (ADR-0026) — nama tampil, bukan istilah kedua.
 _Avoid_: nomor struk, id, referensi
 
 **Bukti Transfer**:
@@ -218,6 +225,17 @@ _Avoid_: revisi, ralat, penyesuaian
 Salinan Buku Kas di Google Sheets, disinkronkan dua arah (ADR-0021). Bukan Buku Kas dan bukan
 cadangan: bila keduanya berselisih, Buku Kas menang, dan menghapus Transaksi tetap hanya lewat bot.
 _Avoid_: sheet utama, database Sheets
+
+**Tab Laporan**:
+Worksheet Cermin yang hanya-baca dan dihitung skrip: Ringkasan Bulanan, Per Kategori `<tahun>`,
+Budget `<tahun>`, Saldo per Akun (ADR-0026). Ditimpa tiap sinkron; suntingan di sana diabaikan.
+Kebalikannya worksheet "Buku Kas", satu-satunya tab Cermin yang bisa disunting.
+_Avoid_: dashboard, pivot
+
+**Saldo Berjalan**:
+Kolom Saldo di worksheet "Buku Kas": Saldo Bersama setelah tiap baris Item, urut tanggal → waktu
+→ No Resi. Hanya-baca; transfer tidak menggesernya (ADR-0026).
+_Avoid_: running balance, saldo baris
 
 **Snapshot Sinkron**:
 Isi Cermin yang terakhir disepakati dengan Buku Kas (`data/sheets-snapshot.json`, tidak masuk git).
