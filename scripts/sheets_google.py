@@ -1,9 +1,11 @@
 """Klien Google Sheets untuk sheets_sync — adaptor tipis, tanpa logika bisnis (spec #20, ADR-0021).
 
-Memenuhi antarmuka dua metode yang diminta sheets_sync:
+Memenuhi antarmuka yang diminta sheets_sync:
 
     klien.baca(nama_worksheet) -> list[list]   # grid; worksheet belum ada = []
-    klien.tulis(nama_worksheet, grid)          # mengganti seluruh isi; membuat worksheet bila belum ada
+    klien.tulis(nama_worksheet, grid, tata)    # mengganti seluruh isi; membuat worksheet bila belum ada
+    klien.hapus(nama_worksheet)                # tidak ada = tidak apa-apa
+    klien.urutkan([nama_worksheet, ...])       # urutan tab; tab lain di belakangnya
 
 Bicara dengan Sheets API v4 lewat sesi HTTP yang disuntikkan (`sesi.request(metode, url, params=,
 json=, timeout=)` → objek dengan `status_code`, `json()`, `text`), jadi aturannya bisa diuji tanpa
@@ -12,9 +14,14 @@ Google. Sesi sungguhan dibuat `dari_konfigurasi`: akun layanan Google (kunci di 
 
     /usr/bin/python3 -m pip install --user google-auth requests
 
-Tulis memakai valueInputOption=RAW dan kolom teks diformat TEXT, supaya tanggal "2026-09-05" tidak
-diubah Sheets menjadi tanggal; baca memakai UNFORMATTED_VALUE (jumlah kembali sebagai angka) dan
-mengembalikan serial tanggal/waktu yang tetap lolos (mis. hasil tempel) sebagai teks ISO / HH:MM.
+Tulis memakai valueInputOption=RAW: tanggal dikirim sheets_sync sebagai serial dan tampil lewat format
+DATE, teks tetap teks. Baca memakai UNFORMATTED_VALUE (angka kembali sebagai angka) dan
+mengembalikan serial waktu yang tetap lolos (mis. hasil tempel) di kolom waktu sebagai HH:MM.
+
+`tata` (ADR-0026) dipasang sebelum isi ditulis, dalam satu batchUpdate: format angka per kolom, header
+tebal, kolom/baris beku, latar abu-abu + perlindungan `warningOnly` untuk bagian hanya-baca (yang
+lama, bertanda PENANDA, dihapus dulu supaya tidak menumpuk), catatan header, dropdown tidak ketat,
+dan grup kolom (dilipat hanya saat pertama dibuat, supaya pilihan pengguna membukanya bertahan).
 Tulis melebarkan grid worksheet bila perlu (worksheet baru hanya 1000 baris × 26 kolom; menulis di
 luarnya ditolak Google), menimpa isi dulu baru membersihkan sisa lama (PUT yang gagal tidak
 meninggalkan Sheet kosong), dan mengulang 429/5xx dengan jeda naik.
@@ -26,7 +33,6 @@ import json
 import re
 import time
 import warnings
-from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import quote
 
@@ -36,7 +42,14 @@ TIMEOUT = 60                      # detik per panggilan; tanpa ini jaringan mace
 JEDA = (1, 2, 4)                  # detik sebelum percobaan ulang ke-1, 2, 3
 ULANG = {429, 500, 502, 503, 504}
 PENYANGGA_BARIS = 200             # baris kosong cadangan di bawah isi, untuk baris yang diketik pengguna
-EPOCH_SERIAL = date(1899, 12, 30)  # serial tanggal Google Sheets
+PENANDA = "bill-tracker: hanya-baca (ADR-0026)"  # deskripsi perlindungan yang dipasang skrip ini
+ABU = {"red": 0.93, "green": 0.93, "blue": 0.93}
+POLA = {
+    "tanggal": {"type": "DATE", "pattern": "d mmm yyyy"},
+    "rupiah": {"type": "NUMBER", "pattern": '"Rp "#,##0;-"Rp "#,##0'},
+    "persen": {"type": "PERCENT", "pattern": "0%"},
+    "teks": {"type": "TEXT"},
+}
 
 
 class GagalGoogle(RuntimeError):
@@ -53,15 +66,11 @@ def huruf_kolom(n: int) -> str:
 
 
 class KlienGoogle:
-    def __init__(self, spreadsheet_id: str, sesi, kolom_angka: dict | None = None,
-                 kolom_tanggal: dict | None = None, kolom_waktu: dict | None = None, tidur=time.sleep):
-        """`kolom_angka` / `kolom_tanggal` / `kolom_waktu`: {nama worksheet: {indeks kolom 0-based}}.
-        Worksheet yang terdaftar di `kolom_angka` diformat per kolom (angka vs teks); yang lain
-        dibiarkan apa adanya. Serial di kolom tanggal/waktu dikembalikan sebagai teks saat dibaca."""
+    def __init__(self, spreadsheet_id: str, sesi, kolom_waktu: dict | None = None, tidur=time.sleep):
+        """`kolom_waktu`: {nama worksheet: {indeks kolom 0-based}}; serial waktu di sana dikembalikan
+        sebagai teks HH:MM saat dibaca."""
         self.url = f"{API}/{spreadsheet_id}"
         self.sesi = sesi
-        self.kolom_angka = kolom_angka or {}
-        self.kolom_tanggal = kolom_tanggal or {}
         self.kolom_waktu = kolom_waktu or {}
         self.tidur = tidur
         self._sheets: dict | None = None
@@ -90,13 +99,19 @@ class KlienGoogle:
     def _daftar(self, segar: bool = False) -> dict:
         if self._sheets is None or segar:
             isi = self._panggil("GET", self.url, params={
-                "fields": "sheets.properties(sheetId,title,gridProperties)"})
+                "fields": "sheets(properties(sheetId,title,index,gridProperties),"
+                          "protectedRanges(protectedRangeId,description),columnGroups(range))"})
             self._sheets = {}
             for s in isi.get("sheets", []):
                 p = s["properties"]
                 grid = p.get("gridProperties", {})
-                self._sheets[p["title"]] = {"id": p["sheetId"], "baris": grid.get("rowCount", 1000),
-                                            "kolom": grid.get("columnCount", 26)}
+                self._sheets[p["title"]] = {
+                    "id": p["sheetId"], "baris": grid.get("rowCount", 1000), "kolom": grid.get("columnCount", 26),
+                    "index": p.get("index", 0),
+                    "lindung": [r["protectedRangeId"] for r in s.get("protectedRanges", [])
+                                if r.get("description") == PENANDA],
+                    "grup": {(g["range"].get("startIndex", 0), g["range"].get("endIndex", 0))
+                             for g in s.get("columnGroups", [])}}
         return self._sheets
 
     def _pastikan(self, nama: str) -> dict:
@@ -105,7 +120,7 @@ class KlienGoogle:
             isi = self._panggil("POST", f"{self.url}:batchUpdate", json={
                 "requests": [{"addSheet": {"properties": {"title": nama}}}]})
             daftar[nama] = {"id": isi["replies"][0]["addSheet"]["properties"]["sheetId"],
-                            "baris": 1000, "kolom": 26}
+                            "baris": 1000, "kolom": 26, "index": len(daftar), "lindung": [], "grup": set()}
         return daftar[nama]
 
     def _lebarkan(self, info: dict, baris: int, kolom: int) -> None:
@@ -129,23 +144,21 @@ class KlienGoogle:
         return self._ke_teks(nama, isi.get("values", []))
 
     def _ke_teks(self, nama: str, grid: list) -> list:
-        """Serial tanggal/waktu di kolom yang terdaftar (selain header) → "YYYY-MM-DD" / "HH:MM"."""
-        tanggal, waktu = self.kolom_tanggal.get(nama, set()), self.kolom_waktu.get(nama, set())
+        """Serial waktu di kolom yang terdaftar (selain header) → "HH:MM"."""
+        waktu = self.kolom_waktu.get(nama, set())
         hasil = []
         for i, baris in enumerate(grid):
             baris = list(baris)
             for k, sel in enumerate(baris):
                 if i == 0 or isinstance(sel, bool) or not isinstance(sel, (int, float)):
                     continue
-                if k in tanggal:
-                    baris[k] = (EPOCH_SERIAL + timedelta(days=int(sel))).isoformat()
-                elif k in waktu:
+                if k in waktu:
                     menit = round((sel % 1) * 24 * 60)
                     baris[k] = f"{menit // 60 % 24:02d}:{menit % 60:02d}"
             hasil.append(baris)
         return hasil
 
-    def tulis(self, nama: str, grid: list) -> None:
+    def tulis(self, nama: str, grid: list, tata: dict | None = None) -> None:
         self._daftar(segar=True)  # pengguna bisa menghapus/mengganti nama worksheet di antara dua sinkron
         info = self._pastikan(nama)
         if not grid:
@@ -154,8 +167,10 @@ class KlienGoogle:
         lebar = max(len(b) for b in grid)
         grid = [list(b) + [""] * (lebar - len(b)) for b in grid]  # baris pendek menimpa sel lama di kanannya
         self._lebarkan(info, len(grid), lebar)
-        if nama in self.kolom_angka:
-            self._format(info["id"], self.kolom_angka[nama], lebar)
+        if tata:
+            self._panggil("POST", f"{self.url}:batchUpdate", json={"requests": self._tata(info, tata, lebar)})
+            if tata.get("locale"):
+                self._pastikan_locale(tata["locale"])
         self._panggil("PUT", f"{self.url}/values/{self._rentang(nama, 'A1')}",
                       params={"valueInputOption": "RAW"},
                       json={"majorDimension": "ROWS", "values": grid})
@@ -168,22 +183,73 @@ class KlienGoogle:
         if sisa:
             self._panggil("POST", f"{self.url}/values:batchClear", json={"ranges": sisa})
 
-    def _format(self, id_sheet: int, kolom_angka: set, lebar: int) -> None:
-        """Kolom angka berformat NUMBER, sisanya TEXT (seluruh kolom, termasuk baris yang baru
-        diketik pengguna) — sebelum diisi, karena format teks hanya berlaku untuk isian berikutnya."""
-        permintaan = []
-        for k in range(lebar):
-            jenis = "NUMBER" if k in kolom_angka else "TEXT"
-            permintaan.append({"repeatCell": {
-                "range": {"sheetId": id_sheet, "startColumnIndex": k, "endColumnIndex": k + 1},
-                "cell": {"userEnteredFormat": {"numberFormat": {"type": jenis}}},
-                "fields": "userEnteredFormat.numberFormat"}})
-        if permintaan:
-            self._panggil("POST", f"{self.url}:batchUpdate", json={"requests": permintaan})
+    def _tata(self, info: dict, tata: dict, lebar: int) -> list:
+        sid, h = info["id"], tata.get("baris_header", 0)
+
+        def kolom(c, baris_mulai=None):
+            r = {"sheetId": sid, "startColumnIndex": c, "endColumnIndex": c + 1}
+            return {**r, "startRowIndex": baris_mulai} if baris_mulai is not None else r
+
+        def sel(rentang, format_, medan):
+            return {"repeatCell": {"range": rentang, "cell": {"userEnteredFormat": format_}, "fields": medan}}
+
+        req = [{"updateSheetProperties": {
+            "properties": {"sheetId": sid, "gridProperties": {
+                "frozenRowCount": h + 1, "frozenColumnCount": tata.get("beku_kolom", 0)}},
+            "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"}},
+            sel({"sheetId": sid, "startRowIndex": h, "endRowIndex": h + 1}, {"textFormat": {"bold": True}},
+                "userEnteredFormat.textFormat.bold")]
+        for c, jenis in sorted(tata.get("format", {}).items()):
+            req.append(sel(kolom(c, h + 1), {"numberFormat": POLA[jenis]}, "userEnteredFormat.numberFormat"))
+        req += [{"deleteProtectedRange": {"protectedRangeId": i}} for i in info["lindung"]]
+        hanya = tata.get("hanya_baca") or []
+        rentang = [{"sheetId": sid}] if hanya == "semua" else [kolom(c) for c in hanya]
+        for r in rentang:
+            req.append(sel(r, {"backgroundColor": ABU}, "userEnteredFormat.backgroundColor"))
+            req.append({"addProtectedRange": {"protectedRange": {
+                "range": r, "description": PENANDA, "warningOnly": True}}})
+        for c, teks in sorted(tata.get("catatan", {}).items()):
+            req.append({"updateCells": {"range": {**kolom(c, h), "endRowIndex": h + 1},
+                                        "rows": [{"values": [{"note": teks}]}], "fields": "note"}})
+        for c, opsi in sorted(tata.get("pilihan", {}).items()):
+            if opsi:
+                req.append({"setDataValidation": {"range": kolom(c, h + 1), "rule": {
+                    "condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in opsi]},
+                    "strict": False, "showCustomUi": True}}})
+        for a, b in tata.get("grup", []):
+            if (a, b) in info["grup"]:
+                continue
+            r = {"sheetId": sid, "dimension": "COLUMNS", "startIndex": a, "endIndex": b}
+            req += [{"addDimensionGroup": {"range": r}},
+                    {"updateDimensionGroup": {"dimensionGroup": {"range": r, "depth": 1, "collapsed": True},
+                                              "fields": "collapsed"}}]
+        return req
+
+    def _pastikan_locale(self, locale: str) -> None:
+        """Locale menentukan cara Sheets membaca tanggal yang diketik (5/9/2026 = 5 September)."""
+        isi = self._panggil("GET", self.url, params={"fields": "properties.locale"})
+        if isi.get("properties", {}).get("locale") != locale:
+            self._panggil("POST", f"{self.url}:batchUpdate", json={"requests": [{"updateSpreadsheetProperties": {
+                "properties": {"locale": locale}, "fields": "locale"}}]})
+
+    def hapus(self, nama: str) -> None:
+        daftar = self._daftar(segar=True)
+        if nama in daftar:
+            self._panggil("POST", f"{self.url}:batchUpdate", json={
+                "requests": [{"deleteSheet": {"sheetId": daftar.pop(nama)["id"]}}]})
+
+    def urutkan(self, nama: list) -> None:
+        """Tab yang disebut ditaruh paling depan sesuai urutan; tab lain (mis. buatan pengguna) di belakang."""
+        daftar = self._daftar(segar=True)
+        ada = [n for n in nama if n in daftar]
+        if any(daftar[n]["index"] != i for i, n in enumerate(ada)):
+            # Memindah satu tab menggeser tab lain, jadi semuanya dikirim berurutan dari depan.
+            req = [{"updateSheetProperties": {"properties": {"sheetId": daftar[n]["id"], "index": i},
+                                              "fields": "index"}} for i, n in enumerate(ada)]
+            self._panggil("POST", f"{self.url}:batchUpdate", json={"requests": req})
 
 
-def dari_konfigurasi(config: dict, akar: Path, kolom_angka: dict | None = None,
-                     kolom_tanggal: dict | None = None, kolom_waktu: dict | None = None) -> KlienGoogle:
+def dari_konfigurasi(config: dict, akar: Path, kolom_waktu: dict | None = None) -> KlienGoogle:
     """Klien sungguhan dari `data/sheets.json`: {"spreadsheet_id": ..., "kunci_akun_layanan": ...}."""
     if not re.fullmatch(r"[\w-]{20,}", str(config.get("spreadsheet_id") or "")):
         raise RuntimeError("spreadsheet_id di data/sheets.json kosong atau belum diisi dengan ID "
@@ -203,5 +269,4 @@ def dari_konfigurasi(config: dict, akar: Path, kolom_angka: dict | None = None,
     kunci = kunci if kunci.is_absolute() else akar / kunci
     info = json.loads(kunci.read_text(encoding="utf-8"))
     kredensial = service_account.Credentials.from_service_account_info(info, scopes=[SCOPE])
-    return KlienGoogle(config["spreadsheet_id"], AuthorizedSession(kredensial), kolom_angka,
-                       kolom_tanggal, kolom_waktu)
+    return KlienGoogle(config["spreadsheet_id"], AuthorizedSession(kredensial), kolom_waktu)

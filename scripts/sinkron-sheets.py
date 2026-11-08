@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Sinkron dua arah Buku Kas ↔ Google Sheets (spec #20, ADR-0021).
+"""Sinkron dua arah Buku Kas ↔ Google Sheets (spec #20, ADR-0021, ADR-0026).
 
-    python3 scripts/sinkron-sheets.py --uji            # lapor apa yang akan terjadi, tidak menulis
-    python3 scripts/sinkron-sheets.py --inisialisasi   # sekali: isi Sheet dari bills.csv (CSV menang)
-    python3 scripts/sinkron-sheets.py                  # sinkron biasa (cron)
+    python3 scripts/sinkron-sheets.py --uji              # lapor apa yang akan terjadi, tidak menulis
+    python3 scripts/sinkron-sheets.py --inisialisasi     # sekali: isi Sheet dari bills.csv (CSV menang)
+    python3 scripts/sinkron-sheets.py --migrasi-format   # sekali: pindah dari format sebelum ADR-0026
+    python3 scripts/sinkron-sheets.py                    # sinkron biasa (cron)
+
+--migrasi-format menyerap dulu suntingan Sheet yang belum tersinkron, lalu menulis format baru
+(Buku Kas bergaya buku kas + Tab Laporan) dan menghapus tab "Ringkasan" lama. Jalankan dengan --uji
+lebih dulu. Sebelum migrasi, sinkron biasa (cron) menolak dengan kode 1 dan pesan yang menyebutnya.
 
 Pertama kali: salin data/sheets.json.example ke data/sheets.json dan isi; jalankan --uji, lalu
 --inisialisasi. bills.csv tetap satu-satunya Buku Kas: edit di Sheets masuk lewat jalan tulis yang
@@ -26,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import resi  # noqa: E402
+import sheets_format  # noqa: E402
 import sheets_google  # noqa: E402
 import sheets_sync  # noqa: E402
 
@@ -55,8 +61,11 @@ def _catat(a, hasil: str, pesan: str = "", laporan=None) -> None:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Sinkron Buku Kas ↔ Google Sheets")
     p.add_argument("--uji", action="store_true", help="lapor saja, tidak menulis apa pun")
-    p.add_argument("--inisialisasi", action="store_true",
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--inisialisasi", action="store_true",
                    help="isi/timpa Sheet dari bills.csv (CSV menang); dipakai sekali")
+    g.add_argument("--migrasi-format", action="store_true",
+                   help="pindah Cermin dari format sebelum ADR-0026; dipakai sekali")
     a = p.parse_args(argv)
 
     try:
@@ -69,10 +78,9 @@ def main(argv=None) -> int:
         if not isinstance(e, FileNotFoundError):  # belum dikonfigurasi bukan kegagalan yang perlu dicatat
             _catat(a, "gagal", pesan)
         return 2
-    K, buku = sheets_sync.KOLOM, sheets_sync.SHEET_BUKU
+    waktu = {sheets_sync.SHEET_BUKU: {sheets_format.KOLOM_TAMPIL.index("Waktu")}}
     try:
-        klien = sheets_google.dari_konfigurasi(
-            config, AKAR, {buku: {K.index("jumlah")}}, {buku: {K.index("tanggal")}}, {buku: {K.index("waktu")}})
+        klien = sheets_google.dari_konfigurasi(config, AKAR, waktu)
     except (RuntimeError, KeyError, OSError, ValueError) as e:
         pesan = _samar(str(e), config)
         print(f"GAGAL menyiapkan klien Google: {pesan}", file=sys.stderr)
@@ -80,7 +88,8 @@ def main(argv=None) -> int:
         return 2
 
     try:
-        laporan = sheets_sync.sinkron(resi.BILLS_CSV, klien, SNAPSHOT, uji=a.uji, inisialisasi=a.inisialisasi)
+        laporan = sheets_sync.sinkron(resi.BILLS_CSV, klien, SNAPSHOT, uji=a.uji, inisialisasi=a.inisialisasi,
+                                      migrasi=a.migrasi_format)
     except sheets_sync.SinkronDitolak as e:
         print(f"DITOLAK: {e}", file=sys.stderr)
         _catat(a, "ditolak", _samar(str(e), config))

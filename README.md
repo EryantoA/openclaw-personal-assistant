@@ -455,6 +455,21 @@ python3 scripts/sinkron-sheets.py                  # sinkron biasa
 Kode keluar: `0` selesai, `1` ditolak (mis. Sheet berisi data tapi belum pernah disinkronkan), `2` gagal.
 Sheets **bukan cadangan** — salah hapus ikut tersinkron; cadangan CSV harian tetap yang utama.
 
+**Isi spreadsheet (ADR-0026).** Tab berurutan: Ringkasan Bulanan → Per Kategori `<tahun>` → Budget `<tahun>`
+→ Saldo per Akun → **Buku Kas**. Hanya **Buku Kas** yang bisa diedit; tab lain dihitung skrip, abu-abu, dan
+diberi peringatan Google sebelum disunting. Di Buku Kas, isi **tepat satu** dari Pemasukan / Pengeluaran /
+Transfer; Kategori dipilih dari dropdown Label Kategori (`label_kategori` di `data/budget.json`), slug Inggris
+juga diterima; tanggal boleh diketik `5/9/2026`. Kolom No Resi, Saldo Bersama, dan Asal diisi skrip.
+
+**Pindah dari format lama (sekali).** Spreadsheet yang sudah tersinkron sebelum ADR-0026 membuat sinkron
+biasa menolak (kode 1) sampai dipindah. Jalankan dari checkout utama:
+```bash
+/usr/bin/python3 scripts/sinkron-sheets.py --migrasi-format --uji   # lihat dulu, tidak menulis apa pun
+/usr/bin/python3 scripts/sinkron-sheets.py --migrasi-format         # serap suntingan tertunda, tulis format baru
+```
+Tautan dan izin berbagi tidak berubah; tab "Ringkasan" lama dihapus, dan filter tampilan atau catatan sel buatan
+sendiri di tab lama tidak ikut. Locale spreadsheet diubah ke Indonesia supaya `5/9` dibaca 5 September.
+
 **Berjalan sendiri (cron).** Setelah satu sinkron biasa sukses dari *checkout utama*, daftarkan ke gateway
 (ADR-0009; mengedit `openclaw.json` saja tidak cukup):
 ```bash

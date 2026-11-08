@@ -80,7 +80,13 @@ disebut di laporan migrasi.
   bukan sel mentah, supaya mengganti tampilan label atau format tidak terbaca sebagai suntingan.
 - Mengubah label di `budget.json` mengubah tampilan seluruh kolom Kategori pada sinkron berikutnya;
   tidak ada data yang berubah.
-- Locale spreadsheet menjadi bagian dari kontrak: skrip memeriksa dan memasangnya.
+- Locale spreadsheet menjadi bagian dari kontrak: skrip memeriksa dan memasangnya (`id_ID`).
+- Snapshot menyimpan peta label yang terakhir ditulis; label lama tetap dikenali saat membaca balik,
+  jadi baris yang belum sempat ditulis ulang tidak terbaca sebagai suntingan.
+- **Batas yang diketahui:** tata letak (format, abu-abu, perlindungan, dropdown) dipasang ulang hanya
+  saat tab itu ditulis, bukan diperiksa tiap sinkron — perlindungan yang dihapus pengguna kembali pada
+  perubahan berikutnya di tab itu. Grup kolom dilipat hanya saat pertama dibuat. Kode locale `id_ID`
+  belum diuji terhadap Google sungguhan sebelum migrasi pertama.
 
 ## Ditolak
 

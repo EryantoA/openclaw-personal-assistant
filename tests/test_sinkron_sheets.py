@@ -35,8 +35,14 @@ class Klien:
             raise ConnectionError("jaringan putus")
         return [list(b) for b in self.sheets.get(nama, [])]
 
-    def tulis(self, nama, grid):
+    def tulis(self, nama, grid, tata=None):
         self.sheets[nama] = [list(b) for b in grid]
+
+    def hapus(self, nama):
+        self.sheets.pop(nama, None)
+
+    def urutkan(self, nama):
+        pass
 
 
 class DasarCLI(unittest.TestCase):
@@ -54,7 +60,7 @@ class DasarCLI(unittest.TestCase):
         self.klien = Klien()
         for obj, nama, nilai in [(cli, "CONFIG", self.config), (cli, "SNAPSHOT", self.snapshot),
                                  (cli, "STATUS", self.status),
-                                 (resi, "BILLS_CSV", self.bills)]:
+                                 (resi, "BILLS_CSV", self.bills), (resi, "BUDGET_JSON", d / "budget.json")]:
             p = mock.patch.object(obj, nama, nilai)
             p.start()
             self.addCleanup(p.stop)
@@ -150,21 +156,44 @@ class CLI(DasarCLI):
         self.assertNotIn(id_, teks)
         self.assertIn("<id>", teks)
 
-    def test_klien_dibuat_dengan_kolom_angka_tanggal_dan_waktu(self):
+    def test_klien_dibuat_dengan_kolom_waktu_buku_kas(self):
         self.tulis_config()
         panggilan = {}
 
-        def pabrik(config, akar, kolom_angka=None, kolom_tanggal=None, kolom_waktu=None):
-            panggilan.update(angka=kolom_angka, tanggal=kolom_tanggal, waktu=kolom_waktu)
+        def pabrik(config, akar, kolom_waktu=None):
+            panggilan.update(waktu=kolom_waktu)
             return self.klien
 
         with mock.patch.object(sheets_google, "dari_konfigurasi", pabrik):
             self.jalan("--uji")
 
-        K = sheets_sync.KOLOM
-        self.assertEqual(panggilan, {"angka": {"Buku Kas": {K.index("jumlah")}},
-                                     "tanggal": {"Buku Kas": {K.index("tanggal")}},
-                                     "waktu": {"Buku Kas": {K.index("waktu")}}})
+        self.assertEqual(panggilan, {"waktu": {"Buku Kas": {1}}})
+
+    def test_format_lama_ditolak_kode_1_dengan_petunjuk_migrasi(self):
+        self.tulis_config()
+        self.snapshot.write_text(json.dumps({"buku_kas": [sheets_sync.KOLOM]}))
+
+        kode, keluaran = self.jalan()
+
+        self.assertEqual(kode, 1)
+        self.assertIn("--migrasi-format", keluaran)
+
+    def test_migrasi_format_menulis_format_baru(self):
+        self.tulis_config()
+        self.snapshot.write_text(json.dumps({"buku_kas": [sheets_sync.KOLOM]}))
+        self.klien.sheets = {"Buku Kas": [sheets_sync.KOLOM], "Ringkasan": [["Bulan"]]}
+
+        kode, keluaran = self.jalan("--migrasi-format")
+
+        self.assertEqual(kode, 0, keluaran)
+        self.assertIn("Dipindah ke format ADR-0026", keluaran)
+        self.assertNotIn("Ringkasan", self.klien.sheets)
+        self.assertEqual(self.klien.sheets["Buku Kas"][0][0], "Tanggal")
+
+    def test_migrasi_format_dan_inisialisasi_tidak_bisa_bersamaan(self):
+        self.tulis_config()
+        with self.assertRaises(SystemExit):
+            self.jalan("--migrasi-format", "--inisialisasi")
 
 
 class BerkasStatus(DasarCLI):
