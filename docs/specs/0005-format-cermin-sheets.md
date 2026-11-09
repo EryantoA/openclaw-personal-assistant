@@ -1,6 +1,6 @@
 # Spec: Cermin Sheets berformat buku kas + tab laporan
 
-Status: siap dikerjakan; keputusannya di [ADR-0026](../adr/0026-cermin-sheets-berformat-buku-kas-dan-tab-laporan.md).
+Status: dikerjakan (PR menyusul spec ini); keputusannya di [ADR-0026](../adr/0026-cermin-sheets-berformat-buku-kas-dan-tab-laporan.md).
 Memperluas spec [0004](0004-sinkron-google-sheets.md) dan [ADR-0021](../adr/0021-sheets-cermin-dua-arah-csv-tetap-sumber.md).
 
 ## Problem Statement
@@ -91,8 +91,9 @@ Buku Kas (`bills.csv`) dan jalan tulisnya tidak berubah. Cermin disajikan ulang:
   frozen rows/cols, column group, latar abu-abu + catatan header, protected range `warningOnly`,
   locale `in_ID`, membuat/menghapus worksheet. Klien palsu di tes mencatat permintaan format
   tanpa memanggil Google.
-- **Protected range dan format** dipasang saat migrasi dan saat tab baru dibuat; sinkron biasa
-  memeriksa dan memasang ulang bila hilang.
+- **Protected range dan format** dipasang setiap kali sebuah tab ditulis (termasuk migrasi dan tab
+  baru); perlindungan lama bertanda skrip ini dihapus dulu supaya tidak menumpuk. Tidak diperiksa
+  pada sinkron yang tidak menulis tab itu (batas yang diketahui, ADR-0026).
 - **Bot:** `skills/bill-tracker/references/kategori-custom.md` mendapat langkah label di
   Pratinjau dan aturan label unik.
 

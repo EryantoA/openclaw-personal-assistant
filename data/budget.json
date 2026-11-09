@@ -29,6 +29,35 @@
     "other",
     "opening_balance"
   ],
+  "label_kategori": {
+    "food": "Makan & Minum",
+    "groceries": "Belanja Dapur",
+    "transport": "Transportasi",
+    "health": "Kesehatan",
+    "utilities": "Listrik, Air & Internet",
+    "salary": "Gaji",
+    "bonus": "Bonus",
+    "consulting": "Honor & Jasa",
+    "clothing": "Pakaian",
+    "shopping": "Belanja Lain",
+    "subscription": "Langganan",
+    "communication": "Pulsa & Telepon",
+    "personal_care": "Perawatan Diri",
+    "beauty": "Kecantikan",
+    "insurance": "Asuransi",
+    "education": "Pendidikan",
+    "entertainment": "Hiburan",
+    "event": "Acara & Kondangan",
+    "donation": "Donasi & Zakat",
+    "jewelry": "Perhiasan",
+    "pet": "Hewan Peliharaan",
+    "housekeeping": "Rumah Tangga",
+    "gift": "Hadiah",
+    "arisan": "Arisan",
+    "other": "Lain-lain",
+    "opening_balance": "Saldo Awal",
+    "transfer": "Transfer"
+  },
   "duplicate_check": {
     "aktif": true,
     "match_fields": [
@@ -52,7 +81,8 @@
     "perkiraan_toleransi_persen": "Selisih nominal yang masih dianggap cocok saat mencocokkan Perkiraan ke bills.csv (kurs, pembulatan).",
     "kategori_custom": "Daftar LENGKAP kategori yang berlaku — inilah satu-satunya acuan, bukan tabel di SKILL.md. Selalu slug Inggris huruf kecil (snake_case). Tambah lewat chat: 'tambah kategori <slug>'.",
     "duplicate_check": "Aturan deteksi duplikat. 'aktif': true/false. 'match_fields': daftar kolom yang harus SAMA SEMUA baru dianggap duplikat (pilihan: tanggal, waktu, jumlah, item, kategori, catatan, pencatat; 'jumlah' = total harga). 'aksi': 'tolak' (tidak dicatat) atau 'warning' (beri peringatan, catat jika dikonfirmasi).",
-    "pengeluaran_besar_mulai": "Satu Transaksi (No Resi) yang jumlah seluruh Item-nya sebesar ini atau lebih disebut Pengeluaran Besar: tidak dihitung ke Budget, tampil terpisah sebagai 'Di luar budget'."
+    "pengeluaran_besar_mulai": "Satu Transaksi (No Resi) yang jumlah seluruh Item-nya sebesar ini atau lebih disebut Pengeluaran Besar: tidak dihitung ke Budget, tampil terpisah sebagai 'Di luar budget'.",
+    "label_kategori": "Nama tampil Bahasa Indonesia tiap slug di kategori_custom (CONTEXT.md → Label Kategori, ADR-0026). Hanya tampilan di Google Sheets; data tetap slug. Wajib unik: label kembar tidak dipakai. Slug tanpa label tampil apa adanya."
   },
   "pengeluaran_besar_mulai": 1000000
 }
