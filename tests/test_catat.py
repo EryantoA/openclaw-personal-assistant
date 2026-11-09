@@ -50,6 +50,9 @@ class Catat(unittest.TestCase):
                                 encoding="utf-8")
         self.asli_pembeli = resi.PEMBELI_JSON
         resi.PEMBELI_JSON = self.pembeli
+        self.addCleanup(setattr, resi, "AKUN_JSON", resi.AKUN_JSON)
+        self.akun = d / "akun.json"  # belum dibuat = nama Akun tak dicek
+        resi.AKUN_JSON = self.akun
 
     def tearDown(self):
         resi.BILLS_CSV, resi.BUDGET_JSON = self.asli
@@ -167,6 +170,35 @@ class Catat(unittest.TestCase):
         transfer_bukan_transfer = tx(items=[{"kategori": "transfer", "item": "x", "jumlah": 1}])
         for t in (tanpa_tujuan, salah_kategori, transfer_bukan_transfer):
             self.assertEqual(ct.catat(t, sekarang=JAM)[0], 2, t)
+
+    def tulis_akun(self):
+        self.akun.write_text(json.dumps({"cutover": "2026-11-09", "akun": [
+            {"id": "tunai_a", "nama": "Tunai A", "saldo_awal": None},
+            {"id": "bank_b", "nama": "Bank B", "saldo_awal": None}]}), encoding="utf-8")
+
+    def test_akun_dibakukan_dari_id_atau_beda_huruf(self):
+        self.tulis_akun()
+        for i, (akun, tujuan) in enumerate((("tunai_a", "BANK  b"), ("tunai a", "bank_b"))):
+            t = tx(tipe="transfer", akun=akun, akun_tujuan=tujuan, no_resi=f"STRUK-{i}",
+                   items=[{"kategori": "transfer", "item": "Setor", "jumlah": 1000 + i}])
+            kode, pesan = ct.catat(t, sekarang=JAM)
+            self.assertEqual(kode, 0, pesan)
+            self.assertEqual(self.baris()[-1][8:10], ["Tunai A", "Bank B"])
+
+    def test_akun_tak_terdaftar_ditolak_dengan_pilihan(self):
+        self.tulis_akun()
+        for t in (tx(akun="Dompet A"),
+                  tx(tipe="transfer", akun="Tunai A", akun_tujuan="Rekening Orang Lain",
+                     items=[{"kategori": "transfer", "item": "x", "jumlah": 1}])):
+            kode, pesan = ct.catat(t, sekarang=JAM)
+            self.assertEqual(kode, 2, pesan)
+            self.assertIn("tidak ada di data/akun.json", pesan)
+            self.assertIn("Bank B, Tunai A", pesan)
+        self.assertEqual(len(self.baris()), 2)
+
+    def test_akun_kosong_tetap_boleh(self):
+        self.tulis_akun()
+        self.assertEqual(ct.catat(tx(), sekarang=JAM)[0], 0)
 
     def test_mengikuti_akhir_baris_crlf_file(self):
         self.csv.write_bytes(f"{HEADER}\r\n{LAMA}\r\n".encode())

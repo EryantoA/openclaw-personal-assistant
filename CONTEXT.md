@@ -67,16 +67,19 @@ berikutnya mulai dari nol lagi. Di kode dan ADR lama disebut `arus_kas_bulan` / 
 _Avoid_: saldo bulanan, saldo bulan ini, net
 
 **Akun**:
-Satu tempat uang disimpan. Tiga jenis dalam keluarga kami: **Dompet**, **Rekening** (bank), dan
-**Simpanan**, masing-masing milik saya dan istri, jadi enam Akun (mis. Dompet Saya, Rekening
-Istri). Nama Akun diisi di `data/akun.json`; sebelum fitur diaktifkan di sana masih nama bawaan
-`Kas`, `Bank Utama`, `Tabungan`. `Kas` sebagai Akun artinya uang tunai, bukan Buku Kas.
-Berbeda dari cara bayar (GoPay, Livin' by Mandiri), yang tempatnya di Catatan.
-_Avoid_: tempat, kantong
+Satu tempat uang disimpan milik satu orang di rumah tangga: uang tunai, rekening bank (termasuk
+rekening tabungan), atau saldo e-wallet. Nama bakunya `<Tempat> <Panggilan>` — mis. `Tunai Ayah`,
+`GoPay Ibu` — dan daftarnya hanya di `data/akun.json`; nama lain ditolak skrip, tidak ditebak
+(ADR-0027). Rekening orang di luar rumah tangga bukan Akun: uang ke sana Pengeluaran, bukan
+Transfer. Isi ulang e-wallet adalah Transfer ke Akun e-wallet; belanja memakai saldonya adalah
+Pengeluaran dari Akun itu. Berbeda dari cara bayar (QRIS, Livin' by Mandiri), yang tempatnya di
+Catatan.
+_Avoid_: tempat, kantong, dompet (untuk uang tunai — pakai Tunai), Kas (sebagai nama Akun)
 
 **Saldo Akun**:
-Uang di satu Akun, dihitung sejak tanggal cutover (ADR-0010). Sebelum cutover hanya Saldo Bersama
-yang bermakna. Fiturnya belum aktif sampai `saldo_awal` tiap Akun diisi.
+Uang di satu Akun, dihitung sejak tanggal cutover (ADR-0010) — hari pemilik mengecek isi tiap
+Akun sendiri (ADR-0027). Sebelum cutover hanya Saldo Bersama yang bermakna. Fiturnya belum aktif
+sampai `saldo_awal` tiap Akun diisi dengan angka yang dilihat, bukan sisa hitungan.
 _Avoid_: saldo dompet (tanpa menyebut pemilik)
 
 **Saldo Awal**:

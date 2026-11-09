@@ -103,6 +103,8 @@ class Dasar(unittest.TestCase):
         resi.BILLS_CSV, resi.BUDGET_JSON, resi.PEMBELI_JSON = (
             self.bills, self.dir / "budget.json", self.dir / "pembeli.json")
         self.addCleanup(lambda: pulihkan_resi(asli))
+        self.addCleanup(setattr, resi, "AKUN_JSON", resi.AKUN_JSON)
+        resi.AKUN_JSON = self.dir / "akun.json"  # tak ada = nama Akun tak dicek
 
     def tulis_csv(self, rows):
         with open(self.bills, "w", encoding="utf-8", newline="") as f:

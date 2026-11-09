@@ -31,6 +31,35 @@ def kategori_sah() -> set[str]:
         return set()
 
 
+def _kunci_akun(s: str) -> str:
+    return re.sub(r"\s+", " ", s.strip().lower())
+
+
+def peta_akun() -> dict | None:
+    """Nama/id Akun (huruf kecil) -> nama baku dari akun.json. None bila berkas tidak ada."""
+    try:
+        cfg = json.loads(resi.AKUN_JSON.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    peta = {}
+    for a in cfg.get("akun", []):
+        peta[_kunci_akun(a["nama"])] = a["nama"]
+        peta[_kunci_akun(a["id"])] = a["nama"]
+    return peta
+
+
+def baku_akun(nilai: str, peta: dict | None, kolom: str) -> str:
+    """Nama baku untuk `nilai`; nama di luar akun.json ditolak, tidak pernah ditebak (ADR-0027)."""
+    if not nilai or peta is None:
+        return nilai
+    baku = peta.get(_kunci_akun(nilai))
+    if baku is None:
+        pilihan = ", ".join(sorted(set(peta.values())))
+        raise Tolak(f"{kolom} {nilai!r} tidak ada di data/akun.json — tanyakan Akun yang mana "
+                    f"(pilihan: {pilihan})")
+    return baku
+
+
 def cek_baris(b: dict, sah: set[str], awalan: str = "", ubah: set | None = None) -> dict:
     """Validasi satu baris 12 kolom dan kembalikan salinan yang sudah dinormalisasi.
 
@@ -59,6 +88,10 @@ def cek_baris(b: dict, sah: set[str], awalan: str = "", ubah: set | None = None)
         raise Tolak(f"waktu harus HH:MM, dapat {waktu!r}")
     akun = str(b.get("akun") or "").strip()
     akun_tujuan = str(b.get("akun_tujuan") or "").strip()
+    if perlu("akun", "akun_tujuan"):
+        peta = peta_akun()
+        akun = baku_akun(akun, peta, "akun")
+        akun_tujuan = baku_akun(akun_tujuan, peta, "akun_tujuan")
     if perlu("tipe", "akun", "akun_tujuan"):
         if akun_tujuan and tipe != "transfer":
             raise Tolak("akun_tujuan hanya untuk tipe=transfer")
