@@ -179,5 +179,25 @@ class BarisLaporan(unittest.TestCase):
         self.assertEqual(budget.baris_laporan(p)[0], "💰 Budget: Rp 1.000.000 (budget belum diset)")
 
 
+class SelisihRekonsiliasi(unittest.TestCase):
+    """ADR-0027: Selisih Rekonsiliasi bukan keputusan belanja — tidak ke Budget, tampil terpisah."""
+
+    def test_tidak_dihitung_ke_budget_maupun_pengeluaran_besar(self):
+        rows = rutin(1_000_000) + [pengeluaran(1_500_000, "reconciliation")]
+        p = budget.pemakaian(rows, date(2026, 10, 1), AKHIR, ATUR)
+        self.assertEqual((p["rutin"], p["besar"], p["transaksi_besar"]), (1_000_000, 0, 0))
+        self.assertEqual(p["rekonsiliasi"], 1_500_000)
+        self.assertEqual(p["pengeluaran"], 2_500_000)  # tetap uang yang keluar
+        self.assertNotIn("reconciliation", p["per_kategori"])
+
+    def test_baris_laporan_menyebutnya_terpisah_bila_ada(self):
+        p = budget.pemakaian(rutin(1_000_000) + [pengeluaran(250_000, "reconciliation")],
+                             date(2026, 10, 1), AKHIR, ATUR)
+        self.assertEqual(budget.baris_laporan(p)[-1],
+                         "🔁 Selisih rekonsiliasi: Rp 250.000 (tidak dihitung ke budget)")
+        p = budget.pemakaian(rutin(1_000_000), date(2026, 10, 1), AKHIR, ATUR)
+        self.assertEqual(len(budget.baris_laporan(p)), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

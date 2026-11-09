@@ -48,7 +48,8 @@ yang lain.
 
 - **Setiap Rekonsiliasi dicatat** di `data/rekonsiliasi.csv`, append-only dan di luar git
   (ADR-0004): tanggal-jam, Akun, Saldo Nyata, Saldo Akun saat itu, selisih, dan cara ditutup
-  (`cocok` / `transaksi dicatat` / `Selisih Rekonsiliasi <No Resi>` / `dibiarkan`). Bukan
+  (`cocok` / `selisih_ditutup` + No Resi Selisih Rekonsiliasi-nya / `dibiarkan`; Transaksi terlupa
+  yang dicatat lalu dicek ulang berakhir `cocok`). Bukan
   Transaksi dan tidak ikut hitungan apa pun. Tanpa catatan ini, Rekonsiliasi yang cocok tidak
   meninggalkan jejak, dan pengingat tak bisa membedakan "sudah dicek" dari "belum dicek".
 - **Transaksi lama tidak dikunci, tapi tidak pernah berubah diam-diam.** Menambah, mengubah, atau

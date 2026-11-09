@@ -27,7 +27,8 @@
     "gift",
     "arisan",
     "other",
-    "opening_balance"
+    "opening_balance",
+    "reconciliation"
   ],
   "label_kategori": {
     "food": "Makan & Minum",
@@ -56,7 +57,8 @@
     "arisan": "Arisan",
     "other": "Lain-lain",
     "opening_balance": "Saldo Awal",
-    "transfer": "Transfer"
+    "transfer": "Transfer",
+    "reconciliation": "Selisih Rekonsiliasi"
   },
   "duplicate_check": {
     "aktif": true,

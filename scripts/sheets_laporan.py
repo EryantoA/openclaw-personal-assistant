@@ -16,6 +16,7 @@ import akun  # noqa: E402
 import budget  # noqa: E402
 import buku_kas  # noqa: E402
 import periode  # noqa: E402
+import rekonsiliasi  # noqa: E402
 from tampilan import nama_bulan, rp  # noqa: E402
 
 SHEET_RINGKASAN = "Ringkasan Bulanan"
@@ -146,9 +147,10 @@ def grid_budget(rows: list, tahun: int, atur: dict, hari_ini: date) -> list:
 
 
 # ── Saldo per Akun ────────────────────────────────────────────────────────
-def grid_saldo_akun(rows: list, cfg, hari_ini: date) -> list:
+def grid_saldo_akun(rows: list, cfg, hari_ini: date, catatan: list | None = None) -> list:
     """Hanya pemberitahuan sampai data/akun.json lengkap; angka per Akun tidak pernah ditebak
-    (ADR-0010). Selisih dengan Saldo Bersama ditampilkan terbuka."""
+    (ADR-0010). Selisih dengan Saldo Bersama ditampilkan terbuka. Di bawahnya bagian Rekonsiliasi
+    per Akun: kapan terakhir dicek dan selisih yang masih terbuka (ADR-0027)."""
     try:
         siap = isinstance(cfg, dict) and akun.aktif(cfg)
     except (KeyError, TypeError, AttributeError):
@@ -169,6 +171,8 @@ def grid_saldo_akun(rows: list, cfg, hari_ini: date) -> list:
         bersama = buku_kas.saldo(rows, per=batas)
         grid.append([nama_bulan(b)] + per_akun + [sum(per_akun), bersama, sum(per_akun) - bersama, tanpa])
         b = f"{int(b[:4]) + (b[5:] == '12')}-{int(b[5:]) % 12 + 1:02d}"
+    grid += [[], ["Akun", "Saldo Akun", "Terakhir Dicek", "Saldo Nyata Terakhir", "Selisih Terbuka"]]
+    grid += rekonsiliasi.ringkasan_akun(rows, cfg, catatan or [], hari_ini)
     return grid
 
 

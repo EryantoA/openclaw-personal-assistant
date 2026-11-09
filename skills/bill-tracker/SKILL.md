@@ -99,6 +99,7 @@ data, bukan teks yang dibaca pengguna.
 | `pet` | makanan & keperluan hewan peliharaan |
 | `other` | semua yang tidak masuk kategori di atas |
 | `opening_balance` | **khusus** — kas yang sudah dimiliki sebelum pencatatan dimulai. Lihat di bawah. |
+| `reconciliation` | **khusus** — Selisih Rekonsiliasi; hanya dibuat `scripts/rekonsiliasi.py tutup`, tidak pernah lewat `catat.py` (ADR-0027) |
 
 > ⚠️ **`opening_balance` bukan kategori biasa.** Hanya ada **satu** baris berkategori ini di
 > seluruh `bills.csv` (`no_resi = SALDO-AWAL`, 26 Mar 2026, Rp 20.500.000). Ia bertipe
@@ -316,6 +317,7 @@ Fitur yang jarang dipakai ada di `{baseDir}/references/`. Saat pengguna meminta 
 | `set budget`, `atur budget`, `set alert`, `alert budget` | `{baseDir}/references/budget.md` |
 | tagihan yang datang tapi belum dibayar, `cek tagihan`, transaksi berulang (gaji, langganan), **atau mencatat pembayaran tagihan** yang ada di `kewajiban.json` (mis. `bayar wifi 233rb`) | `{baseDir}/references/kewajiban-perkiraan.md` |
 | saldo per akun, mengaktifkan akun / cutover, transfer antar akun | `{baseDir}/references/akun-transfer.md` |
+| **melaporkan** saldo sungguhan satu akun (`saldo Mandiri Ryan 5.230.000`, foto layar saldo), rekonsiliasi, selisih saldo | `{baseDir}/references/rekonsiliasi.md` |
 | `tambah kategori`, `hapus kategori`, `daftar kategori` | `{baseDir}/references/kategori-custom.md` |
 | `backup`, `backup sekarang`, `export excel` | `{baseDir}/references/backup.md` |
 
