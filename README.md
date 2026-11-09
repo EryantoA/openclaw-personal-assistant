@@ -275,9 +275,9 @@ Telegram atau Discord, salin `data/tujuan.json.example` ke `data/tujuan.json` (d
 isi ID-nya; Kanal yang tidak diisi dilewati. Telegram dan Discord tidak diulang kalau gagal
 (WhatsApp 3 kali). Ketiga cron laporan berbatas waktu 600 detik, bukan 420 (ADR-0023); jangan diturunkan lagi.
 
-Uji hidup tujuan Discord (#41), belum dilakukan: jalankan Laporan Mingguan, Laporan Bulanan (mode kirim),
-dan cek budget (saat ada isi) lalu pastikan ketiganya tiba di kanal Discord. Lalu matikan bergantian satu
-Kanal (WhatsApp, Telegram, Discord): dua lainnya harus tetap menerima dan skrip keluar dengan kode 1.
+Uji hidup tujuan Discord (#41), lulus (dilaporkan pemilik, 9 Nov 2026): Laporan Mingguan, Laporan Bulanan
+(mode kirim), dan cek budget (saat ada isi) tiba di kanal Discord; dengan satu Kanal dimatikan bergantian
+(WhatsApp, Telegram, Discord), dua lainnya tetap menerima dan skrip keluar dengan kode 1.
 
 ### Pasang bot Discord OpenClaw (jalur langsung)
 Pemilik dan istri mencatat, bertanya, mengubah, dan menghapus dari satu kanal keuangan privat di
@@ -300,12 +300,11 @@ struk juga bisa dikirim di sini. Langkah (1–4 kamu kerjakan sendiri di Discord
 6. `openclaw gateway restart`, lalu `openclaw channels status` harus menyebut Discord tersambung.
    Contoh config memasang `historyLimit: 0`; jangan dihapus. Bawaannya (20) membuat pesan tanpa
    @mention ikut jadi konteks dan tergabung ke Pratinjau berikutnya (temuan uji hidup 2 Nov 2026).
-7. Uji terima (butir bertanda ✅ sudah teruji hidup 2 Nov 2026, sisanya belum):
-   - ✅ tanpa @mention bot diam; ✅ catat → Pratinjau → `@bot ya` → tersimpan, `channel` `discord`;
-     ✅ duplikat terdeteksi;
-   - belum: wajib @mention di thread dan untuk jawaban "ya"; kanal lain dan orang lain diabaikan;
-     `@bot cari …` menemukan baris tadi; foto struk dicatat dengan Pratinjau; Pembeli istri
-     tercatat atas namanya; kanal hanya terlihat pemilik dan istri.
+7. Uji terima, lulus (dilaporkan pemilik: sebagian 2 Nov 2026, sisanya dan seluruh lembar 9 Nov 2026,
+   `docs/uji-hidup-discord.md`): tanpa @mention bot diam; wajib @mention di thread dan untuk jawaban
+   "ya"; kanal lain dan orang lain diabaikan; catat → Pratinjau → `@bot ya` → tersimpan dengan
+   `channel` `discord`; duplikat terdeteksi; `@bot cari …` menemukan baris tadi; foto struk dicatat
+   dengan Pratinjau; Pembeli istri tercatat atas namanya; kanal hanya terlihat pemilik dan istri.
 
 Hanya `AGENTS.md` yang dibaca agen untuk kontraknya, jadi percakapan di Discord sama dengan di
 WhatsApp. WhatsApp, Telegram, dan bot helpdesk tidak berubah.
@@ -332,11 +331,12 @@ Agen kedua yang menerima pesan keuangan dari Hermes lewat A2A (ADR-0023). Worksp
 5. Cek: `curl -s http://127.0.0.1:18789/.well-known/agent-card.json` hanya menyebut `keuangan`;
    tugas A2A tanpa token ditolak. Jangan memakai nama agen yang pernah dihapus.
 
-### Pasang Hermes sebagai Relay teks (belum dipasang)
+### Pasang Hermes sebagai Relay teks (teruji 9 Nov 2026)
 Di satu kanal keuangan Discord, Hermes meneruskan teks ke agen `keuangan` lewat A2A (ADR-0023, jalur
-B). Foto tidak ikut: kirim langsung ke bot OpenClaw. Catatan ini disusun dari ADR-0023; **cara
-mengisi tiap butir di config Hermes tidak ada di repo dan belum dicoba**, jadi isilah dengan
-sintaks Hermes yang berlaku di mesinmu. Config Hermes ada di luar repo (`~/.hermes/`); ID dan token
+B). Foto tidak ikut: kirim langsung ke bot OpenClaw. Catatan ini disusun dari ADR-0023 lalu diuji
+pemilik di Discord sungguhan (9 Nov 2026, dilaporkan lulus tanpa penyimpangan). **Sintaks config Hermes
+sengaja tidak disalin ke repo**: ia hidup di `~/.hermes/` milik pemilik, jadi isilah dengan sintaks
+Hermes yang berlaku di mesinmu. Config Hermes ada di luar repo (`~/.hermes/`); ID dan token
 tidak masuk repo.
 
 Prasyarat: bot Discord OpenClaw (#36) dan agen `keuangan` (bagian di atas) sudah berjalan.
@@ -369,7 +369,7 @@ Prasyarat: bot Discord OpenClaw (#36) dan agen `keuangan` (bagian di atas) sudah
 6. **`SOUL.md` Hermes.** Ubah hanya agar tidak melarang meneruskan. Larangan menulis atau mengubah
    Buku Kas dan menyimpan data keuangan ke `MEMORY.md`/`USER.md` tetap berlaku.
 
-Uji terima #42 (belum dilakukan): teks di kanal keuangan lewat Hermes menghasilkan Pratinjau dari agen
+Uji terima #42 (lulus, dilaporkan pemilik 9 Nov 2026): teks di kanal keuangan lewat Hermes menghasilkan Pratinjau dari agen
 `keuangan`, lalu `@Hermes ya` menyimpan, dengan baris berisi `discord-via-hermes` dan Pencatat yang
 benar untuk pemilik maupun istri; foto dijawab kalimat baku dan tidak dibaca; di kanal lain Hermes
 tidak menjawab angka keuangan; satu @mention tidak memicu bot lain; Hermes tidak menulis Buku Kas dan
