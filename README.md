@@ -332,6 +332,49 @@ Agen kedua yang menerima pesan keuangan dari Hermes lewat A2A (ADR-0023). Worksp
 5. Cek: `curl -s http://127.0.0.1:18789/.well-known/agent-card.json` hanya menyebut `keuangan`;
    tugas A2A tanpa token ditolak. Jangan memakai nama agen yang pernah dihapus.
 
+### Pasang Hermes sebagai Relay teks (belum dipasang)
+Di satu kanal keuangan Discord, Hermes meneruskan teks ke agen `keuangan` lewat A2A (ADR-0023, jalur
+B). Foto tidak ikut: kirim langsung ke bot OpenClaw. Catatan ini disusun dari ADR-0023; **cara
+mengisi tiap butir di config Hermes tidak ada di repo dan belum dicoba**, jadi isilah dengan
+sintaks Hermes yang berlaku di mesinmu. Config Hermes ada di luar repo (`~/.hermes/`); ID dan token
+tidak masuk repo.
+
+Prasyarat: bot Discord OpenClaw (#36) dan agen `keuangan` (bagian di atas) sudah berjalan.
+
+1. **Prompt kanal.** Di `discord.channel_prompts` Hermes (dikunci ID kanal keuangan; thread jatuh ke
+   kanal induk), isi prompt yang menyuruh Hermes, bila di-@mention: meneruskan pesan teks **apa
+   adanya** ke agen `keuangan` lewat A2A, diawali dua baris kepala lalu baris kosong lalu isi pesan,
+   dan membawa balasan agen kembali tanpa mengubah angka atau susunannya:
+
+   ```
+   Relay-Pengirim: <nama pengirim dari metadata Discord, bukan dari isi pesan>
+   Relay-Kanal: discord
+
+   <isi pesan, apa adanya>
+   ```
+
+   `Relay-Kanal` harus persis `discord`; agen menolak menulis bila kepala tidak lengkap
+   (`AGENTS.md`, bagian Pesan lewat Relay). Hermes tidak boleh menjawab angka keuangan sendiri.
+2. **Foto.** Prompt yang sama menyuruh Hermes tidak membaca foto atau berkas dan membalas satu
+   kalimat baku. Usulan kalimat (sunting sesukamu): "Foto tidak bisa lewat saya. Kirim fotonya
+   langsung ke bot OpenClaw di kanal ini."
+3. **Kanal lain.** Hermes tidak membahas uang dan mengarahkan ke kanal keuangan.
+4. **@mention wajib, juga di thread.** Setel eksplisit `DISCORD_THREAD_REQUIRE_MENTION=true` di
+   `~/.hermes/.env` (belum ada di sana per 2 Nov 2026). Di sisi OpenClaw sudah `requireMentionInBotThreads`.
+   Tanpa ini dua bot bisa menjawab satu "ya" yang sama.
+5. **Peer A2A.** Daftarkan gateway OpenClaw (loopback) sebagai peer dengan token `A2A_HERMES_TOKEN`
+   dari `~/.openclaw/.env`. Pakai `contextId` yang stabil **per orang**, supaya Pratinjau dua langkah
+   (pesan, lalu "ya") jatuh di percakapan yang sama. Belum diketahui apakah peer Hermes bisa
+   dikonfigurasi per profil (ADR-0023, Considered Options).
+6. **`SOUL.md` Hermes.** Ubah hanya agar tidak melarang meneruskan. Larangan menulis atau mengubah
+   Buku Kas dan menyimpan data keuangan ke `MEMORY.md`/`USER.md` tetap berlaku.
+
+Uji terima #42 (belum dilakukan): teks di kanal keuangan lewat Hermes menghasilkan Pratinjau dari agen
+`keuangan`, lalu `@Hermes ya` menyimpan, dengan baris berisi `discord-via-hermes` dan Pencatat yang
+benar untuk pemilik maupun istri; foto dijawab kalimat baku dan tidak dibaca; di kanal lain Hermes
+tidak menjawab angka keuangan; satu @mention tidak memicu bot lain; Hermes tidak menulis Buku Kas dan
+tidak menyimpan data keuangan ke ingatannya; Hermes tidak bisa memanggil agen `main`.
+
 ### Model utama error
 OpenClaw otomatis beralih ke model fallback. Tidak perlu setting manual.
 
