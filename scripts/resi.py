@@ -56,7 +56,6 @@ DATA_DIR = PROJECT_DIR / "data"
 BILLS_CSV = DATA_DIR / "bills.csv"
 BUDGET_JSON = DATA_DIR / "budget.json"
 PEMBELI_JSON = DATA_DIR / "pembeli.json"  # nama baku -> daftar alias (data pribadi, tidak di git)
-AKUN_JSON = DATA_DIR / "akun.json"  # daftar Akun baku (ADR-0010, ADR-0027; tidak di git)
 
 # Header lengkap (kolom `waktu` & `no_resi` di akhir demi kompatibilitas data lama)
 COLUMNS = [

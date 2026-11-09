@@ -152,8 +152,8 @@ def check_all(today: Optional[date] = None) -> str:
 
 # ── Main ─────────────────────────────────────────────────────
 # ── Pengiriman (cron, tanpa model) ──────────────────────────
-def kirim_kalau_ada(isi: str) -> int:
-    """Kirim ke nomor pemilik hanya kalau ada yang perlu ditindak. 0 = beres, 1 = gagal kirim.
+def kirim_kalau_ada(isi: str, pengirim=None) -> int:
+    """Kirim ke semua tujuan hanya kalau ada yang perlu ditindak. 0 = beres, 1 = ada tujuan gagal.
 
     Cron cek_budget_malam dulu giliran agent; 12 dari 53 malam gagal sebelum sempat mengecek
     (OAuth mati, kuota, timeout) dan peringatan 26 Agu 2026 tidak pernah terkirim. Sekarang
@@ -165,9 +165,10 @@ def kirim_kalau_ada(isi: str) -> int:
     if not isi:
         print("\n(tidak ada yang perlu dikirim)")
         return 0
-    spec = importlib.util.spec_from_file_location("pengirim", SCRIPT_DIR / "pengirim.py")
-    pengirim = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(pengirim)
+    if pengirim is None:  # tes menyuntikkan pengganti
+        spec = importlib.util.spec_from_file_location("pengirim", SCRIPT_DIR / "pengirim.py")
+        pengirim = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(pengirim)
     tujuan = pengirim.tujuan_baku()
     if not tujuan:
         print("\n❌ Tidak ada tujuan pengiriman (WhatsApp di config OpenClaw dan data/tujuan.json sama-sama kosong).")

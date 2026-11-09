@@ -21,5 +21,5 @@
       "saldo_awal": 2000000
     }
   ],
-  "keterangan": "CONTOH dengan nama dan angka karangan — bulat semua supaya jelas bukan saldo sungguhan. Nama baku <Tempat> <Panggilan> (ADR-0027); catat.py/buku.py menolak nama Akun di luar daftar ini. Cutover = hari pemilik mengecek isi tiap Akun. Aturan yang mengikat: jumlah semua saldo_awal HARUS sama dengan saldo_global_saat_cutover. 1.000.000 + 5.000.000 + 2.000.000 = 8.000.000. Saldo asli tinggal di data/akun.json, yang tidak dilacak Git."
+  "keterangan": "CONTOH dengan nama dan angka karangan — bulat semua supaya jelas bukan saldo sungguhan. Nama baku <Tempat> <Panggilan> (ADR-0028); catat.py/buku.py menolak nama Akun di luar daftar ini. Cutover = hari pemilik mengecek isi tiap Akun. Aturan yang mengikat: jumlah semua saldo_awal HARUS sama dengan saldo_global_saat_cutover. 1.000.000 + 5.000.000 + 2.000.000 = 8.000.000. Saldo asli tinggal di data/akun.json, yang tidak dilacak Git."
 }

@@ -45,7 +45,9 @@ from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+import buku_kas  # noqa: E402
 import duplikat  # noqa: E402
+import rekonsiliasi as rekon  # noqa: E402
 import resi  # noqa: E402
 from validasi import Tolak, cek_baris, kategori_sah, kunci_berkas  # noqa: E402
 
@@ -93,11 +95,17 @@ def susun_baris(tx: dict, sekarang: datetime) -> list[dict]:
     return baris
 
 
-def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime | None = None) -> tuple[int, str]:
+def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime | None = None,
+          rekonsiliasi: bool = False) -> tuple[int, str]:
+    """`rekonsiliasi`: hanya untuk scripts/rekonsiliasi.py tutup — satu-satunya jalan yang boleh
+    memakai kategori Selisih Rekonsiliasi (ADR-0027)."""
     try:
         baris = susun_baris(tx, sekarang or datetime.now())
     except Tolak as e:
         return 2, f"ERROR {e}"
+    if not rekonsiliasi and any(buku_kas.selisih_rekonsiliasi(b) for b in baris):
+        return 2, (f"ERROR kategori {buku_kas.KATEGORI_REKONSILIASI} hanya dibuat lewat "
+                   "scripts/rekonsiliasi.py tutup (ADR-0027); pilih kategori lain")
 
     path = resi.BILLS_CSV
     # Dua pesan WhatsApp bersamaan (atau buku.py) tidak saling menimpa
@@ -114,11 +122,12 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
         pesan = duplikat.cek(baris, ada, paksa)
         if pesan:
             return 1, pesan
+        awas = rekon.peringatan_dari_berkas(path, [], baris)
         if uji:
-            return 0, (f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} "
-                       f"| label {resi.label_resi(baris[0]['no_resi'])} | waktu {baris[0]['waktu']} "
-                       f"| tanggal {baris[0]['tanggal']} | pencatat {baris[0]['pencatat']}"
-                       f"{_arah(baris[0])}")
+            return 0, "\n".join([f"OK lolos cek (tidak ditulis): no_resi {baris[0]['no_resi']} "
+                                 f"| label {resi.label_resi(baris[0]['no_resi'])} | waktu {baris[0]['waktu']} "
+                                 f"| tanggal {baris[0]['tanggal']} | pencatat {baris[0]['pencatat']}"
+                                 f"{_arah(baris[0])}", *awas])
 
         # Ikuti akhir baris yang sudah dipakai file (bills.csv saat ini CRLF) supaya tidak campur
         eol = "\r\n" if "\r\n" in isi else "\n"
@@ -137,7 +146,7 @@ def catat(tx: dict, paksa: bool = False, uji: bool = False, sekarang: datetime |
     return 0, (f"OK tersimpan {len(baris)} baris | no_resi {baris[0]['no_resi']} | "
                f"label {resi.label_resi(baris[0]['no_resi'])} | "
                f"waktu {baris[0]['waktu']} | tanggal {baris[0]['tanggal']} | "
-               f"pencatat {baris[0]['pencatat']}{_arah(baris[0])}\n" + "\n".join(ditulis))
+               f"pencatat {baris[0]['pencatat']}{_arah(baris[0])}\n" + "\n".join(ditulis + awas))
 
 
 def _arah(b: dict) -> str:

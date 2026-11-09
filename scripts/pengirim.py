@@ -53,22 +53,6 @@ def tujuan_baku():
         else:
             print(f"(tujuan {kanal} di tujuan.json dilewati: harus teks tak kosong)", file=sys.stderr)
     return tujuan
-    try:
-        lain = json.loads(TUJUAN_JSON.read_text(encoding="utf-8"))
-        if not isinstance(lain, dict):
-            raise ValueError("harus objek {kanal: id}")
-    except Exception as e:  # noqa: BLE001
-        print(f"(tujuan.json dilewati: {e})", file=sys.stderr)
-        return tujuan
-    for kanal in KANAL_LAIN:
-        if kanal not in lain:
-            continue
-        ke = lain[kanal]
-        if isinstance(ke, str) and ke.strip():
-            tujuan.append((kanal, ke.strip()))
-        else:
-            print(f"(tujuan {kanal} di tujuan.json dilewati: harus teks tak kosong)", file=sys.stderr)
-    return tujuan
 
 
 def kirim_sekali(pesan, kanal, ke):

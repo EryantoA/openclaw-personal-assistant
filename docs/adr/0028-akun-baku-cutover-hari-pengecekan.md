@@ -40,3 +40,6 @@ dasarnya: bot hanya *diminta* memakai nama dari `akun.json`, dan selama fitur be
 - **Mewajibkan `akun` terisi sejak cutover** dan menambah `akun` ke `duplicate_check.match_fields`:
   ditunda sampai fitur benar-benar aktif (semua `saldo_awal` terisi dan `akun.py --cek` lolos),
   sesuai langkah aktivasi di `references/akun-transfer.md`.
+
+Nomor ADR ini 0028 karena 0027 (Rekonsiliasi per Akun) digabung lebih dulu; keduanya saling
+melengkapi: 0028 menetapkan saldo awal dan nama Akun, 0027 memeriksa Saldo Akun sesudahnya.

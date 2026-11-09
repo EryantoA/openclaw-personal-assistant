@@ -16,6 +16,7 @@ from urllib.parse import unquote
 AKAR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(AKAR / "scripts"))
 import resi  # noqa: E402
+import sheets_format  # noqa: E402
 import sheets_google  # noqa: E402
 import sheets_sync  # noqa: E402
 
@@ -46,9 +47,11 @@ class SesiPalsu:
     repeatCell harus menunjuk sheetId yang ada, sel kosong di ujung dipangkas saat dibaca."""
 
     def __init__(self):
-        self.sheets = {}      # judul → {"id", "baris", "rowCount", "colCount"}
+        self.sheets = {}      # judul → {"id", "baris", "rowCount", "colCount", "lindung", "grup", ...}
         self.panggilan = []   # (metode, sisa url, params, json)
         self.format = []      # request repeatCell yang diterima
+        self.locale = "en_US"
+        self._id_lindung = 0
         self.status = {}      # metode → status error permanen
         self.gagal_dulu = {}  # metode → daftar status yang dikembalikan satu per satu, lalu normal
         self.timeout = []     # timeout yang dikirim tiap panggilan
@@ -61,11 +64,15 @@ class SesiPalsu:
             return Jawaban(self.gagal_dulu[metode].pop(0), {"error": {"message": "sibuk"}})
         if metode in self.status:
             return Jawaban(self.status[metode], {"error": {"message": "ditolak"}})
+        if metode == "GET" and sisa == "" and params["fields"].startswith("properties"):
+            return Jawaban(200, {"properties": {"locale": self.locale}})
         if metode == "GET" and sisa == "":
-            return Jawaban(200, {"sheets": [{"properties": {
-                "sheetId": s["id"], "title": t,
-                "gridProperties": {"rowCount": s["rowCount"], "columnCount": s["colCount"]}}}
-                for t, s in self.sheets.items()]})
+            return Jawaban(200, {"sheets": [{
+                "properties": {"sheetId": s["id"], "title": t, "index": s["index"],
+                               "gridProperties": {"rowCount": s["rowCount"], "columnCount": s["colCount"]}},
+                "protectedRanges": [{"protectedRangeId": i, "description": d} for i, d in s["lindung"].items()],
+                "columnGroups": [{"range": {"startIndex": a, "endIndex": b}} for a, b in s["grup"]]}
+                for t, s in sorted(self.sheets.items(), key=lambda x: x[1]["index"])]})
         if metode == "POST" and sisa == ":batchUpdate":
             balasan = []
             for r in json["requests"]:
@@ -87,28 +94,72 @@ class SesiPalsu:
             return self._isi(judul, params, json)
         raise AssertionError(f"endpoint tak dikenal: {metode} {sisa}")
 
+    def _sheet(self, sid):
+        return next((x for x in self.sheets.values() if x["id"] == sid), None)
+
     def _ubah(self, r):
-        if "addSheet" in r:
-            judul = r["addSheet"]["properties"]["title"]
+        (jenis, isi), = r.items()
+        if jenis == "addSheet":
+            judul = isi["properties"]["title"]
             if judul in self.sheets:
                 return Jawaban(400, {"error": {"message": "judul sudah ada"}})
-            self.sheets[judul] = {"id": 100 + len(self.sheets), "baris": [], "rowCount": 1000, "colCount": 26}
+            self.sheets[judul] = {"id": 100 + len(self.sheets), "baris": [], "rowCount": 1000, "colCount": 26,
+                                  "index": len(self.sheets), "lindung": {}, "grup": set(), "beku": None,
+                                  "validasi": {}, "catatan": {}}
             return {"addSheet": {"properties": {"sheetId": self.sheets[judul]["id"], "title": judul}}}
-        if "updateSheetProperties" in r:
-            u = r["updateSheetProperties"]
-            sheet = next((x for x in self.sheets.values() if x["id"] == u["properties"]["sheetId"]), None)
-            if sheet is None or u["fields"] != "gridProperties.rowCount,gridProperties.columnCount":
-                return Jawaban(400, {"error": {"message": "updateSheetProperties salah"}})
-            sheet["rowCount"] = u["properties"]["gridProperties"]["rowCount"]
-            sheet["colCount"] = u["properties"]["gridProperties"]["columnCount"]
+        if jenis == "updateSpreadsheetProperties":
+            self.locale = isi["properties"]["locale"]
             return {}
-        rc = r["repeatCell"]
-        if not any(x["id"] == rc["range"]["sheetId"] for x in self.sheets.values()):
-            return Jawaban(400, {"error": {"message": "sheetId tidak ada"}})
-        if rc["fields"] != "userEnteredFormat.numberFormat":
-            return Jawaban(400, {"error": {"message": "field mask salah"}})
-        self.format.append(rc)
-        return {}
+        sid = (isi.get("properties") or isi.get("range") or isi.get("dimensionGroup", {}).get("range")
+               or isi.get("protectedRange", {}).get("range") or {}).get("sheetId", isi.get("sheetId"))
+        sheet = self._sheet(sid)
+        if sheet is None and jenis != "deleteProtectedRange":
+            return Jawaban(400, {"error": {"message": f"{jenis}: sheetId tidak ada"}})
+        if jenis == "updateSheetProperties":
+            g = isi["properties"].get("gridProperties", {})
+            if isi["fields"] == "gridProperties.rowCount,gridProperties.columnCount":
+                sheet["rowCount"], sheet["colCount"] = g["rowCount"], g["columnCount"]
+            elif isi["fields"] == "gridProperties.frozenRowCount,gridProperties.frozenColumnCount":
+                sheet["beku"] = (g["frozenRowCount"], g["frozenColumnCount"])
+            elif isi["fields"] == "index":
+                lain = sorted((x for x in self.sheets.values() if x is not sheet), key=lambda x: x["index"])
+                lain.insert(isi["properties"]["index"], sheet)
+                for i, x in enumerate(lain):
+                    x["index"] = i
+            else:
+                return Jawaban(400, {"error": {"message": "updateSheetProperties salah"}})
+            return {}
+        if jenis == "repeatCell":
+            if not isi["fields"].startswith("userEnteredFormat."):
+                return Jawaban(400, {"error": {"message": "field mask salah"}})
+            self.format.append(isi)
+            return {}
+        if jenis == "addProtectedRange":
+            self._id_lindung += 1
+            sheet["lindung"][self._id_lindung] = isi["protectedRange"]["description"]
+            sheet.setdefault("rentang_lindung", []).append(isi["protectedRange"])
+            return {"addProtectedRange": {"protectedRange": {"protectedRangeId": self._id_lindung}}}
+        if jenis == "deleteProtectedRange":
+            for x in self.sheets.values():
+                if x["lindung"].pop(isi["protectedRangeId"], None) is not None:
+                    return {}
+            return Jawaban(400, {"error": {"message": "protectedRangeId tidak ada"}})
+        if jenis == "updateCells":
+            sheet["catatan"][isi["range"]["startColumnIndex"]] = isi["rows"][0]["values"][0]["note"]
+            return {}
+        if jenis == "setDataValidation":
+            sheet["validasi"][isi["range"]["startColumnIndex"]] = isi["rule"]
+            return {}
+        if jenis == "addDimensionGroup":
+            sheet["grup"].add((isi["range"]["startIndex"], isi["range"]["endIndex"]))
+            return {}
+        if jenis == "updateDimensionGroup":
+            return {}
+        if jenis == "deleteSheet":
+            judul = next(t for t, x in self.sheets.items() if x is sheet)
+            del self.sheets[judul]
+            return {}
+        raise AssertionError(f"request tak dikenal: {jenis}")
 
     def _isi(self, judul, params, json):
         if not params or params.get("valueInputOption") not in ("RAW", "USER_ENTERED"):
@@ -168,7 +219,7 @@ class SesiPalsu:
 class Adaptor(unittest.TestCase):
     def setUp(self):
         self.sesi = SesiPalsu()
-        self.klien = sheets_google.KlienGoogle(ID, self.sesi, {"Buku Kas": {1}}, tidur=lambda detik: None)
+        self.klien = sheets_google.KlienGoogle(ID, self.sesi, tidur=lambda detik: None)
 
     def test_membaca_worksheet_yang_belum_ada_mengembalikan_kosong_tanpa_membuatnya(self):
         self.assertEqual(self.klien.baca("Buku Kas"), [])
@@ -197,22 +248,83 @@ class Adaptor(unittest.TestCase):
 
         self.assertEqual(self.klien.baca("Buku Kas"), [["a", 1]])
 
-    def test_kolom_angka_diformat_number_dan_sisanya_text_sebelum_diisi(self):
-        self.klien.tulis("Buku Kas", [["tanggal", "jumlah", "item"]])
+    TATA = {"baris_header": 0, "beku_kolom": 2, "format": {0: "tanggal", 1: "teks", 2: "rupiah"},
+            "hanya_baca": [2], "catatan": {2: "otomatis"}, "pilihan": {1: ["Gaji", "food"]},
+            "grup": [(1, 2)], "locale": "in_ID"}
 
-        jenis = {f["range"]["startColumnIndex"]: f["cell"]["userEnteredFormat"]["numberFormat"]["type"]
-                 for f in self.sesi.format}
-        self.assertEqual(jenis, {0: "TEXT", 1: "NUMBER", 2: "TEXT"})
+    def test_tata_dipasang_sebelum_isi_ditulis(self):
+        self.klien.tulis("Buku Kas", [["Tanggal", "Kategori", "Saldo"], [46270, "Gaji", 5]], self.TATA)
+
+        pola = {f["range"]["startColumnIndex"]: f["cell"]["userEnteredFormat"]["numberFormat"]
+                for f in self.sesi.format if "numberFormat" in f["cell"]["userEnteredFormat"]}
+        self.assertEqual(pola[0], {"type": "DATE", "pattern": "d mmm yyyy"})
+        self.assertEqual(pola[1], {"type": "TEXT"})
+        self.assertIn("Rp", pola[2]["pattern"])
+        self.assertTrue(all(f["range"]["startRowIndex"] == 1 for f in self.sesi.format
+                            if "numberFormat" in f["cell"]["userEnteredFormat"]))  # header tetap teks
         urutan = [(m, sisa) for m, sisa, _, _ in self.sesi.panggilan if m in ("PUT", "POST")]
-        i_format = next(i for i, (m, sisa) in enumerate(urutan) if sisa == ":batchUpdate" and
-                        i > 0)  # batchUpdate sesudah addSheet
         i_isi = next(i for i, (m, _) in enumerate(urutan) if m == "PUT")
-        self.assertLess(i_format, i_isi)  # format dikirim sebelum isi
+        self.assertTrue(all(sisa == ":batchUpdate" for _, sisa in urutan[:i_isi]))  # tata & locale dulu
+        sheet = self.sesi.sheets["Buku Kas"]
+        self.assertEqual(sheet["beku"], (1, 2))
+        self.assertEqual(list(sheet["lindung"].values()), [sheets_google.PENANDA])
+        self.assertTrue(sheet["rentang_lindung"][0]["warningOnly"])
+        self.assertEqual(sheet["catatan"], {2: "otomatis"})
+        aturan = sheet["validasi"][1]
+        self.assertFalse(aturan["strict"])
+        self.assertEqual([v["userEnteredValue"] for v in aturan["condition"]["values"]], ["Gaji", "food"])
+        self.assertEqual(sheet["grup"], {(1, 2)})
+        self.assertEqual(self.sesi.locale, "in_ID")
 
-    def test_worksheet_tanpa_pendaftaran_kolom_tidak_diformat(self):
+    def test_tata_diulang_tidak_menumpuk_perlindungan_atau_grup(self):
+        for _ in range(3):
+            self.klien.tulis("Buku Kas", [["Tanggal", "Kategori", "Saldo"]], self.TATA)
+
+        sheet = self.sesi.sheets["Buku Kas"]
+        self.assertEqual(len(sheet["lindung"]), 1)
+        jenis = [next(iter(r)) for _, sisa, _, j in self.sesi.panggilan if sisa == ":batchUpdate"
+                 for r in j["requests"]]
+        self.assertEqual(jenis.count("addDimensionGroup"), 1)
+        self.assertEqual(jenis.count("updateSpreadsheetProperties"), 1)
+
+    def test_perlindungan_buatan_pengguna_tidak_dihapus(self):
+        self.klien.tulis("Buku Kas", [["a"]], self.TATA)
+        self.sesi.sheets["Buku Kas"]["lindung"][99] = "punya pemilik"
+
+        self.klien.tulis("Buku Kas", [["a"]], self.TATA)
+
+        self.assertIn(99, self.sesi.sheets["Buku Kas"]["lindung"])
+
+    def test_seluruh_tab_hanya_baca(self):
+        self.klien.tulis("Ringkasan Bulanan", [["Bulan"]], {"hanya_baca": "semua"})
+
+        rentang = self.sesi.sheets["Ringkasan Bulanan"]["rentang_lindung"][0]["range"]
+        self.assertEqual(set(rentang), {"sheetId"})
+
+    def test_tulis_tanpa_tata_tidak_memformat(self):
         self.klien.tulis("Ringkasan", [["Bulan", "Saldo"], ["2026-07", 1]])
 
         self.assertEqual(self.sesi.format, [])
+
+    def test_hapus_worksheet_dan_yang_tidak_ada_diabaikan(self):
+        self.klien.tulis("Ringkasan", [["a"]])
+
+        self.klien.hapus("Ringkasan")
+        self.klien.hapus("Tidak Ada")
+
+        self.assertEqual(self.sesi.sheets, {})
+
+    def test_urutkan_menaruh_tab_sesuai_daftar_dan_tab_lain_di_belakang(self):
+        for nama in ("Sheet1", "Buku Kas", "Ringkasan Bulanan"):
+            self.klien.tulis(nama, [["a"]])
+
+        self.klien.urutkan(["Ringkasan Bulanan", "Saldo per Akun", "Buku Kas"])
+
+        urut = sorted(self.sesi.sheets, key=lambda t: self.sesi.sheets[t]["index"])
+        self.assertEqual(urut, ["Ringkasan Bulanan", "Buku Kas", "Sheet1"])
+        self.sesi.panggilan.clear()
+        self.klien.urutkan(["Ringkasan Bulanan", "Buku Kas"])
+        self.assertEqual([m for m, *_ in self.sesi.panggilan if m == "POST"], [])  # sudah urut: diam
 
     def test_nama_worksheet_berspasi_dikutip_dan_dikodekan_dalam_url(self):
         self.klien.tulis("Buku Kas", [["a"]])
@@ -242,9 +354,8 @@ class KetahananAdaptor(unittest.TestCase):
     def setUp(self):
         self.sesi = SesiPalsu()
         self.tidur = []
-        self.klien = sheets_google.KlienGoogle(
-            ID, self.sesi, {"Buku Kas": {1}}, kolom_tanggal={"Buku Kas": {0}}, kolom_waktu={"Buku Kas": {2}},
-            tidur=self.tidur.append)
+        self.klien = sheets_google.KlienGoogle(ID, self.sesi, kolom_waktu={"Buku Kas": {2}},
+                                               tidur=self.tidur.append)
 
     def test_menulis_lebih_dari_1000_baris_dan_26_kolom_melebarkan_grid_dulu(self):
         grid = [["tanggal", 1, "w"] + [""] * 27] + [[f"r{i}", i, ""] + [""] * 27 for i in range(1, 1500)]
@@ -315,14 +426,14 @@ class KetahananAdaptor(unittest.TestCase):
         self.assertTrue(self.sesi.timeout)
         self.assertNotIn(None, self.sesi.timeout)
 
-    def test_tanggal_dan_waktu_serial_dikembalikan_sebagai_teks(self):
+    def test_waktu_serial_dikembalikan_sebagai_teks_tanggal_tetap_serial(self):
         self.klien.tulis("Buku Kas", [["tanggal", 1, "waktu"], ["x", 0, ""]])
         self.sesi.sheets["Buku Kas"]["baris"][1] = [46270, 5, 0.375]  # sel tanpa format teks: serial
         self.sesi.sheets["Buku Kas"]["baris"].append(["2026-09-06", 7, "17:30"])  # sudah teks: apa adanya
 
         isi = self.klien.baca("Buku Kas")
 
-        self.assertEqual(isi[1], ["2026-09-05", 5, "09:00"])
+        self.assertEqual(isi[1], [46270, 5, "09:00"])  # serial tanggal dibaca sheets_format
         self.assertEqual(isi[2], ["2026-09-06", 7, "17:30"])
         self.assertEqual(isi[0], ["tanggal", 1, "waktu"])
 
@@ -366,10 +477,14 @@ class DenganSinkron(unittest.TestCase):
                         "", "", "", "TRX-1"])  # waktu kosong → sel terpangkas di ujung baris? (no_resi ada)
             w.writerow(["2026-09-02", "pengeluaran", "food", "Kopi", "9000", "", "whatsapp", "Eryanto",
                         "", "", "", ""])      # no_resi kosong → baris terpangkas saat dibaca
+        # budget.json/akun.json dibaca di sebelah resi.BUDGET_JSON; arahkan ke folder sementara
+        (d / "budget.json").write_text(json.dumps({"kategori_custom": ["food"], "duplicate_check": {
+            "aktif": True, "match_fields": ["tanggal", "waktu", "jumlah"], "aksi": "tolak"}}))
+        asli_budget = resi.BUDGET_JSON
+        resi.BUDGET_JSON = d / "budget.json"
+        self.addCleanup(lambda: setattr(resi, "BUDGET_JSON", asli_budget))
         self.sesi = SesiPalsu()
-        self.klien = sheets_google.KlienGoogle(
-            ID, self.sesi, {sheets_sync.SHEET_BUKU: {sheets_sync.KOLOM.index("jumlah")}},
-            tidur=lambda detik: None)
+        self.klien = sheets_google.KlienGoogle(ID, self.sesi, tidur=lambda detik: None)
 
     def test_sinkron_pertama_lalu_kedua_tidak_menulis_ulang(self):
         sheets_sync.sinkron(self.bills, self.klien, self.snapshot)
@@ -379,18 +494,14 @@ class DenganSinkron(unittest.TestCase):
 
         self.assertEqual([m for m, *_ in self.sesi.panggilan if m in ("PUT", "POST")], [])
         self.assertEqual(laporan.didorong, 0)
-        self.assertEqual(self.klien.baca("Buku Kas")[1][4], 25_000)
+        self.assertEqual(self.klien.baca("Buku Kas")[1][sheets_format.KOLOM_TAMPIL.index("Pengeluaran")], 25_000)
+        self.assertEqual(self.sesi.locale, "in_ID")
+        self.assertEqual(sorted(self.sesi.sheets, key=lambda t: self.sesi.sheets[t]["index"]),
+                         ["Ringkasan Bulanan", "Per Kategori 2026", "Budget 2026", "Saldo per Akun", "Buku Kas"])
 
     def test_edit_di_sheet_lewat_adaptor_masuk_ke_csv(self):
         sheets_sync.sinkron(self.bills, self.klien, self.snapshot)
-        self.sesi.sheets["Buku Kas"]["baris"][1][4] = 30_000
-        # budget.json asli dibaca validasi; arahkan ke berkas sementara
-        d = self.bills.parent
-        (d / "budget.json").write_text(json.dumps({"kategori_custom": ["food"], "duplicate_check": {
-            "aktif": True, "match_fields": ["tanggal", "waktu", "jumlah"], "aksi": "tolak"}}))
-        asli = resi.BUDGET_JSON
-        resi.BUDGET_JSON = d / "budget.json"
-        self.addCleanup(lambda: setattr(resi, "BUDGET_JSON", asli))
+        self.sesi.sheets["Buku Kas"]["baris"][1][sheets_format.KOLOM_TAMPIL.index("Pengeluaran")] = 30_000
 
         laporan = sheets_sync.sinkron(self.bills, self.klien, self.snapshot)
 

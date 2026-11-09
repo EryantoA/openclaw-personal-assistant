@@ -2,7 +2,8 @@
 
 Budget hanya menghitung Pengeluaran **rutin**: Transaksi yang jumlahnya di bawah ambang
 (`pengeluaran_besar_mulai` di data/budget.json). Pengeluaran Besar tampil terpisah sebagai
-"Di luar budget". Pemasukan tidak ikut: kecukupan uang dijawab Arus Kas Bulanan.
+"Di luar budget"; Selisih Rekonsiliasi juga tidak ikut dan tampil terpisah (ADR-0027). Pemasukan
+tidak ikut: kecukupan uang dijawab Arus Kas Bulanan.
 
 Satu perhitungan untuk pesan peringatan, "sisa budget", Laporan Mingguan, dan Laporan Bulanan.
 Semua teks disusun di sini tanpa model, termasuk kalimat saran.
@@ -24,7 +25,8 @@ LEBAR = 20  # kolom label pesan
 
 
 def pemakaian(rows, mulai: date, akhir: date, atur: dict) -> dict:
-    """{batas, ambang, rutin, besar, transaksi_besar, pengeluaran, pemasukan, per_kategori, persen}.
+    """{batas, ambang, rutin, besar, transaksi_besar, rekonsiliasi, pengeluaran, pemasukan,
+    per_kategori, persen}.
 
     `per_kategori` = Pengeluaran rutin per Kategori; `persen` = rutin dari batas (None bila batas 0).
     """
@@ -32,10 +34,12 @@ def pemakaian(rows, mulai: date, akhir: date, atur: dict) -> dict:
     ambang = int(atur.get("pengeluaran_besar_mulai") or AMBANG_BAWAAN)
     h = buku_kas.ringkas(rows, mulai, akhir)
     b = buku_kas.pengeluaran_besar(rows, mulai, akhir, ambang)
-    per = {k: v - b["per_kategori"].get(k, 0) for k, v in h["per_kategori"].items()}
-    rutin = h["pengeluaran"] - b["jumlah"]
+    rekon = h["per_kategori"].get(buku_kas.KATEGORI_REKONSILIASI, 0)
+    per = {k: v - b["per_kategori"].get(k, 0) for k, v in h["per_kategori"].items()
+           if k != buku_kas.KATEGORI_REKONSILIASI}
+    rutin = h["pengeluaran"] - b["jumlah"] - rekon
     return {"batas": batas, "ambang": ambang, "rutin": rutin, "besar": b["jumlah"],
-            "transaksi_besar": b["transaksi"], "pengeluaran": h["pengeluaran"],
+            "transaksi_besar": b["transaksi"], "rekonsiliasi": rekon, "pengeluaran": h["pengeluaran"],
             "pemasukan": h["pemasukan"], "per_kategori": {k: v for k, v in per.items() if v > 0},
             "persen": rutin / batas * 100 if batas > 0 else None}
 
@@ -50,7 +54,10 @@ def baris_laporan(p: dict) -> list:
         utama = f"💰 Budget: {rp(p['rutin'])} (budget belum diset)"
     else:
         utama = f"💰 Budget: {rp(p['rutin'])} dari {rp(p['batas'])} ({p['persen']:.0f}%)"
-    return [utama, f"📦 Di luar budget: {_di_luar(p)}"]
+    hasil = [utama, f"📦 Di luar budget: {_di_luar(p)}"]
+    if p.get("rekonsiliasi"):
+        hasil.append(f"🔁 Selisih rekonsiliasi: {rp(p['rekonsiliasi'])} (tidak dihitung ke budget)")
+    return hasil
 
 
 def _bar(persen: float) -> str:

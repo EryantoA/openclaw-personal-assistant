@@ -36,9 +36,10 @@ def _kunci_akun(s: str) -> str:
 
 
 def peta_akun() -> dict | None:
-    """Nama/id Akun (huruf kecil) -> nama baku dari akun.json. None bila berkas tidak ada."""
+    """Nama/id Akun (huruf kecil) -> nama baku dari akun.json di samping bills.csv (seperti
+    rekonsiliasi.py). None bila berkas tidak ada."""
     try:
-        cfg = json.loads(resi.AKUN_JSON.read_text(encoding="utf-8"))
+        cfg = json.loads(Path(resi.BILLS_CSV).with_name("akun.json").read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
     peta = {}
@@ -49,7 +50,7 @@ def peta_akun() -> dict | None:
 
 
 def baku_akun(nilai: str, peta: dict | None, kolom: str) -> str:
-    """Nama baku untuk `nilai`; nama di luar akun.json ditolak, tidak pernah ditebak (ADR-0027)."""
+    """Nama baku untuk `nilai`; nama di luar akun.json ditolak, tidak pernah ditebak (ADR-0028)."""
     if not nilai or peta is None:
         return nilai
     baku = peta.get(_kunci_akun(nilai))

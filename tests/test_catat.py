@@ -50,9 +50,7 @@ class Catat(unittest.TestCase):
                                 encoding="utf-8")
         self.asli_pembeli = resi.PEMBELI_JSON
         resi.PEMBELI_JSON = self.pembeli
-        self.addCleanup(setattr, resi, "AKUN_JSON", resi.AKUN_JSON)
-        self.akun = d / "akun.json"  # belum dibuat = nama Akun tak dicek
-        resi.AKUN_JSON = self.akun
+        self.akun = d / "akun.json"  # di samping bills.csv; belum dibuat = nama Akun tak dicek
 
     def tearDown(self):
         resi.BILLS_CSV, resi.BUDGET_JSON = self.asli

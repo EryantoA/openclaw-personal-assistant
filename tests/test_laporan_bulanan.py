@@ -55,6 +55,12 @@ class AturanHitung(unittest.TestCase):
         pesan = lb.susun("2026-08", struk, {}, {"bulan": {}}, [])
         self.assertIn("Pengeluaran: Rp 500.000  (1 transaksi)", pesan)
 
+    def test_baris_rekonsiliasi_ikut_bila_ada(self):
+        # ADR-0027: satu baris pengingat, disusun scripts/rekonsiliasi.py
+        baris_rekon = "🏦 Rekonsiliasi Agustus: belum dicek Tunai Ryan"
+        self.assertIn(baris_rekon, lb.susun("2026-08", DASAR, {}, {"bulan": {}}, [], rekon=baris_rekon))
+        self.assertNotIn("Rekonsiliasi", lb.susun("2026-08", DASAR, {}, {"bulan": {}}, []))
+
     def test_baris_tak_terhitung_diperingatkan(self):
         self.assertIn("1 transaksi tidak terhitung", lb.susun("2026-08", DASAR, {}, {"bulan": {}}, []))
         bersih = [r for r in DASAR if r["tanggal"]]

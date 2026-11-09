@@ -50,8 +50,6 @@ class Dasar(unittest.TestCase):
         self.asli = (resi.BILLS_CSV, resi.BUDGET_JSON, resi.PEMBELI_JSON)
         resi.BILLS_CSV, resi.BUDGET_JSON, resi.PEMBELI_JSON = (
             self.csv, self.d / "budget.json", self.d / "pembeli.json")
-        self.addCleanup(setattr, resi, "AKUN_JSON", resi.AKUN_JSON)
-        resi.AKUN_JSON = self.d / "akun.json"  # tak ada = nama Akun tak dicek
         self.skema = bk.skema_bills()
 
     def tearDown(self):

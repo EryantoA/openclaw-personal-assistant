@@ -10,8 +10,8 @@ aplikasi keuangan yang dipakai sebelumnya.
 **Transaksi**:
 Satu pembayaran atau penerimaan uang nyata, ditandai satu No Resi. Satu struk belanja berisi
 banyak barang tetap satu Transaksi; tiap barangnya satu Item, yaitu satu baris di Buku Kas.
-Hitungan "N transaksi" di laporan selalu menghitung No Resi unik, bukan baris. Transfer dan Saldo
-Awal tidak dihitung (ADR-0023).
+Hitungan "N transaksi" di laporan selalu menghitung No Resi unik, bukan baris. Transfer, Saldo
+Awal, dan Selisih Rekonsiliasi tidak dihitung (ADR-0023, ADR-0027).
 _Avoid_: entri, record, baris (untuk seluruh Transaksi)
 
 **Buku Kas**:
@@ -58,8 +58,9 @@ Seluruh uang keluarga di semua Akun — Dompet, Rekening, maupun Simpanan, milik
 digabung jadi satu angka. Selalu kumulatif, dibawa terus dari bulan ke bulan. **Bukan** uang tunai
 yang bisa dipegang. Memindahkan uang antar Akun (menabung, setor ke rekening) tidak dicatat sebagai
 Transaksi dan karenanya tidak mengubah Saldo Bersama. Saldo Bersama = jumlah semua Saldo Akun.
+Di Cermin tampil per Item di kolom "Saldo Bersama" (ADR-0026).
 Di kode dan ADR lama disebut `saldo` / "Saldo".
-_Avoid_: sisa, selisih, balance, uang tunai, saldo bulanan
+_Avoid_: sisa, selisih, balance, uang tunai, saldo bulanan, saldo berjalan
 
 **Arus Kas Bulanan**:
 Pemasukan dikurangi pengeluaran dalam satu bulan, berdiri sendiri tanpa membawa bulan lalu; bulan
@@ -70,17 +71,37 @@ _Avoid_: saldo bulanan, saldo bulan ini, net
 Satu tempat uang disimpan milik satu orang di rumah tangga: uang tunai, rekening bank (termasuk
 rekening tabungan), atau saldo e-wallet. Nama bakunya `<Tempat> <Panggilan>` — mis. `Tunai Ayah`,
 `GoPay Ibu` — dan daftarnya hanya di `data/akun.json`; nama lain ditolak skrip, tidak ditebak
-(ADR-0027). Rekening orang di luar rumah tangga bukan Akun: uang ke sana Pengeluaran, bukan
+(ADR-0028). Rekening orang di luar rumah tangga bukan Akun: uang ke sana Pengeluaran, bukan
 Transfer. Isi ulang e-wallet adalah Transfer ke Akun e-wallet; belanja memakai saldonya adalah
 Pengeluaran dari Akun itu. Berbeda dari cara bayar (QRIS, Livin' by Mandiri), yang tempatnya di
 Catatan.
 _Avoid_: tempat, kantong, dompet (untuk uang tunai — pakai Tunai), Kas (sebagai nama Akun)
 
 **Saldo Akun**:
-Uang di satu Akun, dihitung sejak tanggal cutover (ADR-0010) — hari pemilik mengecek isi tiap
-Akun sendiri (ADR-0027). Sebelum cutover hanya Saldo Bersama yang bermakna. Fiturnya belum aktif
-sampai `saldo_awal` tiap Akun diisi dengan angka yang dilihat, bukan sisa hitungan.
+Uang di satu Akun menurut Buku Kas, dihitung sejak tanggal cutover (ADR-0010) — hari pemilik
+mengecek isi tiap Akun sendiri (ADR-0028). Sebelum cutover hanya Saldo Bersama yang bermakna.
+Fiturnya belum aktif sampai `saldo_awal` tiap Akun diisi dengan angka yang dilihat, bukan sisa
+hitungan.
 _Avoid_: saldo dompet (tanpa menyebut pemilik)
+
+**Saldo Nyata**:
+Uang yang sungguh ada di satu Akun pada satu saat, seperti terlihat di rekening, dompet, atau
+aplikasi — dilaporkan pengguna, bukan dihitung. Pembanding Saldo Akun dalam Rekonsiliasi.
+_Avoid_: saldo bank, saldo asli, saldo riil
+
+**Rekonsiliasi**:
+Satu pengecekan Saldo Akun terhadap Saldo Nyata satu Akun, per saat Saldo Nyata dilaporkan (atau
+per tanggal yang disebut). Hasilnya cocok, atau selisih yang dijelaskan dengan Transaksi terlupa,
+ditutup dengan Selisih Rekonsiliasi, atau dibiarkan terbuka. Dicatat di `data/rekonsiliasi.csv`;
+bukan Transaksi dan tidak ikut hitungan apa pun (ADR-0027).
+_Avoid_: cek saldo, pencocokan (untuk satu Akun), audit
+
+**Selisih Rekonsiliasi**:
+Transaksi yang menutup selisih tak terjelaskan antara Saldo Akun dan Saldo Nyata, berkategori
+`reconciliation`, dibuat hanya dari Rekonsiliasi. Ikut Saldo Akun, Saldo Bersama, dan Arus Kas
+Bulanan; tidak ikut Budget maupun hitungan Transaksi (ADR-0027). Berbeda dari Koreksi, yang hanya
+menyebut perubahan angka bulan yang sudah dilaporkan tanpa mencatat apa pun.
+_Avoid_: penyesuaian, adjustment, koreksi saldo
 
 **Saldo Awal**:
 Kas yang sudah dimiliki sebelum transaksi pertama tercatat. Bukan pemasukan — tidak ada
@@ -90,7 +111,8 @@ _Avoid_: modal awal, opening balance, saldo pembuka
 **Budget**:
 Batas belanja **rutin** yang kami tetapkan sendiri untuk satu bulan. Bukan uang yang dimiliki dan
 tidak mengikuti pemasukan (yang naik-turun); kecukupan uang dijawab Arus Kas Bulanan. Hanya
-Pengeluaran rutin yang dihitung terhadapnya: Pengeluaran Besar tidak ikut (ADR-0024).
+Pengeluaran rutin yang dihitung terhadapnya: Pengeluaran Besar dan Selisih Rekonsiliasi tidak ikut
+(ADR-0024, ADR-0027).
 _Avoid_: sisa uang, saldo budget
 
 **Pengeluaran Besar**:
@@ -113,6 +135,12 @@ _Avoid_: config, budget (untuk seluruh berkas)
 Pengelompokan transaksi. Selalu slug Inggris huruf kecil, tidak pernah Bahasa Indonesia.
 _Avoid_: jenis, tipe belanja
 
+**Label Kategori**:
+Nama tampil Bahasa Indonesia sebuah Kategori (`personal_care` → Perawatan Diri), disimpan di
+`budget.json` → `label_kategori`. Hanya tampilan — data tetap slug (ADR-0002). Unik: satu label
+menunjuk tepat satu slug, supaya yang diketik di Cermin bisa dipetakan balik (ADR-0026).
+_Avoid_: nama kategori, kategori Indonesia
+
 **Item**:
 Satu baris di Buku Kas; satu Transaksi punya satu Item atau lebih. Apa yang dibeli, ditulis apa adanya. Kalau ada tokonya, namanya ikut di belakang setelah
 tanda pisah — `Susu UHT + Yakult - Budiman Swalayan`. Toko tidak punya kolom sendiri: ia
@@ -133,8 +161,9 @@ bisa diubah atau dihapus lewat chat (ADR-0018).
 _Avoid_: log, audit, riwayat edit
 
 **Pembeli**:
-Orang yang berbelanja, sama dengan `pencatat` di data: nama pengirim pesan. Tampil di balasan
-konfirmasi (ADR-0015), tetapi hanya untuk Pengeluaran; pada Pemasukan dan Transfer nama yang
+Sebutan Pencatat di balasan Pengeluaran (ADR-0015) — bukan fakta yang tersimpan sendiri. Data
+hanya menyimpan Pencatat; bila seseorang mencatat belanja orang lain, Pembeli yang tampil keliru.
+Hanya untuk Pengeluaran; pada Pemasukan dan Transfer nama yang
 sama tampil sebagai Pencatat, karena tidak ada yang dibeli (ADR-0019). Satu orang bisa punya banyak alias (nama panggilan, peran
 seperti "istri", beda huruf besar-kecil); semuanya dibakukan ke satu nama baku (ADR-0017).
 Bukan penerima transfer.
@@ -142,7 +171,7 @@ _Avoid_: buyer, pembayar
 
 **No Resi**:
 Penanda unik satu transaksi, sekaligus dasar deteksi duplikat.
-_Avoid_: nomor struk, id, referensi
+_Avoid_: nomor struk, id, referensi, no. bukti
 
 **Bukti Transfer**:
 Gambar mutasi bank atau e-wallet yang menjadi sumber satu Transaksi. Seperti semua
@@ -221,6 +250,13 @@ _Avoid_: revisi, ralat, penyesuaian
 Salinan Buku Kas di Google Sheets, disinkronkan dua arah (ADR-0021). Bukan Buku Kas dan bukan
 cadangan: bila keduanya berselisih, Buku Kas menang, dan menghapus Transaksi tetap hanya lewat bot.
 _Avoid_: sheet utama, database Sheets
+
+**Tab Laporan**:
+Worksheet Cermin yang hanya-baca dan dihitung skrip: Ringkasan Bulanan, Per Kategori `<tahun>`,
+Budget `<tahun>`, Saldo per Akun (ADR-0026). Ditimpa tiap sinkron; suntingan di sana diabaikan.
+Kebalikannya worksheet "Buku Kas", satu-satunya tab Cermin yang bisa disunting.
+_Avoid_: dashboard, pivot
+
 
 **Snapshot Sinkron**:
 Isi Cermin yang terakhir disepakati dengan Buku Kas (`data/sheets-snapshot.json`, tidak masuk git).

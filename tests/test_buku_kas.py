@@ -229,5 +229,24 @@ class Muat(unittest.TestCase):
                 buku_kas.muat(p)
 
 
+class SelisihRekonsiliasi(unittest.TestCase):
+    """ADR-0027: ikut Arus Kas Bulanan dan per Kategori, tidak ikut hitungan Transaksi."""
+
+    def test_ikut_uang_tidak_ikut_jumlah_transaksi(self):
+        rows = [dict(tx("2026-11-10", "pengeluaran", 30_000), no_resi="A"),
+                dict(tx("2026-11-11", "pengeluaran", 250_000, "reconciliation"), no_resi="R1"),
+                dict(tx("2026-11-12", "pemasukan", 40_000, "reconciliation"), no_resi="R2")]
+        h = buku_kas.ringkas(rows, date(2026, 11, 1), date(2026, 11, 30))
+        self.assertEqual((h["pengeluaran"], h["pemasukan"]), (280_000, 40_000))
+        self.assertEqual((h["transaksi_pengeluaran"], h["transaksi_pemasukan"]), (1, 0))
+        self.assertEqual(h["per_kategori"]["reconciliation"], 250_000)
+        self.assertEqual(buku_kas.saldo(rows, per=date(2026, 11, 30)), -240_000)
+
+    def test_bukan_pengeluaran_besar(self):
+        rows = [dict(tx("2026-11-11", "pengeluaran", 5_000_000, "reconciliation"), no_resi="R1")]
+        b = buku_kas.pengeluaran_besar(rows, date(2026, 11, 1), date(2026, 11, 30), 1_000_000)
+        self.assertEqual((b["jumlah"], b["transaksi"]), (0, 0))
+
+
 if __name__ == "__main__":
     unittest.main()

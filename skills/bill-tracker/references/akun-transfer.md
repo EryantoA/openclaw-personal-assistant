@@ -5,7 +5,7 @@ Saldo Akun, aktivasi cutover, dan mencatat transfer antar akun sendiri (ADR-0010
 **Akun** = tempat uangnya berada: uang tunai, rekening bank, atau saldo e-wallet, dengan nama
 `<Tempat> <Panggilan>` (mis. `Tunai Ayah`, `GoPay Ibu`). Daftar resminya **hanya** di
 `data/akun.json`; `catat.py` dan `buku.py` menolak nama lain dan menyebut pilihannya — teruskan
-pilihan itu ke pengguna sebagai pertanyaan, jangan memilih sendiri (ADR-0027). Ini **berbeda dari
+pilihan itu ke pengguna sebagai pertanyaan, jangan memilih sendiri (ADR-0028). Ini **berbeda dari
 cara bayar** — QRIS atau `Livin' by Mandiri` ditulis di `catatan`. Isi ulang e-wallet = transfer
 ke Akun e-wallet; belanja dari saldonya = pengeluaran dari Akun e-wallet. Rekening orang di luar
 rumah tangga bukan Akun: uang ke sana adalah pengeluaran.
@@ -28,7 +28,7 @@ Jangan mengarang angkanya — hanya pemilik data yang tahu berapa isi tiap akun.
 
 Kalau pengguna minta mengaktifkan akun, tuntun begini:
 
-1. Cutover = hari pengguna mengecek isi tiap akun sendiri (ADR-0027). Tanyakan angka yang
+1. Cutover = hari pengguna mengecek isi tiap akun sendiri (ADR-0028). Tanyakan angka yang
    **dilihat** di dompet/aplikasi, sebelum ada transaksi hari itu. Akun yang belum bisa dicek
    tetap `null` — jangan diisi sisa hitungan.
 2. Isi `saldo_awal` tiap akun dan `saldo_global_saat_cutover` di `data/akun.json`.

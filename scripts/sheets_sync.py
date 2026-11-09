@@ -1,14 +1,18 @@
 """Sinkron Buku Kas ke Google Sheets (spec #20). Dua arah: perubahan di Sheets masuk ke CSV
 lewat jalan tulis resmi (buku.py untuk ubah, catat.py untuk baris baru), lalu CSV disalin kembali ke Sheets.
 
-Buku Kas tetap satu-satunya sumber (ADR-0005). Sheets adalah tabel salinan: worksheet "Buku Kas"
-(12 kolom persis bills.csv) dan "Ringkasan" (Arus Kas Bulan & Saldo per bulan, dihitung buku_kas,
-bukan rumus Sheets — satu arti Saldo). Klien Sheets disuntikkan:
+Buku Kas tetap satu-satunya sumber (ADR-0005). Sheets adalah Cermin (ADR-0021, ADR-0026):
+worksheet "Buku Kas" bergaya buku kas (sheets_format) yang bisa disunting, dan Tab Laporan
+hanya-baca (sheets_laporan), dihitung skrip — bukan rumus Sheets, satu arti Saldo Bersama.
+Diff tiga arah berjalan di atas bentuk ternormal 12 kolom bills.csv, jadi mengganti tampilan
+(label, format) tidak pernah terbaca sebagai suntingan. Klien Sheets disuntikkan:
 
-    klien.baca(nama_worksheet) -> list[list]      # grid; kosong = []
-    klien.tulis(nama_worksheet, grid) -> None     # mengganti seluruh isi worksheet
+    klien.baca(nama_worksheet) -> list[list]          # grid; kosong = []
+    klien.tulis(nama_worksheet, grid, tata) -> None   # mengganti seluruh isi + memasang tata letak
+    klien.hapus(nama_worksheet) -> None               # tidak ada = tidak apa-apa
+    klien.urutkan([nama_worksheet, ...]) -> None      # urutan tab
 
-Seluruh aturan hidup di sini; adaptor Google yang sungguhan hanya memenuhi dua metode itu.
+Seluruh aturan hidup di sini; adaptor Google yang sungguhan hanya memenuhi metode itu.
 """
 # Cron memakai /usr/bin/python3 3.9 — lihat catatan yang sama di resi.py.
 from __future__ import annotations
@@ -28,16 +32,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buku  # noqa: E402
 import buku_kas  # noqa: E402
 import catat  # noqa: E402
-import periode  # noqa: E402
+import pengaturan  # noqa: E402
+import rekonsiliasi  # noqa: E402
 import resi  # noqa: E402
+import sheets_format as sf  # noqa: E402
+import sheets_laporan as sl  # noqa: E402
 from validasi import kunci_berkas  # noqa: E402
 
-SHEET_BUKU = "Buku Kas"
-SHEET_RINGKASAN = "Ringkasan"
-KOLOM = ["tanggal", "tipe", "kategori", "item", "jumlah", "catatan", "channel", "pencatat",
-         "akun", "akun_tujuan", "waktu", "no_resi"]
-KOLOM_RINGKASAN = ["Bulan", "Jumlah Transaksi", "Total Pemasukan", "Total Pengeluaran",
-                   "Arus Kas Bulan", "Saldo Awal Tercatat", "Saldo Akhir"]
+SHEET_BUKU = sl.SHEET_BUKU
+SHEET_RINGKASAN_LAMA = "Ringkasan"  # format sebelum ADR-0026; dihapus saat migrasi
+KOLOM = sf.KOLOM  # bentuk ternormal = kolom bills.csv; juga header "Buku Kas" format lama
+FORMAT = 2  # versi Snapshot Sinkron; tanpa kunci "format" = format lama (ADR-0021)
 
 
 class SinkronDitolak(Exception):
@@ -58,34 +63,17 @@ class Laporan:
     ditolak: list = field(default_factory=list)     # (no_resi, item_ke, alasan) edit Sheet yang dikembalikan
     dipulihkan: list = field(default_factory=list)  # (no_resi, item_ke) baris yang hilang dari Sheet
     peringatan: list = field(default_factory=list)  # dari buku.py, mis. bulan yang sudah dilaporkan (Koreksi)
+    migrasi: bool = False  # Cermin dipindah dari format lama ke format ADR-0026 pada sinkron ini
 
 
-def grid_buku(rows: list[dict]) -> list[list]:
-    """Worksheet "Buku Kas": header + satu baris per Item, urutan CSV; jumlah sebagai angka."""
+def _grid_lama(rows: list[dict]) -> list[list]:
+    """Worksheet "Buku Kas" format lama (12 kolom persis bills.csv, urutan CSV). Hanya dipakai
+    migrasi untuk menyerap suntingan yang tertunda sebelum format berganti."""
     grid = [list(KOLOM)]
     for r in rows:
         baris = [(r.get(k) or "") for k in KOLOM]
         baris[KOLOM.index("jumlah")] = buku_kas.jumlah(r)
         grid.append(baris)
-    return grid
-
-
-def grid_ringkasan(rows: list[dict]) -> list[list]:
-    """Worksheet "Ringkasan": satu baris per bulan yang punya Transaksi terhitung."""
-    tak = {id(r) for r, _ in buku_kas.tak_terhitung(rows)}
-    per_bulan: dict[str, int] = {}
-    for r in rows:
-        if id(r) not in tak:
-            bulan = buku_kas.tanggal(r).strftime("%Y-%m")
-            per_bulan[bulan] = per_bulan.get(bulan, 0) + 1
-    grid = [list(KOLOM_RINGKASAN)]
-    for bulan in sorted(per_bulan):
-        arus = buku_kas.arus_kas_bulan(rows, bulan)
-        grid.append([
-            bulan, per_bulan[bulan], arus["pemasukan"], arus["pengeluaran"],
-            arus["pemasukan"] - arus["pengeluaran"], arus["saldo_awal"] or "",
-            buku_kas.saldo(rows, per=periode.akhir_bulan(bulan)),
-        ])
     return grid
 
 
@@ -289,6 +277,7 @@ def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, kunci: str, uji
         jurnal.hapus(kunci)  # tidak ada yang dibuat; entri basi bisa menelan baris lain nanti
         return _gagal_baru(laporan, no_resi, baris, _alasan(pesan))
     laporan.ditambah.append(pakai or re.search(r"no_resi (\S+)", pesan).group(1))
+    laporan.peringatan += [b for b in pesan.splitlines() if b.startswith("⚠️")]
 
 
 def _tambah_baris_baru(bills_path: Path, dasar: dict, sheet: dict, dari_csv: dict, dijelaskan: set,
@@ -322,11 +311,11 @@ def _tambah_baris_baru(bills_path: Path, dasar: dict, sheet: dict, dari_csv: dic
                     _buat_transaksi(bills_path, "", [sel], kunci, uji, laporan, jurnal)
 
 
-def _terapkan_masuk(bills_path: Path, sheet_grid: list, snapshot: dict, uji: bool, laporan: Laporan,
-                    jurnal: _Jurnal) -> None:
-    """Diff tiga arah per Transaksi: snapshot (dasar) vs Sheet sekarang vs CSV sekarang."""
-    dasar, sheet = _struk(snapshot["buku_kas"]), _struk(sheet_grid)
-    dari_csv = _struk(grid_buku(buku_kas.muat(bills_path)))
+def _terapkan_masuk(bills_path: Path, sheet_grid: list, dasar_grid: list, csv_grid: list, uji: bool,
+                    laporan: Laporan, jurnal: _Jurnal) -> None:
+    """Diff tiga arah per Transaksi, semuanya dalam bentuk ternormal: snapshot (dasar) vs Sheet
+    sekarang vs CSV sekarang."""
+    dasar, sheet, dari_csv = _struk(dasar_grid), _struk(sheet_grid), _struk(csv_grid)
     skema = replace(buku.skema_bills(), path=lambda: Path(bills_path))
     dijelaskan = _no_resi_diubah(dasar, sheet, laporan)
     terapan = set()
@@ -366,6 +355,48 @@ def _terapkan_masuk(bills_path: Path, sheet_grid: list, snapshot: dict, uji: boo
     _tambah_baris_baru(bills_path, dasar, sheet, dari_csv, dijelaskan, uji, laporan, jurnal)
 
 
+def _sel_tampil(baris: list) -> list:
+    """Baris tampilan sebagai teks, sepanjang header, tanpa kolom Saldo Bersama (diisi skrip)."""
+    sel = (_norm([baris])[0] + [""] * len(sf.KOLOM_TAMPIL))[:len(sf.KOLOM_TAMPIL)]
+    sel[sf.I_SALDO] = ""
+    return sel
+
+
+def _baca_buku(grid: list, dasar_grid: list, label: dict, label_lama: dict, laporan: Laporan) -> list:
+    """Worksheet "Buku Kas" (tampilan) → grid ternormal untuk diff tiga arah.
+
+    Baris yang tidak terbaca (tanggal, kolom uang) tidak pernah diteruskan ke jalan tulis: baris
+    yang sudah ada diganti nilai snapshot-nya — jadi tidak berubah dan dikembalikan saat Sheet
+    ditulis ulang — dan baris baru dibuang. Keduanya dilaporkan, kecuali baris yang memang tidak
+    bisa ditampilkan sejak awal (mis. tipe tak dikenal di CSV) dan tidak disentuh.
+
+    Label yang tertulis pada sinkron sebelumnya (`label_lama`) tetap dikenali, jadi mengganti
+    label di budget.json tidak terbaca sebagai suntingan; label sekarang menang bila bertabrakan."""
+    balik, dasar = {**sf.label_balik(label_lama), **sf.label_balik(label)}, _struk(dasar_grid)
+    i_resi = sf.KOLOM_TAMPIL.index("No Resi")
+    hasil, posisi = [list(KOLOM)], {}
+    for baris in grid[1:]:
+        if sf.kosong(baris):
+            continue
+        no_resi = sf._teks(baris[i_resi] if len(baris) > i_resi else "").strip()
+        ke = posisi.get(no_resi, 0)
+        posisi[no_resi] = ke + 1
+        norm, alasan = sf.baca_baris(baris, balik)
+        if norm is not None:
+            hasil.append(norm)
+            continue
+        lama = dasar.get(no_resi, []) if no_resi else []
+        if ke < len(lama):
+            hasil.append(lama[ke])
+            if _sel_tampil(baris) != _sel_tampil(sf.tampil(lama[ke], "", label)):
+                laporan.ditolak.append((no_resi, ke + 1, f"{alasan}; dikembalikan ke nilai Buku Kas"))
+        else:
+            t = dict(zip(sf.KOLOM_TAMPIL, _sel_tampil(baris)))
+            uang = next((t[k] for k in sf.KOLOM_UANG if t[k]), "")
+            laporan.ditolak.append((no_resi, 1, f"{alasan} — baris: {t['Tanggal']} {t['Item']} {uang}".rstrip()))
+    return hasil
+
+
 def _berisi_data(grid: list[list]) -> bool:
     """Ada baris selain header? Sheet kosong atau hanya berisi header dianggap kosong."""
     return len(grid) > 1
@@ -398,10 +429,23 @@ def _muat_snapshot(path: Path):
                          "dengan inisialisasi (CSV menang).")
 
 
+def _muat_akun(path: Path):
+    try:
+        isi = json.loads(path.read_text(encoding="utf-8"))
+        return isi if isinstance(isi, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
 def sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool = False,
-            inisialisasi: bool = False) -> Laporan:
+            inisialisasi: bool = False, migrasi: bool = False, atur: dict | None = None,
+            akun_cfg=None, hari_ini: date | None = None) -> Laporan:
     """Sinkron dua arah. `uji` melapor tanpa menulis apa pun. Sheet yang sudah berisi data tetapi
-    belum punya snapshot ditolak (SinkronDitolak) kecuali `inisialisasi`: CSV menang.
+    belum punya snapshot ditolak (SinkronDitolak) kecuali `inisialisasi`: CSV menang. Snapshot format
+    lama ditolak kecuali `migrasi`, yang menyerap suntingan format lama lalu menulis format baru.
+
+    `atur` (isi budget.json) dan `akun_cfg` (isi akun.json) dibaca dari sebelah resi.BUDGET_JSON
+    bila tidak diberikan.
 
     Urutan: baca Sheet (jaringan, tanpa kunci) → di bawah kunci CSV yang sama dengan catat/buku:
     baca CSV dan terapkan perubahan masuk (tanpa jaringan) → tulis Sheet (jaringan, tanpa kunci)
@@ -410,11 +454,49 @@ def sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool = False,
     with _satu_sinkron(snapshot_path) as giliran:
         if not giliran:
             return Laporan(dilewati=True)
-        return _sinkron(Path(bills_path), klien, snapshot_path, uji, inisialisasi)
+        if atur is None:
+            atur = pengaturan.muat(Path(resi.BUDGET_JSON))
+        if akun_cfg is None:
+            akun_cfg = _muat_akun(Path(resi.BUDGET_JSON).with_name("akun.json"))
+        catatan = rekonsiliasi.muat_catatan(Path(resi.BUDGET_JSON).with_name("rekonsiliasi.csv"))
+        return _sinkron(Path(bills_path), klien, snapshot_path, uji, inisialisasi, migrasi, atur,
+                        akun_cfg, hari_ini or date.today(), catatan)
 
 
-def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisasi: bool) -> Laporan:
+def _target(rows: list, atur: dict, label: dict, akun_cfg, hari_ini: date, catatan: list) -> dict:
+    """Semua worksheet Cermin, urut tab: nama → (grid, tata)."""
+    hasil = {}
+    for nama in sl.urutan_tab(rows):
+        if nama == SHEET_BUKU:
+            opsi = [label.get(k, k) for k in atur.get("kategori_custom") or []
+                    if k != buku_kas.KATEGORI_REKONSILIASI]  # hanya lewat rekonsiliasi.py (ADR-0027)
+            hasil[nama] = (sf.grid_tampil(rows, label), sf.tata_buku(opsi))
+            continue
+        if nama == sl.SHEET_RINGKASAN:
+            grid = sl.grid_ringkasan_bulanan(rows)
+        elif nama == sl.SHEET_AKUN:
+            grid = sl.grid_saldo_akun(rows, akun_cfg, hari_ini, catatan)
+        elif nama.startswith("Per Kategori "):
+            grid = sl.grid_per_kategori(rows, int(nama[-4:]), label, hari_ini)
+        else:
+            grid = sl.grid_budget(rows, int(nama[-4:]), atur, hari_ini)
+        hasil[nama] = (grid, sl.tata_laporan(nama, grid))
+    return hasil
+
+
+def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisasi: bool, migrasi: bool,
+             atur: dict, akun_cfg, hari_ini: date, catatan: list) -> Laporan:
     snapshot = None if inisialisasi else _muat_snapshot(snapshot_path)
+    lama = snapshot is not None and snapshot.get("format") != FORMAT
+    if migrasi and snapshot is None:
+        raise SinkronDitolak("Belum ada snapshot sinkron, jadi tidak ada format lama yang dimigrasi. "
+                             "Jalankan dengan --inisialisasi untuk mengisi Sheet dari bills.csv.")
+    if migrasi and not lama:
+        raise SinkronDitolak("Cermin sudah berformat ADR-0026; jalankan sinkron biasa.")
+    if lama and not migrasi:
+        raise SinkronDitolak("Cermin masih berformat lama (sebelum ADR-0026); tidak ada yang diproses "
+                             "atau ditimpa. Jalankan sekali: sinkron-sheets.py --migrasi-format --uji, "
+                             "lalu sinkron-sheets.py --migrasi-format.")
     if not bills_path.exists():
         raise SinkronDitolak(f"{bills_path} tidak ada; Sheet tidak ditimpa dengan tabel kosong.")
     if snapshot is not None and bills_path.resolve() != Path(resi.BILLS_CSV).resolve():
@@ -422,42 +504,63 @@ def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisa
         # sebelum satu edit pun sempat masuk.
         raise SinkronDitolak(f"sinkron dua arah hanya untuk resi.BILLS_CSV ({resi.BILLS_CSV}), "
                              f"bukan {bills_path}")
-    saat_ini = {nama: klien.baca(nama) for nama in (SHEET_BUKU, SHEET_RINGKASAN)}
-    awal = _norm(saat_ini[SHEET_BUKU])[:1]
-    if snapshot is not None and awal and awal != [KOLOM]:
+    saat_buku = klien.baca(SHEET_BUKU)
+    header = KOLOM if migrasi else sf.KOLOM_TAMPIL
+    awal = _norm(saat_buku)[:1]
+    if snapshot is not None and awal and awal != [header]:
         # Kolom bergeser/bertukar berarti isi sel tidak bisa dipetakan; jangan menebak, jangan menimpa.
         raise SinkronDitolak(
-            f"Header worksheet '{SHEET_BUKU}' berubah dari yang diharapkan ({', '.join(KOLOM)}). "
+            f"Header worksheet '{SHEET_BUKU}' berubah dari yang diharapkan ({', '.join(header)}). "
             "Kembalikan header-nya (tidak ada yang diproses atau ditimpa), atau jalankan dengan "
             "inisialisasi untuk menimpa Sheet dari bills.csv.")
-    if snapshot is None and not inisialisasi and _berisi_data(saat_ini[SHEET_BUKU]):
+    if snapshot is None and not inisialisasi and _berisi_data(saat_buku):
         raise SinkronDitolak(
             f"Worksheet '{SHEET_BUKU}' sudah berisi data tetapi belum pernah disinkronkan dari sini. "
             "Jalankan dengan inisialisasi untuk menimpanya dari bills.csv.")
 
-    laporan = Laporan()
+    laporan = Laporan(migrasi=migrasi)
+    label, kembar = sf.label_sah(atur.get("label_kategori"))
+    if kembar:
+        laporan.peringatan.append(f"⚠️ Label Kategori kembar tidak dipakai (slug-nya yang tampil): "
+                                  f"{', '.join(kembar)}. Perbaiki label_kategori di data/budget.json.")
     jurnal = _Jurnal(snapshot_path.with_name(snapshot_path.stem + ".jurnal.json"), aktif=not uji)
     with kunci_berkas(bills_path):
         if snapshot is not None:
-            _terapkan_masuk(bills_path, saat_ini[SHEET_BUKU], snapshot, uji, laporan, jurnal)
+            rows = buku_kas.muat(bills_path)
+            if migrasi:
+                _terapkan_masuk(bills_path, saat_buku, snapshot["buku_kas"], _grid_lama(rows), uji,
+                                laporan, jurnal)
+            else:
+                lama_ = snapshot.get("label") if isinstance(snapshot.get("label"), dict) else {}
+                sheet = _baca_buku(saat_buku, snapshot["buku_kas"], label, lama_, laporan)
+                _terapkan_masuk(bills_path, sheet, snapshot["buku_kas"], sf.grid_norm(rows), uji,
+                                laporan, jurnal)
         rows = buku_kas.muat(bills_path)
-    target = {SHEET_BUKU: grid_buku(rows), SHEET_RINGKASAN: grid_ringkasan(rows)}
     laporan.tak_terhitung = [(r.get("no_resi") or "", alasan)
                              for r, alasan in buku_kas.tak_terhitung(rows)]
-    for nama, grid in target.items():
-        if _norm(saat_ini[nama]) == _norm(grid):
+    target = _target(rows, atur, label, akun_cfg, hari_ini, catatan)
+    ditulis = False
+    # "Buku Kas" lebih dulu: bila pengguna mengeditnya di tengah sinkron, belum ada tab yang ditulis.
+    for nama in [SHEET_BUKU] + [n for n in target if n != SHEET_BUKU]:
+        grid, tata = target[nama]
+        sekarang = saat_buku if nama == SHEET_BUKU else klien.baca(nama)
+        if _norm(sekarang) == _norm(grid):
             continue
         if not uji:
-            if _norm(klien.baca(nama)) != _norm(saat_ini[nama]):
+            if nama == SHEET_BUKU and _norm(klien.baca(nama)) != _norm(saat_buku):
                 laporan.berubah_saat_sinkron = True  # jangan menimpa edit yang baru masuk; ulangi nanti
                 return laporan
-            klien.tulis(nama, grid)
+            klien.tulis(nama, grid, tata)
+            ditulis = True
         if nama == SHEET_BUKU:
             laporan.didorong = len(grid) - 1
     if not uji:
+        if migrasi or inisialisasi:
+            klien.hapus(SHEET_RINGKASAN_LAMA)
+        if ditulis or migrasi or inisialisasi:
+            klien.urutkan(list(target))
         # Snapshot = apa yang kini tertulis di Sheet, jadi tidak perlu kunci CSV (sinkron sudah serial).
-        _simpan_snapshot(snapshot_path,
-                         {"buku_kas": target[SHEET_BUKU], "ringkasan": target[SHEET_RINGKASAN]})
+        _simpan_snapshot(snapshot_path, {"format": FORMAT, "buku_kas": sf.grid_norm(rows), "label": label})
         jurnal.kosongkan()
     return laporan
 
@@ -474,6 +577,10 @@ def teks_laporan(laporan: Laporan, uji: bool = False) -> str:
         return no_resi or "(tanpa No Resi)"
 
     baris = ["Sinkron Sheets (uji: tidak ada yang ditulis)." if uji else "Sinkron Sheets selesai."]
+    if laporan.migrasi:
+        baris.append(("Akan dipindah" if uji else "Dipindah") + " ke format ADR-0026: \"Buku Kas\" bergaya buku "
+                     "kas, Tab Laporan baru, tab \"Ringkasan\" lama dihapus. Filter tampilan dan catatan sel "
+                     "yang dibuat sendiri di tab lama tidak ikut.")
     if laporan.berubah_saat_sinkron:
         baris.append("⚠️ Sheet diedit saat sinkron berjalan; tidak ada yang ditulis ke Sheet. "
                      "Edit itu diproses pada sinkron berikutnya.")

@@ -1,6 +1,6 @@
 # Spec: Keuangan terjangkau dari semua Kanal
 
-Status: siap dikerjakan. Turunan dari [ADR-0023](../adr/0023-keuangan-terjangkau-dari-semua-kanal-hermes-hanya-relay-teks.md),
+Status: dilaksanakan; uji terima manual lulus (dilaporkan pemilik, 9 Nov 2026). Turunan dari [ADR-0023](../adr/0023-keuangan-terjangkau-dari-semua-kanal-hermes-hanya-relay-teks.md),
 dan memperluas [ADR-0005](../adr/0005-bill-tracker-sebagai-sistem-resmi.md),
 [ADR-0012](../adr/0012-laporan-bulanan-dihitung-skrip-dikirim-tanggal-6.md),
 [ADR-0013](../adr/0013-laporan-mingguan-dihitung-skrip-dikirim-senin.md),
