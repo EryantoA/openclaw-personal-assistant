@@ -121,6 +121,11 @@ tersimpan dan deteksi duplikat teruji. Temuan: pesan tanpa @mention ikut sebagai
 (`historyLimit` bawaan 20) dan tergabung ke Pratinjau berikutnya, jadi contoh config memasang
 `historyLimit: 0`. Belum teruji: @mention di thread, foto struk, pengguna/kanal lain, alias Pembeli istri.
 
+Uji hidup menyeluruh (9 Nov 2026, dilaporkan pemilik): seluruh butir `docs/uji-hidup-discord.md` lulus tanpa
+penyimpangan, mencakup jalur langsung Discord (#36), laporan ke banyak tujuan dan ke Discord (#39, #41),
+dan Relay Hermes (#38 butir 3, #42), termasuk `channel_prompts` di Discord sungguhan. Bukti per butir tidak
+dilampirkan; ini laporan pemilik, bukan pengamatan agen.
+
 ## Hasil spike #38 (2 Nov 2026)
 
 Dicoba di mesin ini (OpenClaw 2026.10.9, Hermes 0.22.2) dengan agen `spike38` dan peer A2A
