@@ -1261,7 +1261,7 @@ class FormatBukuKas(Dasar):
         self.assertEqual(sorted(TAMPIL[i] for i in tata["hanya_baca"]), ["Asal", "No Resi", "Saldo Bersama"])
         self.assertIn("Makan & Minum", tata["pilihan"][TAMPIL.index("Kategori")])
         self.assertIn("transport", tata["pilihan"][TAMPIL.index("Kategori")])
-        self.assertEqual(tata["locale"], "id_ID")
+        self.assertEqual(tata["locale"], "in_ID")
         for nama in ("Ringkasan Bulanan", "Per Kategori 2026", "Budget 2026", "Saldo per Akun"):
             self.assertEqual(self.klien.tata[nama]["hanya_baca"], "semua", nama)
 

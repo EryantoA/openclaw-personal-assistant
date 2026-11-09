@@ -183,4 +183,4 @@ def tata_buku(opsi_kategori: list) -> dict:
     }
 
 
-LOCALE = "id_ID"
+LOCALE = "in_ID"

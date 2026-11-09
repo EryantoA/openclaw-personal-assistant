@@ -250,7 +250,7 @@ class Adaptor(unittest.TestCase):
 
     TATA = {"baris_header": 0, "beku_kolom": 2, "format": {0: "tanggal", 1: "teks", 2: "rupiah"},
             "hanya_baca": [2], "catatan": {2: "otomatis"}, "pilihan": {1: ["Gaji", "food"]},
-            "grup": [(1, 2)], "locale": "id_ID"}
+            "grup": [(1, 2)], "locale": "in_ID"}
 
     def test_tata_dipasang_sebelum_isi_ditulis(self):
         self.klien.tulis("Buku Kas", [["Tanggal", "Kategori", "Saldo"], [46270, "Gaji", 5]], self.TATA)
@@ -274,7 +274,7 @@ class Adaptor(unittest.TestCase):
         self.assertFalse(aturan["strict"])
         self.assertEqual([v["userEnteredValue"] for v in aturan["condition"]["values"]], ["Gaji", "food"])
         self.assertEqual(sheet["grup"], {(1, 2)})
-        self.assertEqual(self.sesi.locale, "id_ID")
+        self.assertEqual(self.sesi.locale, "in_ID")
 
     def test_tata_diulang_tidak_menumpuk_perlindungan_atau_grup(self):
         for _ in range(3):
@@ -495,7 +495,7 @@ class DenganSinkron(unittest.TestCase):
         self.assertEqual([m for m, *_ in self.sesi.panggilan if m in ("PUT", "POST")], [])
         self.assertEqual(laporan.didorong, 0)
         self.assertEqual(self.klien.baca("Buku Kas")[1][sheets_format.KOLOM_TAMPIL.index("Pengeluaran")], 25_000)
-        self.assertEqual(self.sesi.locale, "id_ID")
+        self.assertEqual(self.sesi.locale, "in_ID")
         self.assertEqual(sorted(self.sesi.sheets, key=lambda t: self.sesi.sheets[t]["index"]),
                          ["Ringkasan Bulanan", "Per Kategori 2026", "Budget 2026", "Saldo per Akun", "Buku Kas"])
 
