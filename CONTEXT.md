@@ -10,8 +10,8 @@ aplikasi keuangan yang dipakai sebelumnya.
 **Transaksi**:
 Satu pembayaran atau penerimaan uang nyata, ditandai satu No Resi. Satu struk belanja berisi
 banyak barang tetap satu Transaksi; tiap barangnya satu Item, yaitu satu baris di Buku Kas.
-Hitungan "N transaksi" di laporan selalu menghitung No Resi unik, bukan baris. Transfer dan Saldo
-Awal tidak dihitung (ADR-0023).
+Hitungan "N transaksi" di laporan selalu menghitung No Resi unik, bukan baris. Transfer, Saldo
+Awal, dan Selisih Rekonsiliasi tidak dihitung (ADR-0023, ADR-0027).
 _Avoid_: entri, record, baris (untuk seluruh Transaksi)
 
 **Buku Kas**:
@@ -76,9 +76,28 @@ Berbeda dari cara bayar (GoPay, Livin' by Mandiri), yang tempatnya di Catatan.
 _Avoid_: tempat, kantong
 
 **Saldo Akun**:
-Uang di satu Akun, dihitung sejak tanggal cutover (ADR-0010). Sebelum cutover hanya Saldo Bersama
-yang bermakna. Fiturnya belum aktif sampai `saldo_awal` tiap Akun diisi.
+Uang di satu Akun menurut Buku Kas, dihitung sejak tanggal cutover (ADR-0010). Sebelum cutover
+hanya Saldo Bersama yang bermakna.
 _Avoid_: saldo dompet (tanpa menyebut pemilik)
+
+**Saldo Nyata**:
+Uang yang sungguh ada di satu Akun pada satu saat, seperti terlihat di rekening, dompet, atau
+aplikasi — dilaporkan pengguna, bukan dihitung. Pembanding Saldo Akun dalam Rekonsiliasi.
+_Avoid_: saldo bank, saldo asli, saldo riil
+
+**Rekonsiliasi**:
+Satu pengecekan Saldo Akun terhadap Saldo Nyata satu Akun, per saat Saldo Nyata dilaporkan (atau
+per tanggal yang disebut). Hasilnya cocok, atau selisih yang dijelaskan dengan Transaksi terlupa,
+ditutup dengan Selisih Rekonsiliasi, atau dibiarkan terbuka. Dicatat di `data/rekonsiliasi.csv`;
+bukan Transaksi dan tidak ikut hitungan apa pun (ADR-0027).
+_Avoid_: cek saldo, pencocokan (untuk satu Akun), audit
+
+**Selisih Rekonsiliasi**:
+Transaksi yang menutup selisih tak terjelaskan antara Saldo Akun dan Saldo Nyata, berkategori
+`reconciliation`, dibuat hanya dari Rekonsiliasi. Ikut Saldo Akun, Saldo Bersama, dan Arus Kas
+Bulanan; tidak ikut Budget maupun hitungan Transaksi (ADR-0027). Berbeda dari Koreksi, yang hanya
+menyebut perubahan angka bulan yang sudah dilaporkan tanpa mencatat apa pun.
+_Avoid_: penyesuaian, adjustment, koreksi saldo
 
 **Saldo Awal**:
 Kas yang sudah dimiliki sebelum transaksi pertama tercatat. Bukan pemasukan — tidak ada
@@ -88,7 +107,8 @@ _Avoid_: modal awal, opening balance, saldo pembuka
 **Budget**:
 Batas belanja **rutin** yang kami tetapkan sendiri untuk satu bulan. Bukan uang yang dimiliki dan
 tidak mengikuti pemasukan (yang naik-turun); kecukupan uang dijawab Arus Kas Bulanan. Hanya
-Pengeluaran rutin yang dihitung terhadapnya: Pengeluaran Besar tidak ikut (ADR-0024).
+Pengeluaran rutin yang dihitung terhadapnya: Pengeluaran Besar dan Selisih Rekonsiliasi tidak ikut
+(ADR-0024, ADR-0027).
 _Avoid_: sisa uang, saldo budget
 
 **Pengeluaran Besar**:
