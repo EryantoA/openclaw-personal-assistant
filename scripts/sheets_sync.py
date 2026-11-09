@@ -33,6 +33,7 @@ import buku  # noqa: E402
 import buku_kas  # noqa: E402
 import catat  # noqa: E402
 import pengaturan  # noqa: E402
+import rekonsiliasi  # noqa: E402
 import resi  # noqa: E402
 import sheets_format as sf  # noqa: E402
 import sheets_laporan as sl  # noqa: E402
@@ -276,6 +277,7 @@ def _buat_transaksi(bills_path: Path, no_resi: str, baris: list, kunci: str, uji
         jurnal.hapus(kunci)  # tidak ada yang dibuat; entri basi bisa menelan baris lain nanti
         return _gagal_baru(laporan, no_resi, baris, _alasan(pesan))
     laporan.ditambah.append(pakai or re.search(r"no_resi (\S+)", pesan).group(1))
+    laporan.peringatan += [b for b in pesan.splitlines() if b.startswith("⚠️")]
 
 
 def _tambah_baris_baru(bills_path: Path, dasar: dict, sheet: dict, dari_csv: dict, dijelaskan: set,
@@ -456,22 +458,24 @@ def sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool = False,
             atur = pengaturan.muat(Path(resi.BUDGET_JSON))
         if akun_cfg is None:
             akun_cfg = _muat_akun(Path(resi.BUDGET_JSON).with_name("akun.json"))
+        catatan = rekonsiliasi.muat_catatan(Path(resi.BUDGET_JSON).with_name("rekonsiliasi.csv"))
         return _sinkron(Path(bills_path), klien, snapshot_path, uji, inisialisasi, migrasi, atur,
-                        akun_cfg, hari_ini or date.today())
+                        akun_cfg, hari_ini or date.today(), catatan)
 
 
-def _target(rows: list, atur: dict, label: dict, akun_cfg, hari_ini: date) -> dict:
+def _target(rows: list, atur: dict, label: dict, akun_cfg, hari_ini: date, catatan: list) -> dict:
     """Semua worksheet Cermin, urut tab: nama → (grid, tata)."""
     hasil = {}
     for nama in sl.urutan_tab(rows):
         if nama == SHEET_BUKU:
-            opsi = [label.get(k, k) for k in atur.get("kategori_custom") or []]
+            opsi = [label.get(k, k) for k in atur.get("kategori_custom") or []
+                    if k != buku_kas.KATEGORI_REKONSILIASI]  # hanya lewat rekonsiliasi.py (ADR-0027)
             hasil[nama] = (sf.grid_tampil(rows, label), sf.tata_buku(opsi))
             continue
         if nama == sl.SHEET_RINGKASAN:
             grid = sl.grid_ringkasan_bulanan(rows)
         elif nama == sl.SHEET_AKUN:
-            grid = sl.grid_saldo_akun(rows, akun_cfg, hari_ini)
+            grid = sl.grid_saldo_akun(rows, akun_cfg, hari_ini, catatan)
         elif nama.startswith("Per Kategori "):
             grid = sl.grid_per_kategori(rows, int(nama[-4:]), label, hari_ini)
         else:
@@ -481,7 +485,7 @@ def _target(rows: list, atur: dict, label: dict, akun_cfg, hari_ini: date) -> di
 
 
 def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisasi: bool, migrasi: bool,
-             atur: dict, akun_cfg, hari_ini: date) -> Laporan:
+             atur: dict, akun_cfg, hari_ini: date, catatan: list) -> Laporan:
     snapshot = None if inisialisasi else _muat_snapshot(snapshot_path)
     lama = snapshot is not None and snapshot.get("format") != FORMAT
     if migrasi and snapshot is None:
@@ -534,7 +538,7 @@ def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisa
         rows = buku_kas.muat(bills_path)
     laporan.tak_terhitung = [(r.get("no_resi") or "", alasan)
                              for r, alasan in buku_kas.tak_terhitung(rows)]
-    target = _target(rows, atur, label, akun_cfg, hari_ini)
+    target = _target(rows, atur, label, akun_cfg, hari_ini, catatan)
     ditulis = False
     # "Buku Kas" lebih dulu: bila pengguna mengeditnya di tengah sinkron, belum ada tab yang ditulis.
     for nama in [SHEET_BUKU] + [n for n in target if n != SHEET_BUKU]:

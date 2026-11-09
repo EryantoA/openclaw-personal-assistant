@@ -32,6 +32,7 @@ import pengaturan  # noqa: E402
 import pengirim  # noqa: E402
 import periode  # noqa: E402
 import perkiraan  # noqa: E402
+import rekonsiliasi  # noqa: E402
 
 AKAR = Path(__file__).resolve().parent.parent
 DATA = AKAR / "data"
@@ -100,7 +101,8 @@ def nama_bulan(bulan):
     return f"{NAMA_BULAN[b - 1]} {t}"
 
 
-def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
+def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None, rekon=None):
+    """`rekon`: baris pengingat Rekonsiliasi dari rekonsiliasi.baris_laporan (ADR-0027), atau None."""
     h = buku_kas.ringkas(baris, *periode.rentang_bulan(bulan))
     arus_kas = h["pemasukan"] - h["pengeluaran"]
     lalu = periode.bulan_sebelum(bulan)
@@ -119,6 +121,8 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None):
     if float(budget.get("budget_bulanan") or 0) > 0:
         pakai = hitung_budget.pemakaian(baris, *periode.rentang_bulan(bulan), budget)
         out += [""] + hitung_budget.baris_laporan(pakai)
+    if rekon:
+        out += ["", rekon]
 
     kini = h["per_kategori"]
     dulu = buku_kas.ringkas(baris, *periode.rentang_bulan(lalu))["per_kategori"]
@@ -210,9 +214,11 @@ def main(argv=None):
 
     baris = muat_baris()
     simpanan = muat_json(SIMPANAN, {"bulan": {}})
+    rekon = rekonsiliasi.baris_laporan(rekonsiliasi.muat_catatan(DATA / "rekonsiliasi.csv"),
+                                       rekonsiliasi.muat_akun(DATA / "akun.json"), bulan)
     pesan = susun(bulan, baris, pengaturan.muat(), simpanan,
                   perkiraan_absen(bulan, hari_ini if berjalan else None),
-                  hari_ini if berjalan else None)
+                  hari_ini if berjalan else None, rekon)
     print(pesan)
 
     if not a.kirim:

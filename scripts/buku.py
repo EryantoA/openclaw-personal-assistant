@@ -51,6 +51,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import buku_kas  # noqa: E402
 import duplikat  # noqa: E402
 import kewajiban  # noqa: E402
+import rekonsiliasi  # noqa: E402
 import resi  # noqa: E402
 import validasi  # noqa: E402
 from validasi import Tolak, kunci_berkas  # noqa: E402
@@ -161,6 +162,9 @@ def tampil_nilai(kolom: str, nilai) -> str:
 
 # ── Skema bills.csv ──────────────────────────────────────────────────────
 def _cek_bills(baris: dict, awalan: str = "", ubah=None) -> dict:
+    if (ubah is None or "kategori" in ubah) and buku_kas.selisih_rekonsiliasi(baris):
+        raise Tolak(f"{awalan}kategori {buku_kas.KATEGORI_REKONSILIASI} hanya dibuat lewat "
+                    "scripts/rekonsiliasi.py tutup (ADR-0027); pilih kategori lain")
     return validasi.cek_baris(baris, validasi.kategori_sah(), awalan, ubah)
 
 
@@ -194,13 +198,15 @@ def _bulan_berubah(lama: list, baru: list) -> list:
 
 
 def _peringatan_bills(path: Path, lama: list, baru: list) -> list:
-    """Peringatan yang tidak memblokir: Kewajiban tertaut dan bulan yang sudah dilaporkan."""
+    """Peringatan yang tidak memblokir: Kewajiban tertaut, Saldo Akun yang sudah direkonsiliasi
+    (ADR-0027), dan bulan yang sudah dilaporkan."""
     hasil = []
     if lama and not baru:
         daftar = kewajiban.muat(path.with_name("kewajiban.json"))
         for e in kewajiban.tertaut(daftar, lama[0].get("no_resi")):
             hasil.append(f"⚠️ Kewajiban {e.get('nama') or e.get('id')} ({e.get('id')}) tertaut ke "
                          f"Transaksi ini dan akan kembali belum lunas.")
+    hasil += rekonsiliasi.peringatan_dari_berkas(path, lama, baru)
     dilaporkan = _muat_json(path.with_name("laporan-bulanan.json"), {}).get("bulan", {})
     for bulan in _bulan_berubah(lama, baru):
         if bulan in dilaporkan:

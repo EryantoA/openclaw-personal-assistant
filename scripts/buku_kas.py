@@ -5,6 +5,8 @@ Satu tempat untuk aturan CONTEXT.md yang dipakai semua laporan:
   - Arah hanya pemasukan / pengeluaran / transfer; tipe kosong = pengeluaran (data lama);
   - Transfer tidak ikut Saldo maupun Arus Kas Bulan (ADR-0010);
   - Saldo Awal (`opening_balance`) ikut Saldo, bukan Pemasukan (ADR-0008);
+  - Selisih Rekonsiliasi (`reconciliation`) ikut Saldo dan Arus Kas Bulan, tapi bukan
+    Transaksi yang dihitung dan bukan Pengeluaran Besar (ADR-0027);
   - baris tanpa tanggal ISO yang sah atau dengan tipe tak dikenal tidak dihitung,
     tapi dilaporkan lewat tak_terhitung() — tidak pernah hilang diam-diam.
 
@@ -24,6 +26,7 @@ import resi  # noqa: E402
 
 BILLS = Path(__file__).resolve().parent.parent / "data" / "bills.csv"
 KATEGORI_SALDO_AWAL = "opening_balance"
+KATEGORI_REKONSILIASI = "reconciliation"
 ARAH = ("pemasukan", "pengeluaran", "transfer")
 KOLOM_WAJIB = {"tanggal", "tipe", "kategori", "jumlah"}
 
@@ -62,6 +65,10 @@ def saldo_awal(tx: dict) -> bool:
     return (tx.get("kategori") or "").strip().lower() == KATEGORI_SALDO_AWAL
 
 
+def selisih_rekonsiliasi(tx: dict) -> bool:
+    return (tx.get("kategori") or "").strip().lower() == KATEGORI_REKONSILIASI
+
+
 def tak_terhitung(rows: list[dict]) -> list[tuple[dict, str]]:
     """Baris yang tidak ikut Saldo maupun Arus Kas Bulan, beserta alasannya."""
     hasil = []
@@ -98,7 +105,7 @@ def ringkas(rows: list[dict], mulai: date, akhir: date) -> dict:
     Pemasukan (ADR-0008, ADR-0010).
     {transaksi_pemasukan, transaksi_pengeluaran}: jumlah **Transaksi** = No Resi unik di antara
     baris yang jatuh di rentang itu, bukan jumlah baris (ADR-0023). Baris tanpa No Resi dihitung
-    satu Transaksi per baris. Transfer dan Saldo Awal tidak dihitung.
+    satu Transaksi per baris. Transfer, Saldo Awal, dan Selisih Rekonsiliasi tidak dihitung.
     per_kategori: total Pengeluaran per Kategori (slug huruf kecil; kosong jadi `other`).
     """
     h = {"pemasukan": 0, "pengeluaran": 0, "saldo_awal": 0,
@@ -112,7 +119,8 @@ def ringkas(rows: list[dict], mulai: date, akhir: date) -> dict:
             h["saldo_awal"] += jumlah(r)
             continue
         h[a] += jumlah(r)
-        resi[a].add((r.get("no_resi") or "").strip() or f"baris-{i}")
+        if not selisih_rekonsiliasi(r):
+            resi[a].add((r.get("no_resi") or "").strip() or f"baris-{i}")
         if a == "pengeluaran":
             k = (r.get("kategori") or "").strip().lower() or "other"
             h["per_kategori"][k] = h["per_kategori"].get(k, 0) + jumlah(r)
@@ -130,7 +138,8 @@ def pengeluaran_besar(rows: list[dict], mulai: date, akhir: date, ambang: int) -
     per = {}
     for i, r in enumerate(rows):
         tgl = tanggal(r)
-        if tgl is None or arah(r) != "pengeluaran" or saldo_awal(r) or not mulai <= tgl <= akhir:
+        if (tgl is None or arah(r) != "pengeluaran" or saldo_awal(r) or selisih_rekonsiliasi(r)
+                or not mulai <= tgl <= akhir):
             continue
         per.setdefault((r.get("no_resi") or "").strip() or f"baris-{i}", []).append(r)
     h = {"jumlah": 0, "transaksi": 0, "per_kategori": {}}
