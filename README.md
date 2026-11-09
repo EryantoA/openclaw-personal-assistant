@@ -275,6 +275,10 @@ Telegram atau Discord, salin `data/tujuan.json.example` ke `data/tujuan.json` (d
 isi ID-nya; Kanal yang tidak diisi dilewati. Telegram dan Discord tidak diulang kalau gagal
 (WhatsApp 3 kali). Ketiga cron laporan berbatas waktu 600 detik, bukan 420 (ADR-0023); jangan diturunkan lagi.
 
+Uji hidup tujuan Discord (#41), belum dilakukan: jalankan Laporan Mingguan, Laporan Bulanan (mode kirim),
+dan cek budget (saat ada isi) lalu pastikan ketiganya tiba di kanal Discord. Lalu matikan bergantian satu
+Kanal (WhatsApp, Telegram, Discord): dua lainnya harus tetap menerima dan skrip keluar dengan kode 1.
+
 ### Pasang bot Discord OpenClaw (jalur langsung)
 Pemilik dan istri mencatat, bertanya, mengubah, dan menghapus dari satu kanal keuangan privat di
 Discord (ADR-0023, jalur A). Ini bot **baru** dengan token baru, terpisah dari bot Hermes. Foto
