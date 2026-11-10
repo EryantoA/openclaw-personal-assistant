@@ -68,12 +68,15 @@ def status_budget(today: Optional[date] = None) -> str:
     return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=True)
 
 
-def check_budget(today: Optional[date] = None, bulan: Optional[str] = None) -> str:
+def check_budget(today: Optional[date] = None, bulan: Optional[str] = None,
+                 kategori: Optional[List[str]] = None) -> str:
     """Peringatan bila rutin sudah mencapai alert_persen; "" bila tidak, supaya cron malam diam.
 
     `bulan` ('YYYY-MM'): bulan transaksi yang baru dicatat. Pencatatan mundur ke bulan yang sudah
-    tutup dicek terhadap bulannya sendiri, bukan bulan ini."""
-    return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=False, bulan=bulan)
+    tutup dicek terhadap bulannya sendiri, bukan bulan ini. `kategori`: Kategori Transaksi itu;
+    Batas Kategori lain tidak disebut (ADR-0029)."""
+    return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=False, bulan=bulan,
+                        kategori=kategori)
 
 
 # ── Mode: Cek Kewajiban ──────────────────────────────────────
@@ -198,6 +201,13 @@ def main():
         "mencatat transaksi bertanggal bulan lain.",
     )
     parser.add_argument(
+        "--kategori",
+        action="append",
+        metavar="SLUG",
+        help="hanya --mode budget: Kategori Transaksi yang baru dicatat (boleh diulang); Batas "
+        "Kategori lain tidak disebut (ADR-0029).",
+    )
+    parser.add_argument(
         "--kirim",
         action="store_true",
         help="kirim ke nomor pemilik kalau ada isi; gagal kirim = exit 1 (dipakai cron)",
@@ -221,12 +231,14 @@ def main():
             parser.error(f"--bulan tidak valid: {args.bulan} (format YYYY-MM)")
     if args.bulan and args.mode != "budget":
         parser.error("--bulan hanya untuk --mode budget")
-    result = check_budget(today, args.bulan) if args.mode == "budget" else check_all(today)
+    if args.kategori and args.mode != "budget":
+        parser.error("--kategori hanya untuk --mode budget")
+    result = check_budget(today, args.bulan, args.kategori) if args.mode == "budget" else check_all(today)
 
     if args.kirim:
         # "Ada isi" diputuskan dari bagian-bagiannya, bukan dari teks "✅ Semua lancar" —
         # teks ramah itu boleh berubah tanpa membuat cron diam-diam mengirim tiap malam.
-        isi = check_budget(today, args.bulan) if args.mode == "budget" else temuan_all(today)
+        isi = check_budget(today, args.bulan, args.kategori) if args.mode == "budget" else temuan_all(today)
         print(isi or "✅ Semua lancar!")
         return kirim_kalau_ada(isi)
 

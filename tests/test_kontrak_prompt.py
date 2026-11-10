@@ -415,6 +415,8 @@ class AngkaDariSkripBukanModel(unittest.TestCase):
         teks = " ".join(AGENTS.split())
         self.assertIn("check-bills.py --mode budget --bulan", teks)
         self.assertIn("bulan dari `tanggal` keluaran `OK tersimpan`", teks)
+        # ADR-0029: peringatan Batas Kategori hanya untuk kategori Transaksi yang baru dicatat
+        self.assertIn("--kategori <slug>", teks)
 
     def test_cek_budget_setelah_tersimpan_lewat_skrip(self):
         self.assertIn("Cek budget setelah tersimpan", AGENTS)

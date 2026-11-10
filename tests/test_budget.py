@@ -199,5 +199,65 @@ class SelisihRekonsiliasi(unittest.TestCase):
         self.assertEqual(len(budget.baris_laporan(p)), 2)
 
 
+KAT = {**ATUR, "budget_kategori": {"food": 2_100_000, "shopping": 600_000},
+       "label_kategori": {"food": "Makan & Minum", "shopping": "Belanja Lain"}}
+HARI = date(2026, 10, 20)
+
+
+class BatasKategori(unittest.TestCase):
+    """ADR-0029: batas belanja rutin untuk kategori pilihan, di bawah Budget total."""
+
+    def test_rincian_hanya_belanja_rutin_berurutan_sesuai_pengaturan(self):
+        rows = (rutin(1_785_000, "food") + [pengeluaran(4_000_000, "shopping"),  # Pengeluaran Besar
+                                             pengeluaran(300_000, "reconciliation")])
+        p = budget.pemakaian(rows, date(2026, 10, 1), AKHIR, KAT)
+        self.assertEqual(p["kategori"], [
+            {"slug": "food", "label": "Makan & Minum", "rutin": 1_785_000, "batas": 2_100_000, "persen": 85.0},
+            {"slug": "shopping", "label": "Belanja Lain", "rutin": 0, "batas": 600_000, "persen": 0.0}])
+
+    def test_tanpa_batas_kategori_daftar_kosong(self):
+        self.assertEqual(budget.pemakaian(rutin(1), date(2026, 10, 1), AKHIR, ATUR)["kategori"], [])
+
+    def test_setelah_mencatat_hanya_kategori_itu_dan_hanya_bila_sampai_ambang(self):
+        rows = rutin(1_785_000, "food") + [pengeluaran(700_000, "shopping")]
+        teks = budget.pesan(rows, HARI, KAT, selalu=False, kategori=["food"])
+        self.assertIn("⚠️ Makan & Minum: Rp 1.785.000 dari Rp 2.100.000 (85%) · masih bisa Rp 315.000", teks)
+        self.assertNotIn("Belanja Lain", teks)
+        self.assertTrue(teks.startswith("⚠️ Mendekati Batas Kategori — Oktober 2026"))
+        teks = budget.pesan(rows, HARI, KAT, selalu=False, kategori=["shopping"])
+        self.assertTrue(teks.startswith("🚨 Lewat Batas Kategori"))
+        self.assertIn("🚨 Belanja Lain: Rp 700.000 dari Rp 600.000 (117%) · lewat Rp 100.000", teks)
+        self.assertEqual(budget.pesan(rutin(100_000, "food"), HARI, KAT, selalu=False, kategori=["food"]), "")
+        self.assertEqual(budget.pesan(rows, HARI, KAT, selalu=False, kategori=["groceries"]), "")
+
+    def test_cek_malam_menyebut_semua_yang_sampai_ambang(self):
+        rows = rutin(1_785_000, "food") + [pengeluaran(700_000, "shopping")]
+        teks = budget.pesan(rows, HARI, KAT, selalu=False)
+        self.assertIn("Makan & Minum", teks)
+        self.assertIn("Belanja Lain", teks)
+
+    def test_total_lewat_ambang_tetap_disertai_kategori_yang_relevan(self):
+        rows = rutin(7_000_000, "groceries") + rutin(1_785_000, "food")
+        teks = budget.pesan(rows, HARI, KAT, selalu=False, kategori=["food"])
+        self.assertIn("Lewat batas Budget", teks)
+        self.assertIn("⚠️ Makan & Minum", teks)
+
+    def test_sisa_budget_menampilkan_semua(self):
+        teks = budget.pesan(rutin(100_000, "food"), HARI, KAT, selalu=True)
+        self.assertIn("🏷️ Batas Kategori", teks)
+        self.assertIn("✅ Makan & Minum: Rp 100.000 dari Rp 2.100.000 (5%) · masih bisa Rp 2.000.000", teks)
+        self.assertIn("✅ Belanja Lain: Rp 0 dari Rp 600.000 (0%)", teks)
+
+    def test_bulan_tutup_hanya_yang_lewat(self):
+        rows = rutin(1_785_000, "food", "2026-09-05")
+        self.assertEqual(budget.pesan(rows, HARI, KAT, selalu=False, bulan="2026-09", kategori=["food"]), "")
+
+    def test_baris_laporan_bulanan(self):
+        p = budget.pemakaian(rutin(1_785_000, "food"), date(2026, 10, 1), AKHIR, KAT)
+        self.assertEqual(budget.baris_laporan(p)[-2:], [
+            "   • Makan & Minum: Rp 1.785.000 dari Rp 2.100.000 (85%)",
+            "   • Belanja Lain: Rp 0 dari Rp 600.000 (0%)"])
+
+
 if __name__ == "__main__":
     unittest.main()

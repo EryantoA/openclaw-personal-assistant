@@ -132,17 +132,24 @@ def grid_budget(rows: list, tahun: int, atur: dict, hari_ini: date) -> list:
                    "yang dulu dikirim bot (ADR-0026).")
     else:
         catatan = "Budget belum diset di data/budget.json (budget_bulanan)."
-    grid = [[catatan], ["Bulan", "Pengeluaran Rutin", "Budget", "Persen", "Di Luar Budget", "Status"]]
+    batas_kat = {k: v for k, v in (atur.get("budget_kategori") or {}).items() if v and float(v) > 0}
+    label = atur.get("label_kategori") or {}
+    # Batas Kategori (ADR-0029) di kanan, sejajar baris bulan: format Sheets berlaku per kolom, jadi
+    # tabel persen di bawah tabel rupiah akan tampil sebagai rupiah.
+    kanan = [""] + [f"{label.get(k, k)} · {rp(v)}" for k, v in batas_kat.items()] if batas_kat else []
+    grid = [[catatan], ["Bulan", "Pengeluaran Rutin", "Budget", "Persen", "Di Luar Budget", "Status"] + kanan]
     awal, akhir = _rentang(rows, hari_ini) if _tanggal_sah(rows) else ("", "")
     alert = float(atur.get("alert_persen") or 80)
     for m in range(1, 13):
         b = f"{tahun}-{m:02d}"
         if not awal <= b <= akhir:
-            grid.append([nama_bulan(b), "", "", "", "", ""])
+            grid.append([nama_bulan(b), "", "", "", "", ""] + [""] * len(kanan))
             continue
         p = budget.pemakaian(rows, *periode.rentang_bulan(b), atur)
+        per_kat = [k["persen"] / 100 for k in p["kategori"]]
         grid.append([nama_bulan(b), p["rutin"], int(batas) if batas > 0 else "",
-                     p["persen"] / 100 if p["persen"] is not None else "", p["besar"], _status(p, alert)])
+                     p["persen"] / 100 if p["persen"] is not None else "", p["besar"], _status(p, alert)]
+                    + ([""] + per_kat if kanan else []))
     return grid
 
 
@@ -183,7 +190,7 @@ def tata_laporan(nama: str, grid: list) -> dict:
     judul = grid[header] if len(grid) > header else []
     fmt = {}
     for i, j in enumerate(judul):
-        if i == 0 or j in ("Status", "Jumlah Transaksi", "Baris Tanpa Akun"):
+        if i == 0 or j in ("", "Status", "Jumlah Transaksi", "Baris Tanpa Akun"):
             continue
-        fmt[i] = "persen" if j == "Persen" else "rupiah"
+        fmt[i] = "persen" if j == "Persen" or (header and " · Rp" in j) else "rupiah"
     return {"baris_header": header, "beku_kolom": 1, "format": fmt, "hanya_baca": "semua"}

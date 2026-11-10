@@ -71,6 +71,37 @@ class CekBudget(unittest.TestCase):
             self.assertEqual(cb.check_budget(date(2026, 10, 15), bulan="2026-09"), "")  # 90% tapi sudah tutup
 
 
+class BatasKategoriSetelahMencatat(unittest.TestCase):
+    """ADR-0029: bot meneruskan kategori Transaksi yang baru dicatat lewat --kategori."""
+
+    ATUR = {"budget_bulanan": 8_000_000, "alert_persen": 80, "pengeluaran_besar_mulai": 1_000_000,
+            "budget_kategori": {"food": 100_000}, "label_kategori": {"food": "Makan & Minum"}}
+
+    def jalan(self, *argv):
+        rows = [b("2026-10-10", "pengeluaran", 90_000)]  # kategori food: 90%
+        keluar = io.StringIO()
+        with mock.patch.object(cb.pengaturan, "muat", return_value=self.ATUR), \
+                mock.patch.object(cb, "load_bills", return_value=rows), \
+                mock.patch("sys.argv", ["check-bills.py", "--mode", "budget", "--tanggal", "2026-10-31", *argv]), \
+                contextlib.redirect_stdout(keluar):
+            kode = cb.main()
+        return kode, keluar.getvalue()
+
+    def test_kategori_transaksi_yang_sampai_ambang_disebut(self):
+        kode, teks = self.jalan("--bulan", "2026-10", "--kategori", "food")
+        self.assertEqual(kode, 0)
+        self.assertIn("⚠️ Makan & Minum", teks)
+
+    def test_kategori_lain_diam(self):
+        kode, teks = self.jalan("--bulan", "2026-10", "--kategori", "groceries")
+        self.assertEqual(teks.strip(), "✅ Semua lancar!")
+
+    def test_kategori_hanya_untuk_mode_budget(self):
+        with mock.patch("sys.argv", ["check-bills.py", "--mode", "all", "--kategori", "food"]), \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            cb.main()
+
+
 class KirimKalauAda(unittest.TestCase):
     def test_tanpa_isi_tidak_mengirim_ke_tujuan_mana_pun(self):
         with mock.patch("subprocess.run", side_effect=AssertionError("tidak boleh mengirim")):
