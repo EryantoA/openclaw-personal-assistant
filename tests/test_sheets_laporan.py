@@ -110,6 +110,25 @@ class Budget(unittest.TestCase):
         self.assertEqual({b[0]: b[1:] for b in grid[2:]}["Juli 2026"], [25_000, "", "", 0, "Budget belum diset"])
 
 
+class BudgetBatasKategori(unittest.TestCase):
+    """ADR-0029: persen tiap Batas Kategori per bulan, sejajar dengan baris bulan."""
+
+    def test_kolom_kategori_di_kanan_berisi_persen(self):
+        atur = {**ATUR, "budget_kategori": {"food": 100_000, "shopping": 1_000_000},
+                "label_kategori": {**LABEL, "shopping": "Belanja Lain"}}
+        grid = sl.grid_budget(ROWS, 2026, atur, HARI_INI)
+        self.assertEqual(grid[1][6:], ["", "Makan & Minum · Rp 100.000", "Belanja Lain · Rp 1.000.000"])
+        bulan = {b[0]: b for b in grid[2:]}
+        self.assertEqual(bulan["Juli 2026"][6:], ["", 0.25, 0.0])
+        self.assertEqual(bulan["Januari 2026"][6:], ["", "", ""])
+        tata = sl.tata_laporan("Budget 2026", grid)
+        self.assertEqual((tata["format"][7], tata["format"][8]), ("persen", "persen"))
+        self.assertNotIn(6, tata["format"])
+
+    def test_tanpa_batas_kategori_tidak_ada_kolom_tambahan(self):
+        self.assertEqual(len(sl.grid_budget(ROWS, 2026, ATUR, HARI_INI)[1]), 6)
+
+
 class SaldoPerAkun(unittest.TestCase):
     def test_belum_aktif_hanya_pemberitahuan_tanpa_angka(self):
         for cfg in (None, {"cutover": "2026-08-01", "saldo_global_saat_cutover": None,

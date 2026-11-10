@@ -115,6 +115,12 @@ Pengeluaran rutin yang dihitung terhadapnya: Pengeluaran Besar dan Selisih Rekon
 (ADR-0024, ADR-0027).
 _Avoid_: sisa uang, saldo budget
 
+**Batas Kategori**:
+Batas belanja rutin satu Kategori untuk satu bulan, hanya untuk kategori yang dipilih, di bawah
+Budget yang tetap batas utama. Kategori tanpa Batas Kategori tetap dihitung ke Budget. Pengeluaran
+Besar dan Selisih Rekonsiliasi tidak ikut (ADR-0029).
+_Avoid_: budget kategori, amplop, anggaran per kategori
+
 **Pengeluaran Besar**:
 Satu Transaksi Pengeluaran yang jumlah seluruh Item-nya mencapai ambang (`pengeluaran_besar_mulai`
 di Pengaturan, Rp 1.000.000). Tidak dihitung ke Budget, tapi selalu tampil terpisah sebagai

@@ -315,7 +315,7 @@ Fitur yang jarang dipakai ada di `{baseDir}/references/`. Saat pengguna meminta 
 
 | Pengguna menyebut | Baca |
 |---|---|
-| `set budget`, `atur budget`, `set alert`, `alert budget` | `{baseDir}/references/budget.md` |
+| `set budget`, `atur budget`, `set alert`, `alert budget`, batas / budget per kategori (`budget makan 2jt`) | `{baseDir}/references/budget.md` |
 | tagihan yang datang tapi belum dibayar, `cek tagihan`, transaksi berulang (gaji, langganan), **atau mencatat pembayaran tagihan** yang ada di `kewajiban.json` (mis. `bayar wifi 233rb`) | `{baseDir}/references/kewajiban-perkiraan.md` |
 | saldo per akun, mengaktifkan akun / cutover, transfer antar akun | `{baseDir}/references/akun-transfer.md` |
 | **melaporkan** saldo sungguhan satu akun (`saldo Mandiri Ryan 5.230.000`, foto layar saldo), rekonsiliasi, selisih saldo | `{baseDir}/references/rekonsiliasi.md` |

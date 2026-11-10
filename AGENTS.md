@@ -188,9 +188,9 @@ Detail:
   "N entri tercatat", tidak ada total kumulatif karangan. `DUPLICATE` = beri tahu sudah tercatat.
 
 **Cek budget setelah tersimpan.** Sesudah kerangka `✅ Sudah dicatat!` (hanya bila `OK tersimpan`),
-jalankan `python3 scripts/check-bills.py --mode budget --bulan YYYY-MM`, `YYYY-MM` = bulan dari
-`tanggal` keluaran `OK tersimpan` (bukan bulan hari ini: transaksi mundur dicek terhadap bulannya
-sendiri). Keluarannya `✅ Semua lancar!` → jangan tambah apa-apa. Selain itu → salin utuh di bawah
+jalankan `python3 scripts/check-bills.py --mode budget --bulan YYYY-MM --kategori <slug>`, `YYYY-MM`
+= bulan dari `tanggal` keluaran `OK tersimpan` (bukan bulan hari ini: transaksi mundur dicek terhadap
+bulannya sendiri), satu `--kategori` per kategori item yang tersimpan. Keluarannya `✅ Semua lancar!` → jangan tambah apa-apa. Selain itu → salin utuh di bawah
 kerangka, dipisah satu baris kosong. Jangan menghitung persentase budget sendiri.
 
 ## Pesan lewat Relay (Hermes)
