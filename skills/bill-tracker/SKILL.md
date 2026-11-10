@@ -209,8 +209,9 @@ Untuk mengisi JSON dengan benar dan membaca data — bukan untuk menulis barisny
   `Susu UHT + Yakult - Budiman Swalayan`. Tidak ada kolom `tempat` (ADR-0007). Tak ada tokonya
   (`infaq`, `bensin`) → itemnya saja. **Bank dan e-wallet bukan toko**: `Livin' by Mandiri`,
   `GoPay`, `Shopee Pay` itu cara bayar — tulis di `catatan`.
-- **`akun` & `akun_tujuan`**: akun sumber dana (`Kas`, `Bank Utama`, `Tabungan` — daftar di
-  `data/akun.json`); `akun_tujuan` hanya untuk `transfer`. **Bukan cara bayar** (lihat `item`).
+- **`akun` & `akun_tujuan`**: akun sumber dana, hanya nama dari `data/akun.json` (skrip menolak
+  nama lain dan menyebut pilihannya, ADR-0028); `akun_tujuan` hanya untuk `transfer`. **Bukan
+  cara bayar** (lihat `item`).
   Baris sebelum tanggal cutover berkolom `akun` kosong dan itu benar — jangan diisi mundur
   (ADR-0010).
 - **`waktu` & `no_resi`**: selalu diisi untuk transaksi baru; baris lama boleh kosong

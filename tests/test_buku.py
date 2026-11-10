@@ -359,6 +359,17 @@ class Ubah(Dasar):
         kode, _ = self.jalan("ubah", {"no_resi": "STRUK-T", "set": {"kategori": "food"}}, uji=True)
         self.assertEqual(kode, 2)
 
+    def test_ubah_akun_dibakukan_atau_ditolak(self):
+        (self.d / "akun.json").write_text(json.dumps({"akun": [
+            {"id": "tunai_a", "nama": "Tunai A"}, {"id": "bank_b", "nama": "Bank B"}]}),
+            encoding="utf-8")
+        kode, pesan = self.jalan("ubah", {"no_resi": "STRUK-A", "set": {"akun": "Dompet A"}}, uji=True)
+        self.assertEqual(kode, 2, pesan)
+        self.assertIn("tidak ada di data/akun.json", pesan)
+        kode, pesan = self.jalan("ubah", {"no_resi": "STRUK-A", "set": {"akun": "tunai_a"}}, uji=True)
+        self.assertEqual(kode, 0, pesan)
+        self.assertIn("→ Tunai A", pesan)
+
     def test_hasil_duplikat_ditolak_dengan_kode_1(self):
         # STRUK-A (2026-10-10 12:00 25000) dijadikan 14:30 -> sama dengan baris pertama STRUK-B? jumlah 25000
         kode, pesan = self.jalan("ubah", {"no_resi": "STRUK-A", "set": {"tanggal": "2026-10-12", "waktu": "14:30"}},

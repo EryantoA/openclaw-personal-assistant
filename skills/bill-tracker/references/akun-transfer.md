@@ -2,10 +2,13 @@
 
 Saldo Akun, aktivasi cutover, dan mencatat transfer antar akun sendiri (ADR-0010).
 
-**Akun** = tempat uangnya berada: `Kas`, `Bank Utama`, `Tabungan`. Daftar resminya di
-`data/akun.json`. Ini **berbeda dari cara bayar** — `Livin' by Mandiri`, `GoPay`, `Shopee
-Pay` adalah cara bayar dan tetap ditulis di `catatan`. Orang bisa bayar pakai GoPay yang
-saldonya ditarik dari Bank Utama: akunnya `Bank Utama`, cara bayarnya GoPay.
+**Akun** = tempat uangnya berada: uang tunai, rekening bank, atau saldo e-wallet, dengan nama
+`<Tempat> <Panggilan>` (mis. `Tunai Ayah`, `GoPay Ibu`). Daftar resminya **hanya** di
+`data/akun.json`; `catat.py` dan `buku.py` menolak nama lain dan menyebut pilihannya — teruskan
+pilihan itu ke pengguna sebagai pertanyaan, jangan memilih sendiri (ADR-0028). Ini **berbeda dari
+cara bayar** — QRIS atau `Livin' by Mandiri` ditulis di `catatan`. Isi ulang e-wallet = transfer
+ke Akun e-wallet; belanja dari saldonya = pengeluaran dari Akun e-wallet. Rekening orang di luar
+rumah tangga bukan Akun: uang ke sana adalah pengeluaran.
 
 ## ⚠️ Batas cutover — sebut ini setiap kali melaporkan saldo per akun
 
@@ -25,7 +28,9 @@ Jangan mengarang angkanya — hanya pemilik data yang tahu berapa isi tiap akun.
 
 Kalau pengguna minta mengaktifkan akun, tuntun begini:
 
-1. Tanyakan saldo tiap akun **pada tanggal cutover**.
+1. Cutover = hari pengguna mengecek isi tiap akun sendiri (ADR-0028). Tanyakan angka yang
+   **dilihat** di dompet/aplikasi, sebelum ada transaksi hari itu. Akun yang belum bisa dicek
+   tetap `null` — jangan diisi sisa hitungan.
 2. Isi `saldo_awal` tiap akun dan `saldo_global_saat_cutover` di `data/akun.json`.
 3. Jalankan `python3 scripts/akun.py --cek`. **Jumlah semua `saldo_awal` harus sama
    dengan Saldo Bersama pada tanggal cutover.** Kalau tidak sama, laporkan selisihnya
@@ -49,7 +54,7 @@ Catat lewat `catat.py` dengan `"tipe": "transfer"`, `"akun"` = asal, `"akun_tuju
 item berkategori `transfer` (di luar `kategori_custom`; `catat.py` menolak transfer tanpa dua akun).
 
 ```
-2026-09-02,transfer,transfer,Tarik tunai untuk belanja,500000,,whatsapp,Ayah,Bank Utama,Kas,09:00,TRX-20260902-0001
+2026-09-02,transfer,transfer,Tarik tunai untuk belanja,500000,,whatsapp,Ayah,Mandiri Ayah,Tunai Ayah,09:00,TRX-20260902-0001
 ```
 
 Transfer **tidak pernah** menyentuh Total Pemasukan, Total Pengeluaran, Arus Kas Bulanan,
@@ -57,5 +62,5 @@ Saldo Bersama, maupun budget. Ia hanya menggeser saldo antar akun. Kalau setelah
 transfer angka Saldo Bersama ikut berubah, itu **bug** — hentikan dan laporkan.
 
 Konfirmasinya memakai kerangka bersama di `AGENTS.md`; baris `Arah:` menyebut kedua sisinya
-(`🔁 Transfer (Bank Utama → Kas)`). Jangan menambah baris saldo: saldo akun hanya dari
+(`🔁 Transfer (Mandiri Ayah → Tunai Ayah)`). Jangan menambah baris saldo: saldo akun hanya dari
 `python3 scripts/akun.py`, tidak pernah dihitung atau dikarang di balasan.
