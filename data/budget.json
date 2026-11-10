@@ -21,6 +21,7 @@
     "entertainment",
     "event",
     "donation",
+    "zakat",
     "jewelry",
     "pet",
     "housekeeping",
@@ -53,7 +54,8 @@
     "education": "Pendidikan",
     "entertainment": "Hiburan",
     "event": "Acara & Kondangan",
-    "donation": "Donasi & Zakat",
+    "donation": "Donasi & Infak",
+    "zakat": "Zakat",
     "jewelry": "Perhiasan",
     "pet": "Hewan Peliharaan",
     "housekeeping": "Rumah Tangga",
@@ -92,6 +94,7 @@
     ],
     "Sosial & Keluarga": [
       "donation",
+      "zakat",
       "gift",
       "event",
       "arisan",
@@ -135,7 +138,12 @@
     "pengeluaran_besar_mulai": "Satu Transaksi (No Resi) yang jumlah seluruh Item-nya sebesar ini atau lebih disebut Pengeluaran Besar: tidak dihitung ke Budget, tampil terpisah sebagai 'Di luar budget'.",
     "label_kategori": "Nama tampil Bahasa Indonesia tiap slug di kategori_custom (CONTEXT.md → Label Kategori, ADR-0026). Hanya tampilan di Google Sheets; data tetap slug. Wajib unik: label kembar tidak dipakai. Slug tanpa label tampil apa adanya.",
     "budget_kategori": "Batas Kategori (ADR-0029): batas belanja RUTIN per bulan untuk kategori pilihan, di bawah budget_bulanan. Kategori tanpa batas tetap ikut Budget. Pengeluaran Besar dan Selisih Rekonsiliasi tidak ikut. Angka awal = median rutin Mei-Okt 2026 dibulatkan ke atas. Ubah lewat scripts/atur-budget.py.",
-    "kelompok_kategori": "Kelompok Kategori (ADR-0030): tingkat di atas Kategori, hanya untuk tampilan (tab Per Kategori, baris komposisi Laporan Bulanan). Kategori yang tidak tercantum masuk 'Lainnya'. Budget dan Batas Kategori tidak memakainya."
+    "kelompok_kategori": "Kelompok Kategori (ADR-0030): tingkat di atas Kategori, hanya untuk tampilan (tab Per Kategori, baris komposisi Laporan Bulanan). Kategori yang tidak tercantum masuk 'Lainnya'. Budget dan Batas Kategori tidak memakainya.",
+    "nisab_zakat_tahunan": "Nisab zakat penghasilan per TAHUN (Rupiah), untuk Laporan Tahunan (ADR-0033). Satu angka per tahun dari Keputusan Ketua BAZNAS tahun itu: 2025 = No. 13/2025, 2026 = No. 15/2026 (lihat docs/research/spt-tahunan-dan-zakat-penghasilan.md). Tahun yang belum diisi tidak ditebak."
   },
-  "pengeluaran_besar_mulai": 1000000
+  "pengeluaran_besar_mulai": 1000000,
+  "nisab_zakat_tahunan": {
+    "2025": 85685972,
+    "2026": 91681728
+  }
 }

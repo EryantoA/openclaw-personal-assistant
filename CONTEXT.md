@@ -241,6 +241,21 @@ Laporan Bulanan. Kalau Pekan-nya melewati pergantian bulan, Budget dan Perkiraan
 disebutkan. Saldo Bersama di dalamnya adalah Saldo Bersama per akhir Pekan, bukan per saat dikirim.
 _Avoid_: laporan minggu ini, weekly report, rekap mingguan
 
+**Laporan Tahunan**:
+Bahan persiapan SPT Tahunan dan zakat untuk satu tahun kalender, dihitung skrip dari Buku Kas:
+cakupan data, Pemasukan per Kategori, Pemasukan selain gaji untuk dipilah, Saldo Akun per 31 Des,
+kandidat harta, Zakat Penghasilan, dan dokumen yang harus diambil. **Bukan angka SPT**: penghasilan
+bruto dan PPh terpotong hanya ada di bukti potong kantor (ADR-0033). Tidak menyimpan angka dan tidak
+punya Koreksi.
+_Avoid_: laporan pajak, SPT, rekap tahunan
+
+**Zakat Penghasilan**:
+Di Laporan Tahunan: 2,5% dari Pemasukan `salary` setahun, dibandingkan dengan **Nisab** tahun itu
+(`nisab_zakat_tahunan` di Pengaturan, dari SK BAZNAS). Selalu disebut batas bawah, karena gaji di
+Buku Kas neto dan nisab berlaku per orang. Zakat yang dibayar dicatat berkategori `zakat`; infak dan
+sedekah tetap `donation` dan tidak dihitung sebagai zakat (ADR-0033).
+_Avoid_: zakat profesi (untuk angka laporan), infak (untuk zakat)
+
 **Hari Kosong**:
 Hari dalam sebuah Pekan tanpa satu pun Pengeluaran tercatat. Satu Hari Kosong biasa saja;
 dua atau lebih berturut-turut dalam satu Pekan dianggap tanda ada yang tidak tercatat, dan

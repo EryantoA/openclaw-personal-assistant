@@ -42,6 +42,7 @@ Relay**), lalu cocokkan isinya dengan satu baris di bawah.
 | cek resi `<no>`, "sudah dicatat?" | `python3 scripts/resi.py --check "<no_resi>"` — `DUPLICATE …` = sudah tercatat, tampilkan barisnya; `OK …` = belum |
 | cek duplikat, "ada data dobel?" | `python3 scripts/resi.py --find-dup` — laporkan grupnya, sarankan cek manual, **jangan hapus otomatis** |
 | rekap per bulan, laporan semua bulan | `python3 scripts/rekap-bulanan.py` (batasi dengan `--dari YYYY-MM` / `--sampai YYYY-MM`) |
+| laporan tahunan, bahan SPT, zakat / nisab | `python3 scripts/laporan-tahunan.py` (tahun lalu) atau `--tahun YYYY`; pertanyaan lanjutan: *Fitur lain* |
 | set budget / alert, kategori, backup / export excel, tagihan atau transaksi berulang, aktifkan akun, lapor saldo + angka/foto (rekonsiliasi) | Baca berkas rujukan di tabel *Fitur lain* pada `skills/bill-tracker/SKILL.md` sebelum menjawab |
 | apa pun di luar ini, atau maksudnya tidak jelas | **Tanyakan maksudnya** dalam satu kalimat. Jangan menjalankan skrip tebakan |
 

@@ -107,7 +107,8 @@ class AllowlistKeuangan(unittest.TestCase):
         for arg in ("scripts/catat.py --uji --json '{}'", "scripts/buku.py cari --batas 1",
                     "scripts/laporan-harian.py", "scripts/laporan-bulanan.py --bulan 2026-10",
                     "scripts/check-bills.py --mode status", "scripts/akun.py",
-                    "scripts/resi.py --check STRUK-1", "scripts/rekap-bulanan.py"):
+                    "scripts/resi.py --check STRUK-1", "scripts/rekap-bulanan.py",
+                    "scripts/laporan-tahunan.py --tahun 2026"):
             self.assertTrue(self.cocok(arg), arg)
 
     def test_eksekusi_bebas_dan_skrip_lain_ditolak(self):
@@ -115,7 +116,7 @@ class AllowlistKeuangan(unittest.TestCase):
         for arg in ('-c "print(1)  # scripts/catat.py"', "-c 'import os' scripts/buku.py",
                     "scripts/backup.sh", "scripts/export-excel.py", "scripts/../x.py",
                     "/tmp/scripts/catat.py", "scripts/catatan.py",
-                    "scripts/laporan-mingguan.py --kirim", "scripts/check-bills.py --mode all --kirim",
+                    "scripts/laporan-mingguan.py --kirim", "scripts/laporan-tahunan.py --kirim", "scripts/check-bills.py --mode all --kirim",
                     "scripts/resi.py --backfill", "scripts/resi.py --gen", "scripts/catat.py --paksa --json {}"):
             self.assertFalse(self.cocok(arg), arg)
 

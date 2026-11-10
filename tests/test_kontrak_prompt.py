@@ -336,7 +336,8 @@ class PetaPesan(unittest.TestCase):
                          "scripts/laporan-bulanan.py --bulan YYYY-MM", "scripts/laporan-pembeli.py",
                          "scripts/laporan-harian.py`", "scripts/check-bills.py --mode status",
                          "scripts/akun.py`", "scripts/rekap-bulanan.py`", "scripts/resi.py --check", "scripts/resi.py --find-dup",
-                         "scripts/check-bills.py --mode all", "scripts/buku.py cari"):
+                         "scripts/check-bills.py --mode all", "scripts/buku.py cari",
+                         "scripts/laporan-tahunan.py`"):
             self.assertIn(perintah, self.PETA)
         # tabel laporan lama tidak boleh hidup berdampingan dengan peta (dua sumber, dua kebenaran)
         self.assertNotIn("| Permintaan | Jalankan |", AGENTS)
