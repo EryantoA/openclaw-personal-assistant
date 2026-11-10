@@ -136,7 +136,7 @@ BILLS_HEADER = "tanggal,tipe,kategori,jumlah,akun\n"
 
 class SinyalAkun(unittest.TestCase):
     """Konsistensi Akun (ADR-0028): Saldo Bersama sebelum cutover bisa bergeser diam-diam saat
-    transaksi lama dihapus/diubah (10 Nov 2026, IMP-204). Penjaga memakai akun.periksa()."""
+    transaksi lama dihapus/diubah (10 Nov 2026). Penjaga memakai akun.periksa()."""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()

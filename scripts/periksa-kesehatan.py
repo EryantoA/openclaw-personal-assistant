@@ -272,8 +272,7 @@ def periksa_akun():
     data/akun.json, dan jumlah semua saldo_awal sama dengan angka itu.
 
     Menghapus atau mengubah transaksi bertanggal sebelum cutover menggeser Saldo Bersama itu
-    diam-diam. 10 Nov 2026 penghapusan transaksi dobel (IMP-204, Rp 300.000) membuat
-    `akun.py --cek` gagal, dan baru ketahuan karena kebetulan dicek manual.
+    diam-diam. 10 Nov 2026 penghapusan satu transaksi dobel membuat `akun.py --cek` gagal, dan baru ketahuan karena kebetulan dicek manual.
 
     PENGECUALIAN ADR-0011 yang disengaja: ini satu-satunya pemeriksaan yang mengimpor skrip lain
     (akun.py -> buku_kas.py -> resi.py, periode.py). Menghitung Saldo Bersama sendiri berarti

@@ -114,7 +114,7 @@ terbatas pada balasan chat, dan itu langsung terasa oleh pemakai.
 
 
 **Pengecualian 10 November 2026: pemeriksaan Akun mengimpor `akun.py`.** Penghapusan
-transaksi dobel bertanggal sebelum cutover (IMP-204, Rp 300.000) menggeser Saldo Bersama per
+satu transaksi dobel bertanggal sebelum cutover menggeser Saldo Bersama per
 cutover, sehingga `akun.py --cek` gagal ([0028](0028-akun-baku-cutover-hari-pengecekan.md)) —
 dan baru ketahuan karena kebetulan dicek manual. `periksa_akun()` kini menjalankan
 `akun.periksa()` dan memperingatkan selisihnya. Itu berarti penjaga mengimpor `akun.py`
