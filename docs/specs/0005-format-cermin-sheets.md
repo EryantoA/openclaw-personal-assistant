@@ -19,7 +19,8 @@ Buku Kas (`bills.csv`) dan jalan tulisnya tidak berubah. Cermin disajikan ulang:
   Label Kategori Indonesia dengan dropdown, tanggal sungguhan, format Rupiah, kronologis.
 - Empat **Tab Laporan** hanya-baca: Ringkasan Bulanan, Per Kategori `<tahun>`, Budget `<tahun>`,
   Saldo per Akun.
-- Bagian hanya-baca berlatar abu-abu dan dilindungi `warningOnly`.
+- Bagian hanya-baca berlatar Olive pucat (semula abu-abu, diganti [ADR-0032](../adr/0032-tema-warna-cermin-sheets.md))
+  dan dilindungi `warningOnly`.
 - Peralihan lewat `sinkron-sheets.py --migrasi-format`.
 
 ## User Stories
@@ -88,7 +89,7 @@ Buku Kas (`bills.csv`) dan jalan tulisnya tidak berubah. Cermin disajikan ulang:
   kategori; sinkron menerima peta yang tidak lengkap.
 - **Klien Sheets** (`sheets_google.py`) bertambah: menulis nilai tanggal (nomor seri), membaca
   `UNFORMATTED_VALUE`, number format `Rp #,##0` dan tanggal `d mmm yyyy`, data validation dropdown,
-  frozen rows/cols, column group, latar abu-abu + catatan header, protected range `warningOnly`,
+  frozen rows/cols, column group, latar hanya-baca (Olive pucat, ADR-0032) + catatan header, protected range `warningOnly`,
   locale `in_ID`, membuat/menghapus worksheet. Klien palsu di tes mencatat permintaan format
   tanpa memanggil Google.
 - **Protected range dan format** dipasang setiap kali sebuah tab ditulis (termasuk migrasi dan tab

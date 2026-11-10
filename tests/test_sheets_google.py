@@ -301,6 +301,44 @@ class Adaptor(unittest.TestCase):
         rentang = self.sesi.sheets["Ringkasan Bulanan"]["rentang_lindung"][0]["range"]
         self.assertEqual(set(rentang), {"sheetId"})
 
+    def _format_pada(self, baris, kolom):
+        """Format repeatCell yang mengenai sel (baris, kolom), berurutan seperti dikirim."""
+        def kena(r, awal, akhir, x):
+            return r.get(awal, 0) <= x < r.get(akhir, 10 ** 9)
+        return [f["cell"]["userEnteredFormat"] for f in self.sesi.format
+                if kena(f["range"], "startRowIndex", "endRowIndex", baris)
+                and kena(f["range"], "startColumnIndex", "endColumnIndex", kolom)]
+
+    def test_tema_header_indigo_olive_dipasang_sesudah_latar_hanya_baca(self):
+        """ADR-0032: sel header di kolom hanya-baca tetap Indigo, tidak tertimpa Olive pucat."""
+        self.klien.tulis("Buku Kas", [["Tanggal", "Kategori", "Saldo"], [46270, "Gaji", 5]], self.TATA)
+
+        terakhir = self._format_pada(0, 2)[-1]
+        self.assertEqual(terakhir["backgroundColor"], sheets_google.WARNA["indigo"])
+        self.assertEqual(terakhir["textFormat"], {"bold": True, "foregroundColor": sheets_google.WARNA["olive"]})
+
+    def test_hanya_baca_berlatar_olive_pucat_dan_warna_teks_lama_dibersihkan(self):
+        self.klien.tulis("Buku Kas", [["Tanggal", "Kategori", "Saldo"], [46270, "Gaji", 5]], self.TATA)
+
+        latar = [f for f in self.sesi.format if "backgroundColor" in f["cell"]["userEnteredFormat"]
+                 and f["range"].get("startColumnIndex") == 2 and "startRowIndex" not in f["range"]]
+        self.assertEqual(len(latar), 1)
+        self.assertEqual(latar[0]["cell"]["userEnteredFormat"], {"backgroundColor": sheets_google.WARNA["hanya_baca"]})
+        self.assertIn("userEnteredFormat.textFormat", latar[0]["fields"].split(","))
+        self.assertEqual(self._format_pada(1, 0), [{"numberFormat": sheets_google.POLA["tanggal"]}])  # bisa disunting: polos
+
+    def test_warna_teks_per_kolom_dan_gaya_per_sel(self):
+        tata = {**self.TATA, "warna_teks": {1: "hijau"}, "sel": [[1, 2, "minus"], [2, 2, "lewat"]]}
+        self.klien.tulis("Buku Kas", [["Tanggal", "Kategori", "Saldo"], [46270, "Gaji", -5], [46271, "x", 0]], tata)
+
+        w = sheets_google.WARNA
+        self.assertIn({"textFormat": {"foregroundColor": w["hijau"]}}, self._format_pada(1, 1))
+        self.assertNotIn({"textFormat": {"foregroundColor": w["hijau"]}}, self._format_pada(0, 1))
+        self.assertEqual(self._format_pada(1, 2)[-1], {"textFormat": {"foregroundColor": w["bordeaux"]}})
+        self.assertEqual(self._format_pada(2, 2)[-1], {"backgroundColor": w["bordeaux"], "textFormat": {
+            "bold": True, "foregroundColor": w["putih"]}})
+        self.assertEqual(self._format_pada(1, 0), [{"numberFormat": sheets_google.POLA["tanggal"]}])
+
     def test_tulis_tanpa_tata_tidak_memformat(self):
         self.klien.tulis("Ringkasan", [["Bulan", "Saldo"], ["2026-07", 1]])
 

@@ -71,6 +71,21 @@ class Tampil(unittest.TestCase):
                          [1_000_000, 980_000, 975_000, 975_000, 1_075_000, ""])
 
 
+class TemaWarna(unittest.TestCase):
+    """ADR-0032: Pemasukan hijau, Pengeluaran bordeaux; Saldo Bersama minus bordeaux."""
+
+    def test_kolom_uang_berwarna_dan_saldo_bersama_minus_ditandai(self):
+        grid = sf.grid_tampil([tx("2026-07-01", "pengeluaran", 5_000, no_resi="A"),
+                               tx("2026-07-02", "pemasukan", 9_000, "salary", no_resi="B")], LABEL)
+        tata = sf.tata_buku([], grid)
+        i = sf.KOLOM_TAMPIL.index
+        self.assertEqual(tata["warna_teks"], {i("Pemasukan"): "hijau", i("Pengeluaran"): "bordeaux"})
+        self.assertEqual(tata["sel"], [[1, i("Saldo Bersama"), "minus"]])
+
+    def test_tanpa_grid_tanpa_tanda_per_sel(self):
+        self.assertEqual(sf.tata_buku([])["sel"], [])
+
+
 class Baca(unittest.TestCase):
     def baca(self, baris):
         return sf.baca_baris(baris, sf.label_balik(LABEL))
