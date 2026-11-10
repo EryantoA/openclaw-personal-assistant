@@ -109,9 +109,11 @@ def ringkas(rows: list[dict], mulai: date, akhir: date) -> dict:
     baris yang jatuh di rentang itu, bukan jumlah baris (ADR-0023). Baris tanpa No Resi dihitung
     satu Transaksi per baris. Transfer, Saldo Awal, dan Selisih Rekonsiliasi tidak dihitung.
     per_kategori: total Pengeluaran per Kategori (slug huruf kecil; kosong jadi `other`).
+    pemasukan_per_kategori: sama, untuk Pemasukan; Saldo Awal tidak ikut (ADR-0033).
     """
     h = {"pemasukan": 0, "pengeluaran": 0, "saldo_awal": 0,
-         "transaksi_pemasukan": 0, "transaksi_pengeluaran": 0, "per_kategori": {}}
+         "transaksi_pemasukan": 0, "transaksi_pengeluaran": 0, "per_kategori": {},
+         "pemasukan_per_kategori": {}}
     resi = {"pemasukan": set(), "pengeluaran": set()}
     for i, r in enumerate(rows):
         tgl, a = tanggal(r), arah(r)
@@ -123,12 +125,25 @@ def ringkas(rows: list[dict], mulai: date, akhir: date) -> dict:
         h[a] += jumlah(r)
         if not selisih_rekonsiliasi(r):
             resi[a].add((r.get("no_resi") or "").strip() or f"baris-{i}")
-        if a == "pengeluaran":
-            k = (r.get("kategori") or "").strip().lower() or "other"
-            h["per_kategori"][k] = h["per_kategori"].get(k, 0) + jumlah(r)
+        k = (r.get("kategori") or "").strip().lower() or "other"
+        per = h["per_kategori"] if a == "pengeluaran" else h["pemasukan_per_kategori"]
+        per[k] = per.get(k, 0) + jumlah(r)
     h["transaksi_pemasukan"] = len(resi["pemasukan"])
     h["transaksi_pengeluaran"] = len(resi["pengeluaran"])
     return h
+
+
+def transaksi_pengeluaran(rows: list[dict], mulai: date, akhir: date) -> dict:
+    """No Resi → Item Pengeluaran-nya pada rentang itu, urut seperti di Buku Kas. Baris tanpa No Resi
+    satu Transaksi sendiri. Saldo Awal dan Selisih Rekonsiliasi tidak ikut (ADR-0024, ADR-0027)."""
+    per = {}
+    for i, r in enumerate(rows):
+        tgl = tanggal(r)
+        if (tgl is None or arah(r) != "pengeluaran" or saldo_awal(r) or selisih_rekonsiliasi(r)
+                or not mulai <= tgl <= akhir):
+            continue
+        per.setdefault((r.get("no_resi") or "").strip() or f"baris-{i}", []).append(r)
+    return per
 
 
 def pengeluaran_besar(rows: list[dict], mulai: date, akhir: date, ambang: int) -> dict:
@@ -137,15 +152,8 @@ def pengeluaran_besar(rows: list[dict], mulai: date, akhir: date, ambang: int) -
 
     {jumlah, transaksi, per_kategori}: total uang, jumlah Transaksi, dan total per Kategori Item-nya.
     """
-    per = {}
-    for i, r in enumerate(rows):
-        tgl = tanggal(r)
-        if (tgl is None or arah(r) != "pengeluaran" or saldo_awal(r) or selisih_rekonsiliasi(r)
-                or not mulai <= tgl <= akhir):
-            continue
-        per.setdefault((r.get("no_resi") or "").strip() or f"baris-{i}", []).append(r)
     h = {"jumlah": 0, "transaksi": 0, "per_kategori": {}}
-    for items in per.values():
+    for items in transaksi_pengeluaran(rows, mulai, akhir).values():
         if sum(jumlah(r) for r in items) < ambang:
             continue
         h["transaksi"] += 1

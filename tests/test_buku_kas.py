@@ -158,7 +158,7 @@ class Ringkas(unittest.TestCase):
     def test_rentang_kosong_semua_nol(self):
         self.assertEqual(self.hitung([]), {"pemasukan": 0, "pengeluaran": 0, "saldo_awal": 0,
                                            "transaksi_pemasukan": 0, "transaksi_pengeluaran": 0,
-                                           "per_kategori": {}})
+                                           "per_kategori": {}, "pemasukan_per_kategori": {}})
 
     def test_arus_kas_bulan_sama_dengan_ringkas_satu_bulan_penuh(self):
         h = buku_kas.ringkas(DASAR, date(2026, 8, 1), date(2026, 8, 31))
@@ -246,6 +246,34 @@ class SelisihRekonsiliasi(unittest.TestCase):
         rows = [dict(tx("2026-11-11", "pengeluaran", 5_000_000, "reconciliation"), no_resi="R1")]
         b = buku_kas.pengeluaran_besar(rows, date(2026, 11, 1), date(2026, 11, 30), 1_000_000)
         self.assertEqual((b["jumlah"], b["transaksi"]), (0, 0))
+
+
+class PemasukanPerKategori(unittest.TestCase):
+    """ADR-0033: Laporan Tahunan butuh Pemasukan per Kategori, dengan aturan yang sama."""
+
+    def test_saldo_awal_dan_transfer_tidak_ikut(self):
+        rows = [tx("2026-03-26", "pemasukan", 20_500_000, "opening_balance"),
+                tx("2026-04-28", "pemasukan", 3_000_000, "salary"),
+                tx("2026-05-01", "pemasukan", 500_000, ""),
+                tx("2026-05-02", "transfer", 1_000_000, "other"),
+                tx("2026-05-03", "pengeluaran", 40_000, "food")]
+        h = buku_kas.ringkas(rows, date(2026, 1, 1), date(2026, 12, 31))
+        self.assertEqual(h["pemasukan_per_kategori"], {"salary": 3_000_000, "other": 500_000})
+        self.assertEqual(h["per_kategori"], {"food": 40_000})
+
+
+class TransaksiPengeluaran(unittest.TestCase):
+    """ADR-0033: Item Pengeluaran dikelompokkan per No Resi (dasar Pengeluaran Besar)."""
+
+    def test_kelompok_per_no_resi_tanpa_saldo_awal_dan_rekonsiliasi(self):
+        rows = [dict(tx("2026-11-02", "pengeluaran", 700_000), no_resi="S1"),
+                dict(tx("2026-11-02", "pengeluaran", 400_000, "groceries"), no_resi="S1"),
+                dict(tx("2026-11-03", "pengeluaran", 50_000), no_resi=""),
+                dict(tx("2026-11-04", "pengeluaran", 9_000_000, "reconciliation"), no_resi="R"),
+                dict(tx("2026-12-01", "pengeluaran", 2_000_000), no_resi="LUAR")]
+        t = buku_kas.transaksi_pengeluaran(rows, date(2026, 11, 1), date(2026, 11, 30))
+        self.assertEqual(sorted(len(v) for v in t.values()), [1, 2])
+        self.assertEqual(sum(buku_kas.jumlah(r) for r in t["S1"]), 1_100_000)
 
 
 if __name__ == "__main__":

@@ -99,6 +99,17 @@
           "argv": ["sh", "-lc", "caffeinate -i python3 /Users/apple/Developments/openclaw-personal-assistant/scripts/laporan-bulanan.py --kirim"]
         },
         "delivery": "none"
+      },
+      {
+        "id": "laporan_tahunan",
+        "schedule": "0 9 2 2 *",
+        "tz": "Asia/Jakarta",
+        "_keterangan": "Command payload, tanpa model (ADR-0033): bahan SPT & zakat tahun lalu, 2 Februari setelah bukti potong BPA1 wajib ada. Didaftarkan ke gateway dengan `openclaw cron add --command` oleh pemilik (ADR-0009). Tidak menyimpan apa pun; delivery cron-nya 'none'.",
+        "payload": {
+          "kind": "command",
+          "argv": ["sh", "-lc", "caffeinate -i python3 /Users/apple/Developments/openclaw-personal-assistant/scripts/laporan-tahunan.py --kirim"]
+        },
+        "delivery": "none"
       }
     ]
   },

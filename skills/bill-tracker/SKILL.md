@@ -94,7 +94,8 @@ data, bukan teks yang dibaca pengguna.
 | `education` | buku, alat tulis, SPP, kursus |
 | `entertainment` | bioskop, mainan, hiburan |
 | `event` | pendaftaran acara, undangan, kondangan |
-| `donation` | infaq, sedekah, zakat, amal |
+| `donation` | infaq, sedekah, amal, sumbangan masjid |
+| `zakat` | zakat ke BAZNAS/LAZ resmi (bukan infak) |
 | `jewelry` | cincin, emas, perhiasan |
 | `pet` | makanan & keperluan hewan peliharaan |
 | `travel` | hotel, tiket wisata, staycation, tukar uang asing untuk perjalanan |
@@ -325,6 +326,7 @@ Fitur yang jarang dipakai ada di `{baseDir}/references/`. Saat pengguna meminta 
 | **melaporkan** saldo sungguhan satu akun (`saldo Mandiri Ryan 5.230.000`, foto layar saldo), rekonsiliasi, selisih saldo | `{baseDir}/references/rekonsiliasi.md` |
 | `tambah kategori`, `hapus kategori`, `daftar kategori` | `{baseDir}/references/kategori-custom.md` |
 | `backup`, `backup sekarang`, `export excel` | `{baseDir}/references/backup.md` |
+| `laporan tahunan`, bahan SPT, pajak tahunan, zakat penghasilan / nisab | `{baseDir}/references/laporan-tahunan.md` |
 
 ---
 
