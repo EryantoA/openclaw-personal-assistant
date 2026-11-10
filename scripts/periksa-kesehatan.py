@@ -36,6 +36,7 @@ from pathlib import Path
 
 AKAR = Path(__file__).resolve().parent.parent
 BILLS = AKAR / "data" / "bills.csv"
+AKUN = AKAR / "data" / "akun.json"                    # ada + lengkap = fitur Akun aktif (ADR-0028)
 JEJAK = AKAR / "data" / "kesehatan-terakhir.json"
 CONFIG_SHEETS = AKAR / "data" / "sheets.json"          # ada = sinkron Google Sheets dipakai
 STATUS_SHEETS = AKAR / "data" / "sheets-status.json"   # ditulis scripts/sinkron-sheets.py
@@ -266,6 +267,42 @@ def periksa_sheets(sekarang=None):
     return []
 
 
+def periksa_akun():
+    """Konsistensi Akun: Saldo Bersama per hari sebelum cutover masih sama dengan angka di
+    data/akun.json, dan jumlah semua saldo_awal sama dengan angka itu.
+
+    Menghapus atau mengubah transaksi bertanggal sebelum cutover menggeser Saldo Bersama itu
+    diam-diam. 10 Nov 2026 penghapusan satu transaksi dobel membuat `akun.py --cek` gagal, dan baru ketahuan karena kebetulan dicek manual.
+
+    PENGECUALIAN ADR-0011 yang disengaja: ini satu-satunya pemeriksaan yang mengimpor skrip lain
+    (akun.py -> buku_kas.py -> resi.py, periode.py). Menghitung Saldo Bersama sendiri berarti
+    menyalin aturan uang (cara membaca jumlah, Saldo Awal, Transfer) dan bisa berbeda hasil
+    dengan `akun.py --cek` — penjaga yang membunyikan alarm yang tak bisa dicocokkan pemiliknya.
+    Modul-modul itu murni membaca CSV (tanpa model, jaringan, atau proses), dan impornya ada di
+    DALAM fungsi ini serta dibungkus: kalau rusak, yang muncul satu peringatan di sini, sedangkan
+    pemeriksaan lain tetap jalan dan penjaga tetap mengirim.
+    """
+    if not AKUN.exists():
+        return []  # fitur Akun belum dipakai
+    cek = "Cek: `python3 scripts/akun.py --cek`"
+    try:
+        if str(AKAR / "scripts") not in sys.path:
+            sys.path.insert(0, str(AKAR / "scripts"))
+        import akun  # noqa: PLC0415  sengaja di sini, lihat docstring
+        cfg = json.loads(AKUN.read_text(encoding="utf-8"))
+        if not akun.aktif(cfg):
+            return []  # saldo_awal belum lengkap: belum ada yang bisa diperiksa
+        ok, pesan = akun.periksa(akun.buku_kas.muat(BILLS), cfg)
+    except Exception as e:  # noqa: BLE001  data/skrip rusak tidak boleh membungkam penjaga
+        return [("PERINGATAN", "Pemeriksaan Akun tidak bisa jalan",
+                 f"{type(e).__name__}: {str(e)[:100]}. {cek}")]
+    if ok:
+        return []
+    rinci = " ".join(m.replace("⚠️", "").strip() for m in pesan)
+    return [("PERINGATAN", "Akun tidak konsisten dengan Saldo Bersama",
+             f"{rinci} {cek}")]
+
+
 # ── Peredam ulangan ───────────────────────────────────────────────────────
 def sidik(masalah):
     inti = "|".join(f"{t}:{j}" for t, j, _ in sorted(masalah))
@@ -358,7 +395,8 @@ def main():
             print(f"{'✅' if ok else '❌'} {kanal} -> {ke}: {ket or 'siap'}")
         return 0
 
-    masalah = periksa_cron() + periksa_oauth() + periksa_bills() + periksa_sheets()
+    masalah = (periksa_cron() + periksa_oauth() + periksa_bills() + periksa_sheets()
+                + periksa_akun())
 
     if not masalah:
         print(f"✅ Sehat — {datetime.now():%d %b %H:%M}. Cron jalan, OAuth berlaku, buku kas hidup.")

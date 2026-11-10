@@ -209,6 +209,8 @@ yang salah:
   peringatan dini di sini: token akses cuma hidup hitungan jam lalu disegarkan sendiri,
   jadi ambang "hampir habis" dalam satuan hari akan menyala pada setiap pemeriksaan sehat
 - `bills.csv` tidak bertambah ≥ 3 hari — gejala jalur WhatsApp mati, bukan sekadar sepi
+- Akun tidak konsisten (`akun.py --cek` gagal) — mis. transaksi sebelum cutover dihapus atau
+  diubah sehingga Saldo Bersama per cutover bergeser. Diam kalau fitur Akun belum aktif
 
 Peringatan yang isinya sama tidak diulang sebelum 12 jam, supaya tidak jadi gangguan yang
 lama-lama diabaikan.

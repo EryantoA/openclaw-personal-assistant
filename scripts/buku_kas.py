@@ -10,7 +10,9 @@ Satu tempat untuk aturan CONTEXT.md yang dipakai semua laporan:
   - baris tanpa tanggal ISO yang sah atau dengan tipe tak dikenal tidak dihitung,
     tapi dilaporkan lewat tak_terhitung() — tidak pernah hilang diam-diam.
 
-Sengaja tidak dipakai scripts/periksa-kesehatan.py (ADR-0011).
+Tidak diimpor di tingkat atas scripts/periksa-kesehatan.py (ADR-0011); hanya periksa_akun() di sana
+memakainya lewat akun.py, di dalam fungsi dan terbungkus — modul ini harus tetap tanpa model,
+jaringan, maupun proses luar.
 """
 # Cron memakai /usr/bin/python3 3.9 — lihat catatan yang sama di resi.py.
 from __future__ import annotations
