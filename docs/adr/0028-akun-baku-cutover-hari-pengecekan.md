@@ -41,5 +41,13 @@ dasarnya: bot hanya *diminta* memakai nama dari `akun.json`, dan selama fitur be
   ditunda sampai fitur benar-benar aktif (semua `saldo_awal` terisi dan `akun.py --cek` lolos),
   sesuai langkah aktivasi di `references/akun-transfer.md`.
 
+## Pengecualian yang diambil
+
+Pada aktivasi (10 Nov 2026) satu rekening belum bisa dicek. Pemilik memilih mengisi saldo awalnya
+dengan **sisa hitungan** (Saldo Bersama sebelum cutover dikurangi Akun lain) agar fitur aktif,
+alih-alih menunggu. Ini menyimpang dari aturan di atas secara sadar dan tercatat: `keterangan` di
+`akun.json` menandai angka itu sementara, dan selisihnya terhadap saldo sungguhan ditutup lewat
+Rekonsiliasi (ADR-0027) begitu rekening dicek — tidak dikoreksi diam-diam di `akun.json`.
+
 Nomor ADR ini 0028 karena 0027 (Rekonsiliasi per Akun) digabung lebih dulu; keduanya saling
 melengkapi: 0028 menetapkan saldo awal dan nama Akun, 0027 memeriksa Saldo Akun sesudahnya.
