@@ -18,10 +18,13 @@ Tulis memakai valueInputOption=RAW: tanggal dikirim sheets_sync sebagai serial d
 DATE, teks tetap teks. Baca memakai UNFORMATTED_VALUE (angka kembali sebagai angka) dan
 mengembalikan serial waktu yang tetap lolos (mis. hasil tempel) di kolom waktu sebagai HH:MM.
 
-`tata` (ADR-0026) dipasang sebelum isi ditulis, dalam satu batchUpdate: format angka per kolom, header
-tebal, kolom/baris beku, latar abu-abu + perlindungan `warningOnly` untuk bagian hanya-baca (yang
+`tata` (ADR-0026) dipasang sebelum isi ditulis, dalam satu batchUpdate: format angka per kolom,
+kolom/baris beku, latar Olive pucat + perlindungan `warningOnly` untuk bagian hanya-baca (perlindungan
 lama, bertanda PENANDA, dihapus dulu supaya tidak menumpuk), catatan header, dropdown tidak ketat,
 dan grup kolom (dilipat hanya saat pertama dibuat, supaya pilihan pengguna membukanya bertahan).
+Tema warna (ADR-0032): warna teks lama di bagian hanya-baca dibersihkan tiap tulis, lalu warna teks
+per kolom (`warna_teks`) dan gaya per sel (`sel`: minus, aman, mendekati, lewat) dipasang ulang; header
+Indigo/Olive tebal dipasang terakhir agar tidak tertimpa latar hanya-baca.
 Tulis melebarkan grid worksheet bila perlu (worksheet baru hanya 1000 baris × 26 kolom; menulis di
 luarnya ditolak Google), menimpa isi dulu baru membersihkan sisa lama (PUT yang gagal tidak
 meninggalkan Sheet kosong), dan mengulang 429/5xx dengan jeda naik.
@@ -43,7 +46,22 @@ JEDA = (1, 2, 4)                  # detik sebelum percobaan ulang ke-1, 2, 3
 ULANG = {429, 500, 502, 503, 504}
 PENYANGGA_BARIS = 200             # baris kosong cadangan di bawah isi, untuk baris yang diketik pengguna
 PENANDA = "bill-tracker: hanya-baca (ADR-0026)"  # deskripsi perlindungan yang dipasang skrip ini
-ABU = {"red": 0.93, "green": 0.93, "blue": 0.93}
+
+
+def _rgb(hex_: str) -> dict:
+    return {k: int(hex_[i:i + 2], 16) / 255 for k, i in (("red", 1), ("green", 3), ("blue", 5))}
+
+
+WARNA = {nama: _rgb(h) for nama, h in {  # palet ADR-0032
+    "indigo": "#1A1831", "olive": "#DECE9C", "hijau": "#20615B", "bordeaux": "#A21232",
+    "hanya_baca": "#F5F0DC", "putih": "#FFFFFF"}.items()}
+GAYA = {  # gaya per sel (`tata["sel"]`); "lewat" satu-satunya sel berlatar Bordeaux
+    "minus": {"textFormat": {"foregroundColor": WARNA["bordeaux"]}},
+    "aman": {"textFormat": {"foregroundColor": WARNA["hijau"]}},
+    "mendekati": {"textFormat": {"foregroundColor": WARNA["bordeaux"]}},
+    "lewat": {"backgroundColor": WARNA["bordeaux"],
+              "textFormat": {"bold": True, "foregroundColor": WARNA["putih"]}},
+}
 POLA = {
     "tanggal": {"type": "DATE", "pattern": "d mmm yyyy"},
     "rupiah": {"type": "NUMBER", "pattern": '"Rp "#,##0;-"Rp "#,##0'},
@@ -196,18 +214,30 @@ class KlienGoogle:
         req = [{"updateSheetProperties": {
             "properties": {"sheetId": sid, "gridProperties": {
                 "frozenRowCount": h + 1, "frozenColumnCount": tata.get("beku_kolom", 0)}},
-            "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"}},
-            sel({"sheetId": sid, "startRowIndex": h, "endRowIndex": h + 1}, {"textFormat": {"bold": True}},
-                "userEnteredFormat.textFormat.bold")]
+            "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"}}]
         for c, jenis in sorted(tata.get("format", {}).items()):
             req.append(sel(kolom(c, h + 1), {"numberFormat": POLA[jenis]}, "userEnteredFormat.numberFormat"))
         req += [{"deleteProtectedRange": {"protectedRangeId": i}} for i in info["lindung"]]
         hanya = tata.get("hanya_baca") or []
         rentang = [{"sheetId": sid}] if hanya == "semua" else [kolom(c) for c in hanya]
         for r in rentang:
-            req.append(sel(r, {"backgroundColor": ABU}, "userEnteredFormat.backgroundColor"))
+            # textFormat ikut di mask tanpa nilai → warna teks/tebal lama (gaya per sel sinkron lalu) dihapus
+            req.append(sel(r, {"backgroundColor": WARNA["hanya_baca"]},
+                           "userEnteredFormat.backgroundColor,userEnteredFormat.textFormat"))
             req.append({"addProtectedRange": {"protectedRange": {
                 "range": r, "description": PENANDA, "warningOnly": True}}})
+        for c, warna in sorted(tata.get("warna_teks", {}).items()):
+            req.append(sel(kolom(c, h + 1), {"textFormat": {"foregroundColor": WARNA[warna]}},
+                           "userEnteredFormat.textFormat.foregroundColor"))
+        for b, c, gaya in tata.get("sel", []):
+            req.append(sel({"sheetId": sid, "startRowIndex": b, "endRowIndex": b + 1,
+                            "startColumnIndex": c, "endColumnIndex": c + 1}, GAYA[gaya],
+                           ",".join(f"userEnteredFormat.{k}" for k in GAYA[gaya])))
+        req.append(sel({"sheetId": sid, "startRowIndex": h, "endRowIndex": h + 1,  # sesudah latar hanya-baca
+                        "startColumnIndex": 0, "endColumnIndex": lebar},
+                       {"backgroundColor": WARNA["indigo"],
+                        "textFormat": {"bold": True, "foregroundColor": WARNA["olive"]}},
+                       "userEnteredFormat.backgroundColor,userEnteredFormat.textFormat"))
         for c, teks in sorted(tata.get("catatan", {}).items()):
             req.append({"updateCells": {"range": {**kolom(c, h), "endRowIndex": h + 1},
                                         "rows": [{"values": [{"note": teks}]}], "fields": "note"}})

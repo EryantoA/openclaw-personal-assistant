@@ -148,6 +148,29 @@ class BudgetBatasKategori(unittest.TestCase):
         self.assertEqual(len(sl.grid_budget(ROWS, 2026, ATUR, HARI_INI)[1]), 6)
 
 
+class TemaWarna(unittest.TestCase):
+    """ADR-0032: angka minus Bordeaux, Status Budget tiga tingkat; dihitung dari isi grid."""
+
+    def test_status_budget_diberi_gaya_sesuai_kata(self):
+        grid = [["catatan"], ["Bulan", "Pengeluaran Rutin", "Status"],
+                ["Juli 2026", 1, "Aman"], ["Agustus 2026", 2, "Mendekati"], ["September 2026", 3, "Lewat"],
+                ["Oktober 2026", "", ""]]
+        self.assertEqual(sl.tata_laporan("Budget 2026", grid)["sel"],
+                         [[2, 2, "aman"], [3, 2, "mendekati"], [4, 2, "lewat"]])
+
+    def test_angka_minus_di_bawah_header_ditandai_header_dan_nol_tidak(self):
+        grid = [["Bulan", "Arus Kas Bulanan", "Saldo"], ["Juli 2026", -5_000, 0], ["Agustus 2026", 7, -1.5],
+                [], ["Akun", "Selisih"], ["Kas", -2]]
+        self.assertEqual(sl.tata_laporan("Ringkasan Bulanan", grid)["sel"],
+                         [[1, 1, "minus"], [2, 2, "minus"], [5, 1, "minus"]])
+
+    def test_tab_nyata_arus_kas_minus_tertandai(self):
+        grid = sl.grid_ringkasan_bulanan(ROWS)
+        sel = sl.tata_laporan(sl.SHEET_RINGKASAN, grid)["sel"]
+        self.assertTrue(sel)
+        self.assertTrue(all(grid[b][k] < 0 for b, k, _ in sel))
+
+
 class SaldoPerAkun(unittest.TestCase):
     def test_belum_aktif_hanya_pemberitahuan_tanpa_angka(self):
         for cfg in (None, {"cutover": "2026-08-01", "saldo_global_saat_cutover": None,

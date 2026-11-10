@@ -159,10 +159,14 @@ def baca_baris(baris: list, balik: dict) -> tuple:
 
 
 # ── Tata letak (dipasang klien Google) ────────────────────────────────────
-def tata_buku(opsi_kategori: list) -> dict:
-    """Worksheet "Buku Kas": kolom hanya-baca abu-abu dan dilindungi `warningOnly`, Kategori
-    berdropdown (tidak ketat: slug yang diketik tetap diterima), Waktu dan Asal terlipat."""
+def tata_buku(opsi_kategori: list, grid: list | None = None) -> dict:
+    """Worksheet "Buku Kas": kolom hanya-baca berlatar Olive pucat dan dilindungi `warningOnly`, Kategori
+    berdropdown (tidak ketat: slug yang diketik tetap diterima), Waktu dan Asal terlipat. Warna (ADR-0032):
+    angka Pemasukan hijau, Pengeluaran bordeaux, Saldo Bersama minus bordeaux (dari `grid`)."""
     i = KOLOM_TAMPIL.index
+    saldo = i("Saldo Bersama")
+    minus = [[b, saldo, "minus"] for b, baris in enumerate(grid or [])
+             if b > 0 and not isinstance(baris[saldo], (str, bool)) and baris[saldo] < 0]
     fmt = {k: "teks" for k in range(len(KOLOM_TAMPIL))}
     fmt[i("Tanggal")] = "tanggal"
     for k in ("Pemasukan", "Pengeluaran", "Transfer", "Saldo Bersama"):
@@ -180,6 +184,8 @@ def tata_buku(opsi_kategori: list) -> dict:
         },
         "pilihan": {i("Kategori"): list(opsi_kategori)},
         "grup": [(i("Waktu"), i("Waktu") + 1), (i("Asal"), i("Asal") + 1)],
+        "warna_teks": {i("Pemasukan"): "hijau", i("Pengeluaran"): "bordeaux"},
+        "sel": minus,
     }
 
 

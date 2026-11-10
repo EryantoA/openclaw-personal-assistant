@@ -470,7 +470,8 @@ def _target(rows: list, atur: dict, label: dict, akun_cfg, hari_ini: date, catat
         if nama == SHEET_BUKU:
             opsi = [label.get(k, k) for k in atur.get("kategori_custom") or []
                     if k != buku_kas.KATEGORI_REKONSILIASI]  # hanya lewat rekonsiliasi.py (ADR-0027)
-            hasil[nama] = (sf.grid_tampil(rows, label), sf.tata_buku(opsi))
+            grid = sf.grid_tampil(rows, label)
+            hasil[nama] = (grid, sf.tata_buku(opsi, grid))
             continue
         if nama == sl.SHEET_RINGKASAN:
             grid = sl.grid_ringkasan_bulanan(rows)

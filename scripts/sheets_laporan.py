@@ -207,4 +207,20 @@ def tata_laporan(nama: str, grid: list) -> dict:
         if i == 0 or j in ("", "Status", "Jumlah Transaksi", "Baris Tanpa Akun"):
             continue
         fmt[i] = "persen" if j == "Persen" or (header and " · Rp" in j) else "rupiah"
-    return {"baris_header": header, "beku_kolom": 1, "format": fmt, "hanya_baca": "semua"}
+    return {"baris_header": header, "beku_kolom": 1, "format": fmt, "hanya_baca": "semua",
+            "sel": _gaya_sel(grid, header, judul.index("Status") if "Status" in judul else None)}
+
+
+STATUS_GAYA = {"Aman": "aman", "Mendekati": "mendekati", "Lewat": "lewat"}
+
+
+def _gaya_sel(grid: list, header: int, kolom_status: int | None) -> list:
+    """ADR-0032: angka < 0 di bawah header → Bordeaux; kata Status Budget → gaya tingkatnya."""
+    hasil = []
+    for b in range(header + 1, len(grid)):
+        for k, v in enumerate(grid[b]):
+            if k == kolom_status and v in STATUS_GAYA:
+                hasil.append([b, k, STATUS_GAYA[v]])
+            elif isinstance(v, (int, float)) and not isinstance(v, bool) and v < 0:
+                hasil.append([b, k, "minus"])
+    return hasil
