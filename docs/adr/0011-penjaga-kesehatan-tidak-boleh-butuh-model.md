@@ -112,3 +112,19 @@ masih tersimpan, perintah ini tetap bilang `true` dan penjaga diam. Karena semua
 tidak butuh model ([0013](0013-laporan-mingguan-dihitung-skrip-dikirim-senin.md)), dampaknya
 terbatas pada balasan chat, dan itu langsung terasa oleh pemakai.
 
+
+**Pengecualian 10 November 2026: pemeriksaan Akun mengimpor `akun.py`.** Penghapusan
+transaksi dobel bertanggal sebelum cutover (IMP-204, Rp 300.000) menggeser Saldo Bersama per
+cutover, sehingga `akun.py --cek` gagal ([0028](0028-akun-baku-cutover-hari-pengecekan.md)) —
+dan baru ketahuan karena kebetulan dicek manual. `periksa_akun()` kini menjalankan
+`akun.periksa()` dan memperingatkan selisihnya. Itu berarti penjaga mengimpor `akun.py`
+→ `buku_kas.py` → `resi.py`, `periode.py`, melanggar "sesedikit mungkin kode lain".
+
+Alternatifnya, menghitung Saldo Bersama sendiri di penjaga, ditolak: aturan uangnya (cara
+membaca jumlah, Saldo Awal, Transfer) akan tersalin dua kali dan bisa berbeda hasil dengan
+`akun.py --cek`, sehingga penjaga membunyikan alarm yang tidak bisa dicocokkan pemiliknya.
+Syarat utama ADR ini tetap terjaga: modul-modul itu hanya membaca CSV, tanpa model,
+jaringan, atau proses. Risiko "skrip lain rusak ikut membungkam penjaga" dibatasi: impornya
+ada di dalam `periksa_akun()` dan dibungkus, jadi kalau rusak hasilnya satu peringatan
+"Pemeriksaan Akun tidak bisa jalan", sementara pemeriksaan lain tetap jalan dan pesan tetap
+terkirim. `data/akun.json` tidak ada atau fitur Akun belum aktif = diam.
