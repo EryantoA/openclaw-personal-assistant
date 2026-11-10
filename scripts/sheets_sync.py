@@ -43,6 +43,7 @@ SHEET_BUKU = sl.SHEET_BUKU
 SHEET_RINGKASAN_LAMA = "Ringkasan"  # format sebelum ADR-0026; dihapus saat migrasi
 KOLOM = sf.KOLOM  # bentuk ternormal = kolom bills.csv; juga header "Buku Kas" format lama
 FORMAT = 2  # versi Snapshot Sinkron; tanpa kunci "format" = format lama (ADR-0021)
+TEMA = 1  # versi tata/warna (ADR-0032); naikkan bila tata berubah agar semua tab ditulis ulang sekali
 
 
 class SinkronDitolak(Exception):
@@ -540,12 +541,15 @@ def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisa
     laporan.tak_terhitung = [(r.get("no_resi") or "", alasan)
                              for r, alasan in buku_kas.tak_terhitung(rows)]
     target = _target(rows, atur, label, akun_cfg, hari_ini, catatan)
+    # Tata hanya terpasang saat tab ditulis; tema baru → tulis ulang semua tab sekali walau isinya sama.
+    tema_lama = snapshot is not None and snapshot.get("tema") != TEMA
     ditulis = False
     # "Buku Kas" lebih dulu: bila pengguna mengeditnya di tengah sinkron, belum ada tab yang ditulis.
     for nama in [SHEET_BUKU] + [n for n in target if n != SHEET_BUKU]:
         grid, tata = target[nama]
         sekarang = saat_buku if nama == SHEET_BUKU else klien.baca(nama)
-        if _norm(sekarang) == _norm(grid):
+        sama = _norm(sekarang) == _norm(grid)
+        if sama and not tema_lama:
             continue
         if not uji:
             if nama == SHEET_BUKU and _norm(klien.baca(nama)) != _norm(saat_buku):
@@ -553,7 +557,7 @@ def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisa
                 return laporan
             klien.tulis(nama, grid, tata)
             ditulis = True
-        if nama == SHEET_BUKU:
+        if nama == SHEET_BUKU and not sama:
             laporan.didorong = len(grid) - 1
     if not uji:
         if migrasi or inisialisasi:
@@ -561,7 +565,8 @@ def _sinkron(bills_path: Path, klien, snapshot_path: Path, uji: bool, inisialisa
         if ditulis or migrasi or inisialisasi:
             klien.urutkan(list(target))
         # Snapshot = apa yang kini tertulis di Sheet, jadi tidak perlu kunci CSV (sinkron sudah serial).
-        _simpan_snapshot(snapshot_path, {"format": FORMAT, "buku_kas": sf.grid_norm(rows), "label": label})
+        _simpan_snapshot(snapshot_path, {"format": FORMAT, "tema": TEMA, "buku_kas": sf.grid_norm(rows),
+                                          "label": label})
         jurnal.kosongkan()
     return laporan
 

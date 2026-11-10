@@ -246,6 +246,24 @@ class SinkronBerulang(Dasar):
         self.assertEqual(self.snapshot.read_text(), snapshot_sebelum)
         self.assertEqual(laporan.didorong, 0)
 
+    def test_tema_baru_menulis_ulang_semua_tab_sekali_walau_isi_sama(self):
+        """ADR-0032: format hanya terpasang saat tab ditulis; snapshot dari sebelum tema baru memaksa
+        satu kali tulis ulang, tanpa melaporkan baris Buku Kas sebagai didorong."""
+        self.tulis_csv(DASAR)
+        self.sinkron()
+        lama = json.loads(self.snapshot.read_text())
+        del lama["tema"]
+        self.snapshot.write_text(json.dumps(lama))
+        self.klien.tulisan.clear()
+
+        laporan = self.sinkron()
+
+        self.assertEqual(sorted(self.klien.tulisan), sorted(self.klien.sheets))
+        self.assertEqual(laporan.didorong, 0)
+        self.klien.tulisan.clear()
+        self.sinkron()
+        self.assertEqual(self.klien.tulisan, [])
+
     def test_transaksi_baru_di_csv_muncul_di_sheet_pada_sinkron_berikutnya(self):
         self.tulis_csv(DASAR)
         self.sinkron()
