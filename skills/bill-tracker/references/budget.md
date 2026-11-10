@@ -45,3 +45,7 @@ Nama kategori dari pengguna boleh label (`Makan & Minum`) atau slug (`food`). Bi
 kategori mana ("budget jajan"), tanyakan dengan menyebut pilihan yang ada; jangan menebak.
 
 Status semua Batas Kategori ada di "sisa budget" (`check-bills.py --mode status`).
+
+Peringatan setelah mencatat dan cek malam muncul **sekali per ambang per bulan** (ADR-0031): saat
+pertama mencapai `alert_persen`, lalu saat lewat 100%. Tidak ada peringatan bukan berarti aman —
+untuk status kapan saja, jalankan "sisa budget".

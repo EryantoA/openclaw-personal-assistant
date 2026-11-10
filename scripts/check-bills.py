@@ -7,7 +7,8 @@ Kolom `jatuh_tempo` di bills.csv tetap tidak dihidupkan (docs/adr/0003). Yang ke
 konsepnya, lewat dua file terpisah: Kewajiban (tagihan pascabayar yang sudah datang) dan
 Perkiraan (transaksi berulang yang diharapkan). Lihat docs/adr/0006.
 
-Script ini TIDAK PERNAH MENULIS apa pun. Status kewajiban (aktif/lunas/kedaluwarsa) selalu
+Script ini tidak menulis data apa pun, kecuali ingatan peringatan Budget sekali-saja
+(data/peringatan-budget.json, ADR-0031). Status kewajiban (aktif/lunas/kedaluwarsa) selalu
 dihitung ulang dari fakta yang tersimpan — tautan `lunas_resi` — supaya tidak ada field status
 yang bisa basi. Itu yang membedakannya dari fitur jatuh tempo yang mati dulu.
 
@@ -21,6 +22,7 @@ Usage:
   python3 scripts/check-bills.py --mode all --kirim   # cron cek_budget_malam: kirim HANYA kalau ada isi
 """
 
+import json
 import os
 import sys
 import argparse
@@ -40,6 +42,10 @@ import perkiraan  # noqa: E402
 PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
 BILLS_CSV = DATA_DIR / "bills.csv"
+# Ambang Budget yang sudah diperingatkan per bulan (ADR-0031). Satu-satunya berkas yang ditulis
+# skrip ini; isinya hanya bulan → {"total" | slug: ambang}, tanpa isi Transaksi.
+INGATAN = DATA_DIR / "peringatan-budget.json"
+SIMPAN_BULAN = 3
 
 
 def load_bills() -> List[Dict]:
@@ -77,6 +83,45 @@ def check_budget(today: Optional[date] = None, bulan: Optional[str] = None,
     Batas Kategori lain tidak disebut (ADR-0029)."""
     return budget.pesan(load_bills(), today or date.today(), pengaturan.muat(), selalu=False, bulan=bulan,
                         kategori=kategori)
+
+
+def muat_ingatan(bulan: str) -> Dict:
+    try:
+        isi = json.loads(INGATAN.read_text(encoding="utf-8"))
+        return dict(isi.get(bulan) or {}) if isinstance(isi, dict) else {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def simpan_ingatan(bulan: str, tingkat: Dict) -> None:
+    """Gabungkan ambang yang baru diperingatkan (nilai tertinggi menang); simpan beberapa bulan terakhir."""
+    if not tingkat:
+        return
+    try:
+        isi = json.loads(INGATAN.read_text(encoding="utf-8"))
+        isi = isi if isinstance(isi, dict) else {}
+    except (OSError, ValueError):
+        isi = {}
+    bulan_ini = dict(isi.get(bulan) or {})
+    for k, v in tingkat.items():
+        bulan_ini[k] = max(int(v), int(bulan_ini.get(k, 0)))
+    isi[bulan] = bulan_ini
+    isi = {b: isi[b] for b in sorted(isi)[-SIMPAN_BULAN:]}
+    INGATAN.parent.mkdir(parents=True, exist_ok=True)
+    sementara = INGATAN.with_name(INGATAN.name + ".tmp")
+    sementara.write_text(json.dumps(isi, ensure_ascii=False, indent=1), encoding="utf-8")
+    os.replace(sementara, INGATAN)
+
+
+def cek_budget_sekali(today: Optional[date] = None, bulan: Optional[str] = None,
+                      kategori: Optional[List[str]] = None) -> tuple:
+    """(teks, bulan, tingkat): seperti check_budget, tapi ambang yang sudah diperingatkan bulan itu
+    tidak diulang (ADR-0031). Pemanggil menyimpan `tingkat` setelah pesannya sampai."""
+    today = today or date.today()
+    bulan = bulan or today.strftime("%Y-%m")
+    teks, tingkat = budget.peringatan(load_bills(), today, pengaturan.muat(), bulan=bulan,
+                                      kategori=kategori, sudah=muat_ingatan(bulan))
+    return teks, bulan, tingkat
 
 
 # ── Mode: Cek Kewajiban ──────────────────────────────────────
@@ -147,6 +192,13 @@ def temuan_all(today: Optional[date] = None) -> str:
     """Budget + Kewajiban + Perkiraan yang perlu ditindak; "" kalau tidak ada. Lihat docs/adr/0006."""
     bagian = [check_budget(today), check_kewajiban(today), check_perkiraan(today)]
     return "\n\n─────────────────────────\n\n".join(b for b in bagian if b)
+
+
+def temuan_cron(today: Optional[date] = None) -> tuple:
+    """(isi, bulan, tingkat) untuk cron malam: seperti temuan_all, Budget sekali-saja (ADR-0031)."""
+    teks, bulan, tingkat = cek_budget_sekali(today)
+    bagian = [teks, check_kewajiban(today), check_perkiraan(today)]
+    return "\n\n─────────────────────────\n\n".join(b for b in bagian if b), bulan, tingkat
 
 
 def check_all(today: Optional[date] = None) -> str:
@@ -233,14 +285,26 @@ def main():
         parser.error("--bulan hanya untuk --mode budget")
     if args.kategori and args.mode != "budget":
         parser.error("--kategori hanya untuk --mode budget")
-    result = check_budget(today, args.bulan, args.kategori) if args.mode == "budget" else check_all(today)
-
     if args.kirim:
         # "Ada isi" diputuskan dari bagian-bagiannya, bukan dari teks "✅ Semua lancar" —
         # teks ramah itu boleh berubah tanpa membuat cron diam-diam mengirim tiap malam.
-        isi = check_budget(today, args.bulan, args.kategori) if args.mode == "budget" else temuan_all(today)
+        # Ambang Budget dicatat sudah-diperingatkan HANYA bila terkirim (ADR-0031).
+        if args.mode == "budget":
+            isi, bulan, tingkat = cek_budget_sekali(today, args.bulan, args.kategori)
+        else:
+            isi, bulan, tingkat = temuan_cron(today)
         print(isi or "✅ Semua lancar!")
-        return kirim_kalau_ada(isi)
+        kode = kirim_kalau_ada(isi)
+        if kode == 0:
+            simpan_ingatan(bulan, tingkat)
+        return kode
+
+    if args.mode == "budget":
+        # Setelah mencatat: bot menyalin keluaran ini ke balasan saat itu juga, jadi langsung dicatat.
+        result, bulan, tingkat = cek_budget_sekali(today, args.bulan, args.kategori)
+        simpan_ingatan(bulan, tingkat)
+    else:
+        result = check_all(today)
 
     if result:
         print(result)

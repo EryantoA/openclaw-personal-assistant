@@ -141,6 +141,12 @@ _Avoid_: config, budget (untuk seluruh berkas)
 Pengelompokan transaksi. Selalu slug Inggris huruf kecil, tidak pernah Bahasa Indonesia.
 _Avoid_: jenis, tipe belanja
 
+**Kelompok**:
+Pengelompokan Kategori untuk tampilan dan ringkasan (Kebutuhan Pokok, Gaya Hidup, Sosial & Keluarga,
+Kewajiban & Biaya); Kategori yang tidak tercantum masuk Lainnya. Bukan data — Transaksi tetap
+menyimpan slug Kategori — dan tidak dipakai Budget maupun Batas Kategori (ADR-0030).
+_Avoid_: grup, golongan, kategori induk
+
 **Label Kategori**:
 Nama tampil Bahasa Indonesia sebuah Kategori (`personal_care` → Perawatan Diri), disimpan di
 `budget.json` → `label_kategori`. Hanya tampilan — data tetap slug (ADR-0002). Unik: satu label

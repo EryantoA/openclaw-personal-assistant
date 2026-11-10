@@ -259,5 +259,38 @@ class BatasKategori(unittest.TestCase):
             "   • Belanja Lain: Rp 0 dari Rp 600.000 (0%)"])
 
 
+class PeringatanSekaliSaja(unittest.TestCase):
+    """ADR-0031: tiap ambang (alert_persen, 100%) diperingatkan sekali per bulan per hal yang dibatasi."""
+
+    def test_ambang_yang_sudah_diperingatkan_tidak_diulang(self):
+        rows = rutin(1_785_000, "food")  # food 85%
+        teks, tingkat = budget.peringatan(rows, HARI, KAT, kategori=["food"], sudah={})
+        self.assertIn("⚠️ Makan & Minum", teks)
+        self.assertEqual(tingkat, {"food": 80})
+        teks, tingkat = budget.peringatan(rows, HARI, KAT, kategori=["food"], sudah={"food": 80})
+        self.assertEqual((teks, tingkat), ("", {}))
+
+    def test_ambang_berikutnya_tetap_muncul(self):
+        rows = rutin(2_200_000, "food")  # food 105%
+        teks, tingkat = budget.peringatan(rows, HARI, KAT, kategori=["food"], sudah={"food": 80})
+        self.assertIn("🚨 Makan & Minum", teks)
+        self.assertEqual(tingkat, {"food": 100})
+
+    def test_total_dan_kategori_diingat_terpisah(self):
+        rows = rutin(7_000_000, "groceries") + rutin(1_785_000, "food")  # total 110%, food 85%
+        teks, tingkat = budget.peringatan(rows, HARI, KAT, kategori=["food"], sudah={"total": 100})
+        self.assertNotIn("Lewat batas Budget", teks)
+        self.assertIn("⚠️ Makan & Minum", teks)
+        self.assertEqual(tingkat, {"food": 80})
+        teks, tingkat = budget.peringatan(rows, HARI, KAT, kategori=["food"], sudah={})
+        self.assertIn("Lewat batas Budget", teks)
+        self.assertEqual(tingkat, {"total": 100, "food": 80})
+
+    def test_tanpa_sudah_sama_dengan_pesan_lama(self):
+        rows = rutin(1_785_000, "food")
+        self.assertEqual(budget.peringatan(rows, HARI, KAT, kategori=["food"], sudah=None)[0],
+                         budget.pesan(rows, HARI, KAT, selalu=False, kategori=["food"]))
+
+
 if __name__ == "__main__":
     unittest.main()

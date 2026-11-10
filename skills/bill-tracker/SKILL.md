@@ -97,7 +97,11 @@ data, bukan teks yang dibaca pengguna.
 | `donation` | infaq, sedekah, zakat, amal |
 | `jewelry` | cincin, emas, perhiasan |
 | `pet` | makanan & keperluan hewan peliharaan |
-| `other` | semua yang tidak masuk kategori di atas |
+| `travel` | hotel, tiket wisata, staycation, tukar uang asing untuk perjalanan |
+| `family_support` | uang untuk orang tua / keluarga, membantu kerabat |
+| `bank_fees` | biaya transfer antarbank, biaya admin, materai |
+| `debt_payment` | bayar utang ke orang, cicilan pinjaman / paylater |
+| `other` | **hanya** bila tidak ada kategori yang cocok — kalau ragu, tanyakan dulu, jangan langsung `other` (ADR-0030) |
 | `opening_balance` | **khusus** — kas yang sudah dimiliki sebelum pencatatan dimulai. Lihat di bawah. |
 | `reconciliation` | **khusus** — Selisih Rekonsiliasi; hanya dibuat `scripts/rekonsiliasi.py tutup`, tidak pernah lewat `catat.py` (ADR-0027) |
 

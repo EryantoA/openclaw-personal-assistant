@@ -26,6 +26,10 @@
     "housekeeping",
     "gift",
     "arisan",
+    "travel",
+    "family_support",
+    "bank_fees",
+    "debt_payment",
     "other",
     "opening_balance",
     "reconciliation"
@@ -55,10 +59,49 @@
     "housekeeping": "Rumah Tangga",
     "gift": "Hadiah",
     "arisan": "Arisan",
+    "travel": "Liburan & Perjalanan",
+    "family_support": "Bantuan Keluarga",
+    "bank_fees": "Biaya Bank",
+    "debt_payment": "Cicilan & Utang",
     "other": "Lain-lain",
     "opening_balance": "Saldo Awal",
     "transfer": "Transfer",
     "reconciliation": "Selisih Rekonsiliasi"
+  },
+  "kelompok_kategori": {
+    "Kebutuhan Pokok": [
+      "groceries",
+      "food",
+      "utilities",
+      "communication",
+      "transport",
+      "housekeeping",
+      "health",
+      "education"
+    ],
+    "Gaya Hidup": [
+      "shopping",
+      "clothing",
+      "beauty",
+      "personal_care",
+      "entertainment",
+      "subscription",
+      "pet",
+      "jewelry",
+      "travel"
+    ],
+    "Sosial & Keluarga": [
+      "donation",
+      "gift",
+      "event",
+      "arisan",
+      "family_support"
+    ],
+    "Kewajiban & Biaya": [
+      "insurance",
+      "bank_fees",
+      "debt_payment"
+    ]
   },
   "budget_kategori": {
     "food": 2100000,
@@ -91,7 +134,8 @@
     "duplicate_check": "Aturan deteksi duplikat. 'aktif': true/false. 'match_fields': daftar kolom yang harus SAMA SEMUA baru dianggap duplikat (pilihan: tanggal, waktu, jumlah, item, kategori, catatan, pencatat; 'jumlah' = total harga). 'aksi': 'tolak' (tidak dicatat) atau 'warning' (beri peringatan, catat jika dikonfirmasi).",
     "pengeluaran_besar_mulai": "Satu Transaksi (No Resi) yang jumlah seluruh Item-nya sebesar ini atau lebih disebut Pengeluaran Besar: tidak dihitung ke Budget, tampil terpisah sebagai 'Di luar budget'.",
     "label_kategori": "Nama tampil Bahasa Indonesia tiap slug di kategori_custom (CONTEXT.md → Label Kategori, ADR-0026). Hanya tampilan di Google Sheets; data tetap slug. Wajib unik: label kembar tidak dipakai. Slug tanpa label tampil apa adanya.",
-    "budget_kategori": "Batas Kategori (ADR-0029): batas belanja RUTIN per bulan untuk kategori pilihan, di bawah budget_bulanan. Kategori tanpa batas tetap ikut Budget. Pengeluaran Besar dan Selisih Rekonsiliasi tidak ikut. Angka awal = median rutin Mei-Okt 2026 dibulatkan ke atas. Ubah lewat scripts/atur-budget.py."
+    "budget_kategori": "Batas Kategori (ADR-0029): batas belanja RUTIN per bulan untuk kategori pilihan, di bawah budget_bulanan. Kategori tanpa batas tetap ikut Budget. Pengeluaran Besar dan Selisih Rekonsiliasi tidak ikut. Angka awal = median rutin Mei-Okt 2026 dibulatkan ke atas. Ubah lewat scripts/atur-budget.py.",
+    "kelompok_kategori": "Kelompok Kategori (ADR-0030): tingkat di atas Kategori, hanya untuk tampilan (tab Per Kategori, baris komposisi Laporan Bulanan). Kategori yang tidak tercantum masuk 'Lainnya'. Budget dan Batas Kategori tidak memakainya."
   },
   "pengeluaran_besar_mulai": 1000000
 }

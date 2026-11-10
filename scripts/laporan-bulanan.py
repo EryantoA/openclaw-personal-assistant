@@ -27,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import budget as hitung_budget  # noqa: E402
+import kelompok  # noqa: E402
 import buku_kas  # noqa: E402
 import pengaturan  # noqa: E402
 import pengirim  # noqa: E402
@@ -136,6 +137,10 @@ def susun(bulan, baris, budget, simpanan, absen, berjalan_per=None, rekon=None):
                 d = v - dulu[k]
                 banding = f"{'▲' if d >= 0 else '▼'} {rp(abs(d))} dari {nl}"
             out.append(f"  {k}  {rp(v)}  ({pct:.0f}%)  {banding}")
+
+    komposisi = kelompok.baris_laporan(kini, budget)
+    if komposisi:
+        out += ["", komposisi]
 
     if absen:
         out += ["", "📅 Perkiraan yang tidak muncul"]

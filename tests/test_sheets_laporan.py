@@ -80,6 +80,25 @@ class PerKategori(unittest.TestCase):
         self.assertNotIn("*", grid[-1][0] if grid[-1] else "")
 
 
+class PerKategoriBerkelompok(unittest.TestCase):
+    """ADR-0030: Pengeluaran dikelompokkan per Kelompok dengan Subtotal; sisanya Lainnya."""
+
+    def test_judul_kelompok_anggota_dan_subtotal(self):
+        atur = {"kelompok_kategori": {"Kebutuhan Pokok": ["food"], "Gaya Hidup": ["transport"]}}
+        grid = sl.grid_per_kategori(ROWS, 2026, LABEL, HARI_INI, atur)
+        judul = [b[0] for b in grid if b]
+        i = judul.index("Pengeluaran")
+        self.assertEqual(judul[i:i + 7], ["Pengeluaran", "Kebutuhan Pokok", "Makan & Minum",
+                                          "Subtotal Kebutuhan Pokok", "Gaya Hidup", "transport", "Subtotal Gaya Hidup"])
+        sub = next(b for b in grid if b and b[0] == "Subtotal Kebutuhan Pokok")
+        self.assertEqual(sub[-1], 875_000)
+        self.assertEqual(next(b for b in grid if b and b[0] == "Total Pengeluaran")[-1], 1_475_000)
+
+    def test_tanpa_kelompok_tetap_daftar_rata(self):
+        judul = [b[0] for b in sl.grid_per_kategori(ROWS, 2026, LABEL, HARI_INI) if b]
+        self.assertNotIn("Subtotal Kebutuhan Pokok", judul)
+
+
 class Budget(unittest.TestCase):
     def test_batas_sekarang_dipakai_untuk_semua_bulan_dengan_keterangan(self):
         grid = sl.grid_budget(ROWS, 2026, ATUR, HARI_INI)

@@ -118,6 +118,15 @@ def _saran(p: dict, hari_ini: date, alert: float, tutup: bool = False) -> str:
     return f"💡 Saran: sisa {hari} hari, rata-rata sebaiknya tidak lebih dari {per_hari} per hari."
 
 
+def _tingkat(persen, alert: float, tutup: bool) -> int:
+    """Ambang yang sudah dicapai: 100 (lewat), alert (mendekati; tidak berlaku bulan tutup), atau 0."""
+    if persen is None:
+        return 0
+    if persen >= 100:
+        return 100
+    return int(alert) if persen >= alert and not tutup else 0
+
+
 def pesan(rows, hari_ini: date, atur: dict, selalu: bool, bulan: str | None = None,
           kategori: list | None = None) -> str:
     """Pesan Budget untuk `bulan` ('YYYY-MM', bawaan bulan `hari_ini`).
@@ -130,33 +139,55 @@ def pesan(rows, hari_ini: date, atur: dict, selalu: bool, bulan: str | None = No
     kategori yang sudah sampai ambang. `kategori` (slug/label Transaksi yang baru dicatat) membatasi
     peringatan ke kategori itu saja; tanpa `kategori` (cek malam) semua yang sampai ambang.
     """
+    return _susun(rows, hari_ini, atur, selalu, bulan, kategori, None)[0]
+
+
+def peringatan(rows, hari_ini: date, atur: dict, bulan: str | None = None, kategori: list | None = None,
+               sudah: dict | None = None) -> tuple:
+    """Peringatan sekali-saja (ADR-0031): (teks, tingkat yang baru disebut).
+
+    `sudah` = {"total" | slug: ambang yang sudah diperingatkan bulan ini}. Hal yang ambangnya tidak naik
+    sejak itu tidak disebut lagi. `tingkat` hanya memuat yang benar-benar ada di `teks`, untuk disimpan
+    pemanggil setelah pesannya sampai. `sudah` None = tanpa ingatan (perilaku `pesan`)."""
+    return _susun(rows, hari_ini, atur, False, bulan, kategori, sudah)
+
+
+def _susun(rows, hari_ini: date, atur: dict, selalu: bool, bulan, kategori, sudah) -> tuple:
     sekarang = hari_ini.strftime("%Y-%m")
     bulan = bulan or sekarang
     tutup = bulan < sekarang
     p = pemakaian(rows, *periode.rentang_bulan(bulan), atur)
     alert = float(atur.get("alert_persen", 80))
     disebut = _kategori_disebut(p, alert, selalu, tutup, kategori)
+    t_total = _tingkat(p["persen"], alert, tutup)
+    if sudah is not None:
+        disebut = [k for k in disebut if _tingkat(k["persen"], alert, tutup) > sudah.get(k["slug"], 0)]
+        if t_total <= sudah.get("total", 0):
+            t_total = 0
+    tingkat = {k["slug"]: _tingkat(k["persen"], alert, tutup) for k in disebut}
     blok_kategori = ["🏷️ Batas Kategori"] + [_baris_kategori(k, alert) for k in disebut] if disebut else []
     if p["persen"] is None:
         if selalu:
             return "\n\n".join(["⚠️ Budget belum diset!\nKetik: set budget [nominal]\nContoh: set budget 3 juta"]
-                               + (["\n".join(blok_kategori)] if blok_kategori else []))
+                               + (["\n".join(blok_kategori)] if blok_kategori else [])), {}
         judul = None
-    elif p["persen"] >= 100:
+    elif t_total >= 100:
         judul = "🚨 Lewat batas Budget"
-    elif p["persen"] >= alert and not tutup:
+    elif t_total:
         judul = "⚠️ Mendekati batas Budget"
     elif selalu:
-        judul = "💰 Status Budget"
+        judul = "🚨 Lewat batas Budget" if p["persen"] >= 100 else "💰 Status Budget"
     else:
         judul = None
+    if judul and not selalu:
+        tingkat["total"] = t_total
     nama = f"{nama_bulan(bulan)}{' (sudah tutup)' if tutup else ''}"
     if judul is None:
         if not disebut:
-            return ""
+            return "", {}
         lewat = any(k["persen"] >= 100 for k in disebut)
         return "\n".join([f"{'🚨 Lewat' if lewat else '⚠️ Mendekati'} Batas Kategori — {nama}", "",
-                          *[_baris_kategori(k, alert) for k in disebut]])
+                          *[_baris_kategori(k, alert) for k in disebut]]), tingkat
     masih = p["batas"] - p["rutin"]
     baris_masih = (f"💚 {'Masih bisa:':<{LEBAR}}{rp(masih)}" if masih >= 0
                    else f"🔴 {'Lewat:':<{LEBAR}}{rp(-masih)}")
@@ -174,4 +205,4 @@ def pesan(rows, hari_ini: date, atur: dict, selalu: bool, bulan: str | None = No
             _saran(p, hari_ini, alert, tutup)]
     if selalu:
         out += ["", "_Dihitung scripts/check-bills.py, tanpa model_"]
-    return "\n".join(out)
+    return "\n".join(out), tingkat
