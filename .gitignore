@@ -71,3 +71,6 @@ data/*.lock
 data/riwayat-ubah.csv
 # Riwayat Rekonsiliasi: nominal saldo tiap Akun (data pribadi, ADR-0027)
 data/rekonsiliasi.csv
+
+# Ingatan peringatan Budget sekali-saja (keadaan mesin, ADR-0031)
+data/peringatan-budget.json

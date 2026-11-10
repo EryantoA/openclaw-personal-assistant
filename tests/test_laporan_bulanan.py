@@ -55,6 +55,13 @@ class AturanHitung(unittest.TestCase):
         pesan = lb.susun("2026-08", struk, {}, {"bulan": {}}, [])
         self.assertIn("Pengeluaran: Rp 500.000  (1 transaksi)", pesan)
 
+    def test_komposisi_kelompok(self):
+        # ADR-0030
+        atur = {"kelompok_kategori": {"Kebutuhan Pokok": ["food", "groceries"]}}
+        pesan = lb.susun("2026-08", DASAR, atur, {"bulan": {}}, [])
+        self.assertIn("🧭 Kebutuhan Pokok", pesan)
+        self.assertNotIn("🧭", lb.susun("2026-08", DASAR, {}, {"bulan": {}}, []))
+
     def test_batas_kategori_satu_baris_per_kategori(self):
         # ADR-0029: disusun budget.baris_laporan, hanya bila Budget total diset
         atur = {"budget_bulanan": 8_000_000, "budget_kategori": {"food": 1_000_000},

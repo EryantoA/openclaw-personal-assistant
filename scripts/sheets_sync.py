@@ -477,7 +477,7 @@ def _target(rows: list, atur: dict, label: dict, akun_cfg, hari_ini: date, catat
         elif nama == sl.SHEET_AKUN:
             grid = sl.grid_saldo_akun(rows, akun_cfg, hari_ini, catatan)
         elif nama.startswith("Per Kategori "):
-            grid = sl.grid_per_kategori(rows, int(nama[-4:]), label, hari_ini)
+            grid = sl.grid_per_kategori(rows, int(nama[-4:]), label, hari_ini, atur)
         else:
             grid = sl.grid_budget(rows, int(nama[-4:]), atur, hari_ini)
         hasil[nama] = (grid, sl.tata_laporan(nama, grid))

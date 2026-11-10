@@ -5,6 +5,8 @@
 import contextlib
 import importlib.util
 import io
+import json
+import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
@@ -77,6 +79,13 @@ class BatasKategoriSetelahMencatat(unittest.TestCase):
     ATUR = {"budget_bulanan": 8_000_000, "alert_persen": 80, "pengeluaran_besar_mulai": 1_000_000,
             "budget_kategori": {"food": 100_000}, "label_kategori": {"food": "Makan & Minum"}}
 
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        p = mock.patch.object(cb, "INGATAN", Path(tmp.name) / "peringatan-budget.json")
+        p.start()
+        self.addCleanup(p.stop)
+
     def jalan(self, *argv):
         rows = [b("2026-10-10", "pengeluaran", 90_000)]  # kategori food: 90%
         keluar = io.StringIO()
@@ -96,10 +105,51 @@ class BatasKategoriSetelahMencatat(unittest.TestCase):
         kode, teks = self.jalan("--bulan", "2026-10", "--kategori", "groceries")
         self.assertEqual(teks.strip(), "✅ Semua lancar!")
 
+    def test_sekali_saja_lalu_diam_sampai_ambang_berikutnya(self):
+        # ADR-0031
+        self.assertIn("⚠️ Makan & Minum", self.jalan("--bulan", "2026-10", "--kategori", "food")[1])
+        self.assertEqual(self.jalan("--bulan", "2026-10", "--kategori", "food")[1].strip(), "✅ Semua lancar!")
+        self.assertEqual(json.loads(cb.INGATAN.read_text())["2026-10"], {"food": 80})
+
     def test_kategori_hanya_untuk_mode_budget(self):
         with mock.patch("sys.argv", ["check-bills.py", "--mode", "all", "--kategori", "food"]), \
                 contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             cb.main()
+
+
+class CekMalamSekaliSaja(unittest.TestCase):
+    """ADR-0031: cron mencatat 'sudah diperingatkan' hanya bila pesannya terkirim."""
+
+    ATUR = {"budget_bulanan": 1_000_000, "alert_persen": 80, "pengeluaran_besar_mulai": 1_000_000}
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.ingatan = Path(tmp.name) / "peringatan-budget.json"
+        for obj, nama, nilai in [(cb, "INGATAN", self.ingatan),
+                                 (cb.pengaturan, "muat", lambda *a: self.ATUR),
+                                 (cb, "load_bills", lambda: [b("2026-10-10", "pengeluaran", 900_000)]),
+                                 (cb, "check_kewajiban", lambda today=None: ""),
+                                 (cb, "check_perkiraan", lambda today=None: "")]:
+            p = mock.patch.object(obj, nama, nilai)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def malam(self, berhasil):
+        terkirim = []
+        with mock.patch.object(cb, "kirim_kalau_ada", lambda isi: terkirim.append(isi) or (0 if berhasil else 1)), \
+                mock.patch("sys.argv", ["check-bills.py", "--mode", "all", "--kirim", "--tanggal", "2026-10-20"]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            kode = cb.main()
+        return kode, terkirim
+
+    def test_gagal_kirim_tidak_dicatat_jadi_diulang_malam_berikutnya(self):
+        self.assertEqual(self.malam(False)[0], 1)
+        self.assertFalse(self.ingatan.exists())
+        kode, terkirim = self.malam(True)
+        self.assertIn("Mendekati batas Budget", terkirim[0])
+        self.assertEqual(json.loads(self.ingatan.read_text())["2026-10"], {"total": 80})
+        self.assertEqual(self.malam(True)[1], [""])  # sudah diperingatkan: tidak ada yang dikirim
 
 
 class KirimKalauAda(unittest.TestCase):

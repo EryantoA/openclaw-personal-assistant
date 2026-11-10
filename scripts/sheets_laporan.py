@@ -14,6 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import akun  # noqa: E402
 import budget  # noqa: E402
+import kelompok  # noqa: E402
 import buku_kas  # noqa: E402
 import periode  # noqa: E402
 import rekonsiliasi  # noqa: E402
@@ -87,7 +88,9 @@ def _per_kategori(rows: list, arah: str, bulan: str) -> dict:
     return hasil
 
 
-def grid_per_kategori(rows: list, tahun: int, label: dict, hari_ini: date) -> list:
+def grid_per_kategori(rows: list, tahun: int, label: dict, hari_ini: date, atur: dict | None = None) -> list:
+    """Pemasukan lalu Pengeluaran per Kategori. Bila `atur` punya `kelompok_kategori` (ADR-0030),
+    Pengeluaran dikelompokkan per Kelompok dengan baris Subtotal; "Lainnya" untuk sisanya."""
     awal, akhir = _rentang(rows, hari_ini)
     bulan = [f"{tahun}-{m:02d}" for m in range(1, 13)]
     ada = [awal <= b <= akhir for b in bulan]
@@ -102,8 +105,19 @@ def grid_per_kategori(rows: list, tahun: int, label: dict, hari_ini: date) -> li
     for arah, judul in (("pemasukan", "Pemasukan"), ("pengeluaran", "Pengeluaran")):
         per = [_per_kategori(rows, arah, b) if a else {} for b, a in zip(bulan, ada)]
         slug = {k for p in per for k in p}
-        isi = [baris(label.get(k, k), [p.get(k, 0) for p in per]) for k in slug]
-        grid += [[judul]] + sorted(isi, key=lambda b: (-b[-1], b[0]))
+        urut = lambda isi: sorted(isi, key=lambda b: (-b[-1], b[0]))  # noqa: E731
+        grup = kelompok.urutan(atur or {})
+        if arah == "pengeluaran" and grup:
+            peta = kelompok.peta(atur)
+            grid += [[judul]]
+            for nama in grup + [kelompok.LAINNYA]:
+                anggota = [k for k in slug if peta.get(k, kelompok.LAINNYA) == nama]
+                if not anggota:
+                    continue
+                grid += [[nama]] + urut([baris(label.get(k, k), [p.get(k, 0) for p in per]) for k in anggota])
+                grid.append(baris(f"Subtotal {nama}", [sum(p.get(k, 0) for k in anggota) for p in per]))
+        else:
+            grid += [[judul]] + urut([baris(label.get(k, k), [p.get(k, 0) for p in per]) for k in slug])
         total[arah] = [sum(p.values()) for p in per]
         grid += [baris(f"Total {judul}", total[arah]), []]
     grid.append(baris("Arus Kas Bulanan", [a - b for a, b in zip(total["pemasukan"], total["pengeluaran"])]))
