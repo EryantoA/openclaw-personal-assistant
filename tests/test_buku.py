@@ -493,6 +493,18 @@ class Skema(Dasar):
         self.assertEqual(self.mainan.read_text(), "id,nama,warna\nA1,bola besar,hijau\n")
         self.assertEqual(len(list((self.d / "backups").glob("mainan_sebelum-*"))), 2)
 
+    def test_dua_perubahan_dalam_detik_yang_sama_punya_cadangan_masing_masing(self):
+        # 10 Nov 2026: 56 pemindahan kategori dalam satu detik meninggalkan satu cadangan saja.
+        detik = datetime(2026, 11, 10, 10, 40, 33)
+        isi_awal = self.mainan.read_text()
+        for warna in ("hijau", "biru"):
+            req = {"id": "A1", "set": {"warna": warna}, "oleh": "E"}
+            sidik = re.search(r"sidik (\w+)", bk.jalankan(self.sk, "ubah", req, uji=True, sekarang=detik)[1]).group(1)
+            self.assertEqual(bk.jalankan(self.sk, "ubah", {**req, "sidik": sidik}, sekarang=detik)[0], 0)
+        cadangan = sorted((self.d / "backups").glob("mainan_sebelum-*"))
+        self.assertEqual(len(cadangan), 2)
+        self.assertIn(isi_awal, [c.read_text() for c in cadangan])  # isi sebelum perubahan pertama tetap ada
+
     def test_append_only_menolak_ubah_dan_hapus(self):
         jejak = bk.skema_jejak()
         (self.d / "riwayat-ubah.csv").write_text(",".join(bk.JEJAK_KOLOM) + "\nx,hapus,A,,E,[],[]\n",

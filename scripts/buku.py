@@ -348,7 +348,14 @@ def _tulis_atomik(skema: Skema, b: Berkas, teks_baru: str, aksi: str, sekarang: 
     cadangan = path.parent / "backups"
     cadangan.mkdir(parents=True, exist_ok=True)
     cap = sekarang.strftime("%Y%m%d_%H%M%S")
-    shutil.copy2(path, cadangan / f"{path.stem}_sebelum-{aksi}_{cap}{path.suffix}")
+    # Beberapa perubahan dalam detik yang sama (suntingan beruntun dari Sheets atau skrip) tidak
+    # boleh saling menimpa cadangan: yang kedua dst. diberi akhiran -2, -3, ... Aman tanpa kunci
+    # tambahan karena pemanggil sudah memegang kunci berkas.
+    nama = f"{path.stem}_sebelum-{aksi}_{cap}"
+    tujuan, n = cadangan / f"{nama}{path.suffix}", 2
+    while tujuan.exists():
+        tujuan, n = cadangan / f"{nama}-{n}{path.suffix}", n + 1
+    shutil.copy2(path, tujuan)
 
     fd, nama_kerja = tempfile.mkstemp(prefix=path.name + ".", suffix=".proses", dir=str(path.parent))
     kerja = Path(nama_kerja)
